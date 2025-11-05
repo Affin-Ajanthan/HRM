@@ -61,6 +61,7 @@ const Dashboard = () => {
       <div className="flex min-h-screen bg-gray-100">
         
         {/* --- Sidebar (Desktop) --- */}
+        {/* This is the desktop sidebar. It's part of the flex layout. */}
         <Sidebar isOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} />
         
         {/* --- Mobile Menu Toggle --- */}
@@ -72,6 +73,7 @@ const Dashboard = () => {
         </button>
 
         {/* --- Sidebar (Mobile) --- */}
+        {/* This is the mobile overlay. It's fixed. */}
         {isMobileMenuOpen && (
           <div className="md:hidden fixed inset-0 z-40">
             <div className="absolute inset-0 bg-black/50" onClick={() => setMobileMenuOpen(false)}></div>
@@ -82,11 +84,12 @@ const Dashboard = () => {
         )}
 
         {/* --- Main Content Area --- */}
-        <div
-          className={`flex-1 flex flex-col transition-all duration-300 ${
-            isSidebarOpen ? "md:ml-72" : "md:ml-20"
-          }`}
-        >
+        {/* --- 
+          FIX 1: Removed the margin-left classes. 
+          Flexbox will now handle the width automatically.
+          --- 
+        */}
+        <div className={`flex-1 flex flex-col transition-all duration-300`}>
           <Header />
           
           {/* --- Content based on activeMenu --- */}
@@ -125,10 +128,22 @@ const Sidebar = ({ isOpen, setSidebarOpen, isMobile = false, setMobileMenuOpen }
   };
 
   return (
+    /* ---
+      FIX 2: Replaced the long, conflicting className with a clean, conditional one.
+      - If mobile: Use `fixed h-screen` for the overlay.
+      - If desktop: Use `relative` (as a flex item) and `hidden md:flex`.
+      ---
+    */
     <nav
-      className={`fixed md:relative z-50 h-full bg-gray-900 text-white flex flex-col shadow-lg transition-all duration-300 ${
-        isOpen ? "w-72" : "w-20"
-      } ${isMobile ? "w-72" : "hidden md:flex"}`}
+      className={`
+        bg-gray-900 text-white flex flex-col shadow-lg transition-all duration-300
+        ${isMobile
+          // Mobile classes: Fixed, full-screen overlay
+          ? 'fixed top-0 left-0 z-50 h-screen w-72'
+          // Desktop classes: A flex item that's hidden on mobile
+          : `relative ${isOpen ? 'w-72' : 'w-20'} hidden md:flex`
+        }
+      `}
     >
       {/* --- Logo and Toggle --- */}
       <div className="flex items-center justify-between p-4 h-16 border-b border-gray-700">
@@ -203,7 +218,7 @@ const Sidebar = ({ isOpen, setSidebarOpen, isMobile = false, setMobileMenuOpen }
   );
 };
 
-// 8. Sidebar Item Component
+// 8. Sidebar Item Component (No changes)
 const SidebarItem = ({ item, isActive, onClick, isOpen }) => {
   return (
     <li className="px-4">
@@ -223,7 +238,7 @@ const SidebarItem = ({ item, isActive, onClick, isOpen }) => {
   );
 };
 
-// 9. Header Component
+// 9. Header Component (No changes)
 const Header = () => {
   const { user, handleLogout, activeMenu } = useContext(UserContext);
   const [isProfileOpen, setProfileOpen] = useState(false);
@@ -273,7 +288,10 @@ const Header = () => {
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl overflow-hidden z-10">
               <Link
                 to="#"
-                onClick={() => setProfileOpen(false)}
+                onClick={() => {
+                  setActiveMenu("My Profile"); // Also set active menu
+                  setProfileOpen(false);
+                }}
                 className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
                 My Profile
@@ -293,7 +311,7 @@ const Header = () => {
   );
 };
 
-// 10. Content Renderer Function
+// 10. Content Renderer Function (No changes)
 const renderContent = (menu) => {
   switch (menu) {
     case "Overview":
@@ -312,7 +330,7 @@ const renderContent = (menu) => {
   }
 };
 
-// 11. Placeholder Content Components
+// 1all-placeholder-content-components (No changes)
 const OverviewContent = () => {
   const { user } = useContext(UserContext);
   
@@ -449,7 +467,7 @@ const EmployeeContent = () => {
             {employees.map((emp) => (
               <tr key={emp.id}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{emp.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{emp.email}</td>
+                <td className="px-6 py-4 whitespace-nowTwrap text-sm text-gray-500">{emp.email}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{emp.department}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${

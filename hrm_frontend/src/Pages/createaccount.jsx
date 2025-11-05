@@ -6,6 +6,8 @@ import {
   Briefcase, Users
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import axios from "axios";
+
 
 const CreateAccount = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -176,17 +178,41 @@ const CreateAccount = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (validateStep(currentStep)) {
-      setIsSubmitting(true);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      console.log("Account created:", formData);
+  e.preventDefault();
+
+  if (validateStep(currentStep)) {
+    setIsSubmitting(true);
+    try {
+      const userPayload = {
+        fullName: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        password: formData.password,
+        nic: formData.phone, // or replace this with your NIC field
+        dob: formData.dateOfBirth,
+        address: formData.workLocation,
+        gender: "Not Specified", // optional
+        department: formData.department,
+        role: formData.userRole,
+        employeeId: formData.employeeId
+      };
+
+      const response = await axios.post(
+        "http://localhost:5001/api/hrm/adduser",
+        userPayload
+      );
+
+      console.log("✅ User created successfully:", response.data);
+      alert("Account created successfully!");
+      setFormData({ ...formData, password: "", confirmPassword: "" });
+    } catch (error) {
+      console.error("❌ Error creating user:", error);
+      alert("Error creating user. Please check console for details.");
+    } finally {
       setIsSubmitting(false);
-      // Handle successful registration
     }
-  };
+  }
+};
+
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;

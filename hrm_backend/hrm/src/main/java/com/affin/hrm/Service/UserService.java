@@ -11,6 +11,7 @@ import com.affin.hrm.DTO.UserDTO;
 import com.affin.hrm.DTO.LoginDTO;
 import java.util.List;
 import java.util.Optional;
+import java.util.Objects;
 
 
 @Service
@@ -28,17 +29,17 @@ public class UserService {
     }
 
     public UserDTO getUserById(int userId){
-        User user = userRepo.getUserById(userId);
+        User user = Objects.requireNonNull(userRepo.getUserById(userId), "User not found");
         return modelMapper.map(user, UserDTO.class);
     }
 
     public UserDTO saveUser(UserDTO userDTO){
-        userRepo.save(modelMapper.map(userDTO, User.class));
+        userRepo.save(Objects.requireNonNull(modelMapper.map(userDTO, User.class), "User map result is null"));
         return userDTO;
     }
 
     public UserDTO updateUser(UserDTO userDTO){
-        userRepo.save(modelMapper.map(userDTO, User.class));
+        userRepo.save(Objects.requireNonNull(modelMapper.map(userDTO, User.class), "User map result is null"));
         return userDTO;
     }
 
@@ -48,7 +49,7 @@ public class UserService {
     }
 
     public String deleteUser2(UserDTO userDTO){
-        userRepo.delete(modelMapper.map(userDTO, User.class));
+        userRepo.delete(Objects.requireNonNull(modelMapper.map(userDTO, User.class), "User map result is null"));
         return "User deleted2";
     }
 

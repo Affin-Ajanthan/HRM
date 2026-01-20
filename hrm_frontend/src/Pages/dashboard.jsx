@@ -184,7 +184,7 @@ const Sidebar = ({ isOpen, setSidebarOpen, isMobile = false, setMobileMenuOpen }
         ))}
 
         {/* --- Role-Based Section --- */}
-        {(user.role === "admin" || user.role === "hr_manager") && (
+        {(user.role === "ADMIN" || user.role === "HR_MANAGER") && (
           <>
             <li className={`px-4 pt-4 pb-2 text-xs uppercase text-gray-500 ${!isOpen && "text-center"}`}>
               {isOpen ? "Admin" : "---"}

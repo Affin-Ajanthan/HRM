@@ -24,24 +24,46 @@ const Login = () => {
     try {
       // Send the POST request to your login endpoint
       const response = await axios.post(
-        "http://localhost:5001/api/hrm/login",
+        "http://localhost:5002/api/auth/login",
         loginPayload
       );
 
       // If login is successful (HTTP 200 OK)
       console.log("Login successful:", response.data);
-      alert("Login successful! Welcome " + response.data.fullName);
+      
+      // Extract data from the response
+      const { data } = response.data;
+      
+      // Store token and user data
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data));
 
-      // Store user data in localStorage (optional, but good for sessions)
-      localStorage.setItem("user", JSON.stringify(response.data));
+      alert("Login successful! Welcome " + data.fullName);
 
-      // Redirect to a dashboard page
-      navigate("/dashboard"); // <-- Or any page you want to go to after login
+      // Redirect based on role
+      if (data.role === "ADMIN") {
+        navigate("/admin/dashboard");
+      } else if (data.role === "HR_MANAGER") {
+        navigate("/hr/dashboard");
+      } else if (data.role === "EMPLOYEE") {
+        navigate("/employee/dashboard");
+      } else {
+        navigate("/dashboard");
+      }
 
     } catch (error) {
       // If login fails (e.g., HTTP 401 Unauthorized)
       console.error("Login failed:", error);
-      alert("Invalid email or password. Please try again.");
+      if (error.response) {
+        // Server responded with error
+        alert(error.response.data.message || "Invalid email or password. Please try again.");
+      } else if (error.request) {
+        // Request made but no response
+        alert("Cannot connect to server. Please ensure the backend is running on http://localhost:5002");
+      } else {
+        // Something else happened
+        alert("An error occurred. Please try again.");
+      }
     }
   };
 

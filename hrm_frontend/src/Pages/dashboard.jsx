@@ -17,6 +17,17 @@ import {
   X,
 } from "lucide-react";
 import logo from "../assets/logo.jpg"; // Assuming you have your logo here
+import { 
+  OverviewContent, 
+  TasksContent, 
+  LeaveContent, 
+  ProfileContent, 
+  SettingsContent,
+  LeaveManagementContent 
+} from "./DashboardPages";
+import AdminDashboard from "./AdminDashboard";
+import HRDashboard from "./HRDashboard";
+import EmployeeDashboard from "./EmployeeDashboard";
 
 // 1. User Context (for easy prop drilling)
 const UserContext = createContext();
@@ -61,7 +72,6 @@ const Dashboard = () => {
       <div className="flex min-h-screen bg-gray-100">
         
         {/* --- Sidebar (Desktop) --- */}
-        {/* This is the desktop sidebar. It's part of the flex layout. */}
         <Sidebar isOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} />
         
         {/* --- Mobile Menu Toggle --- */}
@@ -73,7 +83,6 @@ const Dashboard = () => {
         </button>
 
         {/* --- Sidebar (Mobile) --- */}
-        {/* This is the mobile overlay. It's fixed. */}
         {isMobileMenuOpen && (
           <div className="md:hidden fixed inset-0 z-40">
             <div className="absolute inset-0 bg-black/50" onClick={() => setMobileMenuOpen(false)}></div>
@@ -83,18 +92,13 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* --- Main Content Area --- */}
-        {/* --- 
-          FIX 1: Removed the margin-left classes. 
-          Flexbox will now handle the width automatically.
-          --- 
-        */}
-        <div className={`flex-1 flex flex-col transition-all duration-300`}>
+        {/* --- Main Content Area with left margin to account for fixed sidebar --- */}
+        <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarOpen ? 'md:ml-72' : 'md:ml-20'}`}>
           <Header />
           
           {/* --- Content based on activeMenu --- */}
           <main className="flex-1 p-6 md:p-8 overflow-auto">
-            {renderContent(activeMenu)}
+            {renderContent(activeMenu, user, setActiveMenu)}
           </main>
         </div>
       </div>
@@ -128,20 +132,14 @@ const Sidebar = ({ isOpen, setSidebarOpen, isMobile = false, setMobileMenuOpen }
   };
 
   return (
-    /* ---
-      FIX 2: Replaced the long, conflicting className with a clean, conditional one.
-      - If mobile: Use `fixed h-screen` for the overlay.
-      - If desktop: Use `relative` (as a flex item) and `hidden md:flex`.
-      ---
-    */
     <nav
       className={`
         bg-gray-900 text-white flex flex-col shadow-lg transition-all duration-300
         ${isMobile
           // Mobile classes: Fixed, full-screen overlay
           ? 'fixed top-0 left-0 z-50 h-screen w-72'
-          // Desktop classes: A flex item that's hidden on mobile
-          : `relative ${isOpen ? 'w-72' : 'w-20'} hidden md:flex`
+          // Desktop classes: Fixed sidebar that stays in place when scrolling
+          : `fixed top-0 left-0 h-screen ${isOpen ? 'w-72' : 'w-20'} hidden md:flex`
         }
       `}
     >
@@ -311,128 +309,50 @@ const Header = () => {
   );
 };
 
-// 10. Content Renderer Function (No changes)
-const renderContent = (menu) => {
+// 10. Content Renderer Function
+const renderContent = (menu, user, setActiveMenu) => {
+  // Check if we're on Overview and route based on user role
+  if (menu === "Overview") {
+    // Route to specific dashboard based on role
+    if (user.role === "admin") {
+      return <AdminDashboard userData={user} />;
+    } else if (user.role === "hr") {
+      return <HRDashboard userData={user} />;
+    } else {
+      // Default to employee dashboard for "employee" role or any other role
+      return <EmployeeDashboard userData={user} />;
+    }
+  }
+
+  // Other menu items remain the same
   switch (menu) {
-    case "Overview":
-      return <OverviewContent />;
     case "My Profile":
-      return <ProfileContent />;
+      return <ProfileContent user={user} />;
+    case "My Leave":
+      return <LeaveContent />;
+    case "Tasks":
+      return <TasksContent />;
+    case "Settings":
+      return <SettingsContent />;
     case "Employees":
       return <EmployeeContent />;
-    // Add other cases here
-    // case "My Leave":
-    //   return <LeaveContent />;
-    // case "Leave Mgt.":
-    //   return <LeaveManagementContent />;
+    case "Leave Mgt.":
+      return <LeaveManagementContent />;
     default:
-      return <OverviewContent />;
+      // Default overview also routes by role
+      if (user.role === "admin") {
+        return <AdminDashboard userData={user} />;
+      } else if (user.role === "hr") {
+        return <HRDashboard userData={user} />;
+      } else {
+        return <EmployeeDashboard userData={user} />;
+      }
   }
 };
 
-// 1all-placeholder-content-components (No changes)
-const OverviewContent = () => {
-  const { user } = useContext(UserContext);
-  
-  // Example data for widgets
-  const stats = [
-    { name: "Days Off Taken", value: 8, color: "bg-blue-500" },
-    { name: "Remaining Allowance", value: 17, color: "bg-green-500" },
-    { name: "Pending Tasks", value: 3, color: "bg-yellow-500" },
-  ];
-
-  const announcements = [
-    { title: "End-of-Year Performance Reviews", date: "Nov 10" },
-    { title: "New Holiday Policy Update", date: "Nov 5" },
-    { title: "Office Thanksgiving Potluck", date: "Nov 2" },
-  ];
-
-  return (
-    <div className="space-y-6">
-      <h2 className="text-3xl font-bold text-gray-800">
-        Welcome back, {user.fullName.split(" ")[0]}!
-      </h2>
-
-      {/* --- Stats Cards --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {stats.map((stat) => (
-          <div key={stat.name} className="bg-white p-6 rounded-xl shadow-md">
-            <div className={`w-12 h-12 rounded-full ${stat.color} flex items-center justify-center mb-4`}>
-              <CheckSquare className="w-6 h-6 text-white" />
-            </div>
-            <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-            <p className="text-sm font-medium text-gray-500">{stat.name}</p>
-          </div>
-        ))}
-      </div>
-      
-      {/* --- Widgets --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* --- Announcements --- */}
-        <div className="bg-white p-6 rounded-xl shadow-md">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Announcements</h3>
-          <ul className="space-y-3">
-            {announcements.map((item) => (
-              <li key={item.title} className="flex justify-between items-center">
-                <span className="text-gray-700">{item.title}</span>
-                <span className="text-sm text-gray-500">{item.date}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-        
-        {/* --- Quick Actions --- */}
-        <div className="bg-white p-6 rounded-xl shadow-md">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-          <div className="space-y-3">
-            <button className="w-full text-left p-3 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-700 font-medium">
-              Request Time Off
-            </button>
-            <button className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg text-gray-700 font-medium">
-              View Payslip
-            </button>
-            <button className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg text-gray-700 font-medium">
-              Update My Profile
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const ProfileContent = () => {
-  const { user } = useContext(UserContext);
-  
-  return (
-    <div className="bg-white p-8 rounded-xl shadow-md max-w-2xl mx-auto">
-      <h2 className="text-2xl font-semibold text-gray-900 mb-6">My Profile</h2>
-      <div className="space-y-4">
-        <ProfileField label="Full Name" value={user.fullName} />
-        <ProfileField label="Email" value={user.email} />
-        <ProfileField label="Employee ID" value={user.employeeId} />
-        <ProfileField label="Department" value={user.department} />
-        <ProfileField label="Role" value={user.role} />
-        <ProfileField label="Address" value={user.address} />
-        <ProfileField label="Date of Birth" value={user.dob} />
-      </div>
-      <button className="mt-6 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-        Edit Profile
-      </button>
-    </div>
-  );
-};
-
-const ProfileField = ({ label, value }) => (
-  <div className="border-b border-gray-200 pb-2">
-    <label className="block text-sm font-medium text-gray-500">{label}</label>
-    <p className="text-md text-gray-900">{value}</p>
-  </div>
-);
-
+// 11. Employee Content Component
 const EmployeeContent = () => {
-  // In a real app, you'd fetch this list from your API
-  const [employees, setEmployees] = useState([
+  const [employees] = useState([
     { id: 1, name: "John Doe", email: "john@example.com", department: "Engineering", role: "employee" },
     { id: 2, name: "Jane Smith", email: "jane@example.com", department: "Marketing", role: "employee" },
     { id: 3, name: "Bob Johnson", email: "bob@example.com", department: "Sales", role: "employee" },
@@ -451,7 +371,6 @@ const EmployeeContent = () => {
         </Link>
       </div>
       
-      {/* --- Employee Table --- */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -467,7 +386,7 @@ const EmployeeContent = () => {
             {employees.map((emp) => (
               <tr key={emp.id}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{emp.name}</td>
-                <td className="px-6 py-4 whitespace-nowTwrap text-sm text-gray-500">{emp.email}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{emp.email}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{emp.department}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -488,5 +407,4 @@ const EmployeeContent = () => {
     </div>
   );
 };
-
 export default Dashboard;

@@ -282,7 +282,7 @@ const Attendance = () => {
               className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option>January 2026</option>
-              <option>December 2025</option>
+              <option>December 2024</option>
               <option>November 2025</option>
             </select>
             <button className="flex items-center gap-2 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition">

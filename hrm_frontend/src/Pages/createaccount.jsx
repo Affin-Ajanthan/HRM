@@ -5,11 +5,12 @@ import {
   IdCard, Calendar, MapPin, ChevronLeft, ChevronRight, Shield,
   Briefcase, Users
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 
 const CreateAccount = () => {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     // Personal Information
@@ -183,30 +184,62 @@ const CreateAccount = () => {
   if (validateStep(currentStep)) {
     setIsSubmitting(true);
     try {
+      const normalizedRole = (formData.userRole || "")
+        .toString()
+        .trim()
+        .toUpperCase()
+        .replace("-", "_")
+        .replace(" ", "_");
+
       const userPayload = {
         fullName: `${formData.firstName} ${formData.lastName}`,
         email: formData.email,
         password: formData.password,
-        nic: formData.phone, // or replace this with your NIC field
+        employeeId: formData.employeeId,
+        nic: formData.phone,
         dob: formData.dateOfBirth,
         address: formData.workLocation,
-        gender: "Not Specified", // optional
+        phone: formData.phone,
+        gender: "OTHER",
         department: formData.department,
-        role: formData.userRole,
-        employeeId: formData.employeeId
+        role: normalizedRole,
+        designation: formData.jobTitle,
+        joiningDate: formData.hireDate
       };
 
       const response = await axios.post(
-        "http://localhost:5001/api/hrm/adduser",
+        "http://localhost:5002/api/auth/register",
         userPayload
       );
 
       console.log("✅ User created successfully:", response.data);
       alert("Account created successfully!");
+
+      const createdUser = response?.data?.data;
+      if (createdUser) {
+        localStorage.setItem("user", JSON.stringify(createdUser));
+      }
+
+      const roleValue = (createdUser?.role || formData.userRole || "").toString().trim().toUpperCase();
+      if (roleValue === "ADMIN") {
+        navigate("/admin/dashboard");
+      } else if (roleValue === "HR_MANAGER") {
+        navigate("/hr/dashboard");
+      } else if (roleValue === "EMPLOYEE") {
+        navigate("/employee/dashboard");
+      } else {
+        navigate("/dashboard");
+      }
+
       setFormData({ ...formData, password: "", confirmPassword: "" });
     } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        "Error creating user.";
       console.error("❌ Error creating user:", error);
-      alert("Error creating user. Please check console for details.");
+      alert(message);
     } finally {
       setIsSubmitting(false);
     }

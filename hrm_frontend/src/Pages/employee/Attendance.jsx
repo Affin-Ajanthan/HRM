@@ -283,7 +283,7 @@ const Attendance = () => {
             >
               <option>January 2026</option>
               <option>December 2024</option>
-              <option>November 2025</option>
+
             </select>
             <button className="flex items-center gap-2 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition">
               <Filter size={20} />

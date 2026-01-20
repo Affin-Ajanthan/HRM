@@ -87,7 +87,7 @@ const CreateAccount = () => {
       ]
     },
     {
-      value: "hr_manager",
+      value: "hr",
       label: "HR Manager",
       description: "Human Resources management access",
       icon: Briefcase,

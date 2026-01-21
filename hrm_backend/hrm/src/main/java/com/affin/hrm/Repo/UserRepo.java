@@ -13,4 +13,7 @@ public interface UserRepo extends JpaRepository<User, Integer> {
 
     @Query(value = "SELECT * FROM users WHERE email = ?1", nativeQuery = true)
     Optional<User> findByEmail(String email);
+
+    @Query(value = "SELECT * FROM users WHERE LOWER(email) = LOWER(?1) LIMIT 1", nativeQuery = true)
+    Optional<User> findByEmailIgnoreCase(String email);
 }

@@ -22,8 +22,10 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        Employee employee = employeeRepo.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+        String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
+
+        Employee employee = employeeRepo.findByEmailIgnoreCase(normalizedEmail)
+            .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + normalizedEmail));
 
         List<GrantedAuthority> authorities = new ArrayList<>();
         authorities.add(new SimpleGrantedAuthority("ROLE_" + employee.getRole().name()));

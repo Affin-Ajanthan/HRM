@@ -10,6 +10,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = "*")
@@ -24,8 +27,14 @@ public class AuthController {
             AuthResponse response = authService.login(request);
             return ResponseEntity.ok(ApiResponse.success(response, "Login successful"));
         } catch (Exception e) {
+            // Log the full error for debugging
+            e.printStackTrace();
+            String errorMsg = e.getMessage();
+            if (errorMsg == null || errorMsg.contains("Bad credentials")) {
+                errorMsg = "Invalid email or password. Please check your credentials and try again.";
+            }
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Invalid email or password: " + e.getMessage()));
+                    .body(ApiResponse.error(errorMsg));
         }
     }
 
@@ -48,6 +57,30 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Registration failed: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/check-user/{email}")
+    public ResponseEntity<ApiResponse<?>> checkUserExists(@PathVariable String email) {
+        try {
+            boolean exists = authService.checkUserExists(email);
+            return ResponseEntity.ok(ApiResponse.success(exists, exists ? "User exists" : "User not found"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Error checking user: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/debug-user/{email}")
+    public ResponseEntity<ApiResponse<?>> debugUser(@PathVariable String email) {
+        try {
+            Map<String, Object> info = new HashMap<>();
+            info.put("normalizedEmail", email == null ? "" : email.trim().toLowerCase());
+            info.put("existsInEmployees", authService.checkUserExists(email));
+            info.put("existsInLegacyUsers", authService.checkLegacyUserExists(email));
+            return ResponseEntity.ok(ApiResponse.success(info, "Debug info"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Debug failed: " + e.getMessage()));
         }
     }
 }

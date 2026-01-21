@@ -159,6 +159,7 @@ const Leave = () => {
             </div>
           )}
           <button
+            type="button"
             onClick={() => setSidebarOpen(!isSidebarOpen)}
             className="p-2 hover:bg-gray-100 rounded"
           >
@@ -169,6 +170,7 @@ const Leave = () => {
         <nav className="flex-1 p-4 space-y-2">
           {menuItems.map((item) => (
             <button
+              type="button"
               key={item.name}
               onClick={() => navigate(item.path)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
@@ -185,6 +187,7 @@ const Leave = () => {
 
         <div className="p-4 border-t">
           <button
+            type="button"
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
           >
@@ -204,13 +207,14 @@ const Leave = () => {
           </div>
           <div className="flex items-center gap-4">
             <button
+              type="button"
               onClick={() => setShowApplyForm(true)}
               className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 transition shadow-lg font-semibold"
             >
               <Plus size={20} />
               Apply for Leave
             </button>
-            <button className="relative p-2 hover:bg-gray-100 rounded-full">
+            <button type="button" className="relative p-2 hover:bg-gray-100 rounded-full">
               <Bell size={20} />
               <span className="absolute top-0 right-0 h-4 w-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
                 2

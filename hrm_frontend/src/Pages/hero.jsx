@@ -24,10 +24,30 @@ const Hero = () => {
         <h1 className="text-lg font-semibold">HumanResources</h1>
         <ul className="flex gap-8 text-sm font-medium">
           <li className="hover:text-blue-400 cursor-pointer">Home</li>
-          <li className="hover:text-blue-400 cursor-pointer">About</li>
-          <li className="hover:text-blue-400 cursor-pointer">Services</li>
-          <li className="hover:text-blue-400 cursor-pointer">Blog</li>
-          <li className="hover:text-blue-400 cursor-pointer">Contact</li>
+          <li 
+            onClick={() => navigate('/about')} 
+            className="hover:text-blue-400 cursor-pointer"
+          >
+            About
+          </li>
+          <li 
+            onClick={() => navigate('/services')} 
+            className="hover:text-blue-400 cursor-pointer"
+          >
+            Services
+          </li>
+          <li 
+            onClick={() => navigate('/blog')} 
+            className="hover:text-blue-400 cursor-pointer"
+          >
+            Blog
+          </li>
+          <li 
+            onClick={() => navigate('/contact')} 
+            className="hover:text-blue-400 cursor-pointer"
+          >
+            Contact
+          </li>
         </ul>
       </nav>
 

@@ -61,8 +61,9 @@ public class EmployeeService {
 
     public EmployeeDTO createEmployee(EmployeeDTO employeeDTO, Long companyId) {
         // Check if email already exists
-        if (employeeRepo.findByEmail(employeeDTO.getEmail()).isPresent()) {
-            throw new RuntimeException("Employee with email " + employeeDTO.getEmail() + " already exists");
+        String normalizedEmail = employeeDTO.getEmail() == null ? "" : employeeDTO.getEmail().trim().toLowerCase();
+        if (employeeRepo.findByEmailIgnoreCase(normalizedEmail).isPresent()) {
+            throw new RuntimeException("Employee with email " + normalizedEmail + " already exists");
         }
 
         // Check if employee ID already exists
@@ -73,7 +74,7 @@ public class EmployeeService {
         Employee employee = new Employee();
         employee.setEmployeeId(employeeDTO.getEmployeeId());
         employee.setFullName(employeeDTO.getFullName());
-        employee.setEmail(employeeDTO.getEmail());
+        employee.setEmail(normalizedEmail);
         employee.setPassword(passwordEncoder.encode(employeeDTO.getPassword()));
         employee.setNic(employeeDTO.getNic());
         employee.setDob(employeeDTO.getDob());

@@ -5,13 +5,16 @@ import com.affin.hrm.DTO.AuthRequest;
 import com.affin.hrm.DTO.AuthResponse;
 import com.affin.hrm.DTO.RegisterRequest;
 import com.affin.hrm.Model.Employee;
+import com.affin.hrm.Model.User;
 import com.affin.hrm.Model.Company;
 import com.affin.hrm.Model.Department;
 import com.affin.hrm.Repo.CompanyRepo;
 import com.affin.hrm.Repo.DepartmentRepo;
 import com.affin.hrm.Repo.EmployeeRepo;
+import com.affin.hrm.Repo.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,6 +29,9 @@ public class AuthService {
 
     @Autowired
     private EmployeeRepo employeeRepo;
+
+        @Autowired
+        private UserRepo userRepo;
 
         @Autowired
         private CompanyRepo companyRepo;
@@ -43,14 +49,42 @@ public class AuthService {
         private static final String DEFAULT_COMPANY_REG = "DEFAULT-REG-0001";
 
     public AuthResponse login(AuthRequest request) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
+                String normalizedEmail = request.getEmail() == null ? "" : request.getEmail().trim().toLowerCase();
+                String rawPassword = request.getPassword() == null ? "" : request.getPassword();
+
+                Authentication authentication;
+                try {
+                        authentication = authenticationManager.authenticate(
+                                        new UsernamePasswordAuthenticationToken(normalizedEmail, rawPassword)
+                        );
+                } catch (BadCredentialsException ex) {
+                        // Legacy module support: some older accounts were created in the 'users' table
+                        // (api/hrm/login). If that user exists and the password matches, migrate it to
+                        // the new Employee-based auth and retry.
+                        migrateLegacyUserIfNeeded(normalizedEmail, rawPassword);
+
+                        // Backward-compatibility: some older records may have stored plain-text passwords
+                        // or emails with inconsistent casing. If the plain-text matches, upgrade it to BCrypt.
+                        employeeRepo.findByEmailIgnoreCase(normalizedEmail).ifPresent(employee -> {
+                                String stored = employee.getPassword();
+                                if (stored != null
+                                                && !isBcryptHash(stored)
+                                                && stored.equals(rawPassword)) {
+                                        employee.setPassword(passwordEncoder.encode(rawPassword));
+                                        employeeRepo.save(employee);
+                                }
+                        });
+
+                        // Retry authentication after potential upgrade
+                        authentication = authenticationManager.authenticate(
+                                        new UsernamePasswordAuthenticationToken(normalizedEmail, rawPassword)
+                        );
+                }
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String jwt = jwtUtil.generateToken(authentication);
 
-        Employee employee = employeeRepo.findByEmail(request.getEmail())
+        Employee employee = employeeRepo.findByEmailIgnoreCase(normalizedEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         return new AuthResponse(
@@ -63,15 +97,101 @@ public class AuthService {
         );
     }
 
+        private void migrateLegacyUserIfNeeded(String normalizedEmail, String rawPassword) {
+                // If an employee already exists, no migration needed.
+                if (employeeRepo.findByEmailIgnoreCase(normalizedEmail).isPresent()) {
+                        return;
+                }
+
+                User legacyUser = userRepo.findByEmailIgnoreCase(normalizedEmail).orElse(null);
+                if (legacyUser == null) {
+                        return;
+                }
+
+                String legacyStoredPassword = legacyUser.getPassword();
+                if (legacyStoredPassword == null) {
+                        return;
+                }
+
+                boolean passwordMatches;
+                if (isBcryptHash(legacyStoredPassword)) {
+                        passwordMatches = passwordEncoder.matches(rawPassword, legacyStoredPassword);
+                } else {
+                        passwordMatches = legacyStoredPassword.equals(rawPassword);
+                }
+
+                if (!passwordMatches) {
+                        return;
+                }
+
+                Company company = companyRepo.findByRegistrationNumber(DEFAULT_COMPANY_REG)
+                                .orElseGet(() -> {
+                                        Company newCompany = new Company();
+                                        newCompany.setCompanyName(DEFAULT_COMPANY_NAME);
+                                        newCompany.setRegistrationNumber(DEFAULT_COMPANY_REG);
+                                        newCompany.setStatus(Company.CompanyStatus.APPROVED);
+                                        return companyRepo.save(newCompany);
+                                });
+
+                Department department = departmentRepo.findByCompanyIdAndName(company.getId(), "General")
+                                .orElseGet(() -> {
+                                        Department newDept = new Department();
+                                        newDept.setName("General");
+                                        newDept.setDescription("General Department");
+                                        newDept.setCompany(company);
+                                        return departmentRepo.save(newDept);
+                                });
+
+                Employee employee = new Employee();
+                employee.setFullName(legacyUser.getFullName() != null ? legacyUser.getFullName() : "User");
+                employee.setEmail(normalizedEmail);
+                employee.setEmployeeId(legacyUser.getEmployeeId() != null ? legacyUser.getEmployeeId() : "EMP-" + System.currentTimeMillis());
+                employee.setNic(legacyUser.getNic());
+                employee.setDob(legacyUser.getDob());
+                employee.setAddress(legacyUser.getAddress());
+                employee.setCompany(company);
+                employee.setDepartment(department);
+
+                // Normalize legacy role values (often stored as 'admin'/'hr'/'employee')
+                employee.setRole(mapLegacyRole(legacyUser.getRole()));
+                employee.setStatus(Employee.EmployeeStatus.ACTIVE);
+                employee.setJoiningDate(java.time.LocalDate.now());
+
+                // Always store BCrypt in the new system
+                employee.setPassword(passwordEncoder.encode(rawPassword));
+
+                employeeRepo.save(employee);
+        }
+
+        private Employee.Role mapLegacyRole(String role) {
+                if (role == null) return Employee.Role.EMPLOYEE;
+                String normalized = role.trim().toUpperCase().replace("-", "_").replace(" ", "_");
+                return switch (normalized) {
+                        case "ADMIN" -> Employee.Role.ADMIN;
+                        case "HR", "HR_MANAGER", "HRMANAGER" -> Employee.Role.HR_MANAGER;
+                        case "EMPLOYEE", "USER" -> Employee.Role.EMPLOYEE;
+                        default -> {
+                                try {
+                                        yield Employee.Role.valueOf(normalized);
+                                } catch (Exception ignored) {
+                                        yield Employee.Role.EMPLOYEE;
+                                }
+                        }
+                };
+        }
+
     public Employee getCurrentEmployee() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
-        return employeeRepo.findByEmail(email)
+                String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
+                return employeeRepo.findByEmailIgnoreCase(normalizedEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
         public Employee register(RegisterRequest request) {
-                if (employeeRepo.findByEmail(request.getEmail()).isPresent()) {
+                String normalizedEmail = request.getEmail() == null ? "" : request.getEmail().trim().toLowerCase();
+
+                if (employeeRepo.findByEmailIgnoreCase(normalizedEmail).isPresent()) {
                         throw new RuntimeException("Employee with email already exists");
                 }
 
@@ -102,7 +222,7 @@ public class AuthService {
 
                 Employee employee = new Employee();
                 employee.setFullName(request.getFullName());
-                employee.setEmail(request.getEmail());
+                employee.setEmail(normalizedEmail);
                 employee.setPassword(passwordEncoder.encode(request.getPassword()));
                 employee.setEmployeeId(request.getEmployeeId() != null ? request.getEmployeeId() : "EMP-" + System.currentTimeMillis());
                 employee.setNic(request.getNic());
@@ -139,5 +259,21 @@ public class AuthService {
 
                 employee.setStatus(Employee.EmployeeStatus.ACTIVE);
                 return employeeRepo.save(employee);
+        }
+
+        private boolean isBcryptHash(String value) {
+                if (value == null) return false;
+                String v = value.trim();
+                return v.startsWith("$2a$") || v.startsWith("$2b$") || v.startsWith("$2y$");
+        }
+
+        public boolean checkUserExists(String email) {
+                String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
+                return employeeRepo.findByEmailIgnoreCase(normalizedEmail).isPresent();
+        }
+
+        public boolean checkLegacyUserExists(String email) {
+                String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
+                return userRepo.findByEmailIgnoreCase(normalizedEmail).isPresent();
         }
 }

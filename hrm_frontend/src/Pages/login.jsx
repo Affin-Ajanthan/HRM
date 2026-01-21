@@ -10,35 +10,36 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
-  const navigate = useNavigate(); // <-- Initialize the navigate hook
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
-  // --- THIS IS THE CORRECTED FUNCTION ---
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMessage("");
+    setIsLoading(true);
 
     const loginPayload = {
-      email: email,
+      email: email.trim(),
       password: password,
     };
 
+    console.log("Attempting login with:", { email: loginPayload.email, passwordLength: loginPayload.password.length });
+
     try {
-      // Send the POST request to your login endpoint
       const response = await axios.post(
         "http://localhost:5002/api/auth/login",
         loginPayload
       );
 
-      // If login is successful (HTTP 200 OK)
-      console.log("Login successful:", response.data);
+      console.log("Login response:", response.data);
       
-      // Extract data from the response
       const { data } = response.data;
       
-      // Store token and user data
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data));
 
-      alert("Login successful! Welcome " + data.fullName);
+      console.log("Login successful! Role:", data.role);
 
       // Redirect based on role
       if (data.role === "ADMIN") {
@@ -52,17 +53,19 @@ const Login = () => {
       }
 
     } catch (error) {
-      // If login fails (e.g., HTTP 401 Unauthorized)
-      console.error("Login failed:", error);
+      console.error("Login error details:", error);
+      setIsLoading(false);
+      
       if (error.response) {
-        // Server responded with error
-        alert(error.response.data.message || "Invalid email or password. Please try again.");
+        console.error("Server response:", error.response.data);
+        const errorMsg = error.response.data.message || "Invalid email or password. Please try again.";
+        setErrorMessage(errorMsg);
       } else if (error.request) {
-        // Request made but no response
-        alert("Cannot connect to server. Please ensure the backend is running on http://localhost:5002");
+        console.error("No response received:", error.request);
+        setErrorMessage("Cannot connect to server. Please ensure the backend is running.");
       } else {
-        // Something else happened
-        alert("An error occurred. Please try again.");
+        console.error("Error:", error.message);
+        setErrorMessage("An error occurred: " + error.message);
       }
     }
   };
@@ -105,7 +108,20 @@ const Login = () => {
           </div>
 
           {/* Form */}
-          <form className="space-y-5" onSubmit={handleSubmit}> {/* <-- This now calls the new function */}
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            {/* Error Message Display */}
+            {errorMessage && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg" role="alert">
+                <div className="flex items-start">
+                  <span className="text-xl mr-2">⚠️</span>
+                  <div>
+                    <p className="font-semibold">Login Failed</p>
+                    <p className="text-sm">{errorMessage}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email Address<span className="text-red-500">*</span>
@@ -115,11 +131,18 @@ const Login = () => {
                 name="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setErrorMessage("");
+                }}
                 className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter your email"
-                required // <-- Added for validation
+                placeholder="hr@test.com"
+                disabled={isLoading}
+                required
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Test: hr@test.com
+              </p>
             </div>
 
             <div>
@@ -131,14 +154,21 @@ const Login = () => {
                 name="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setErrorMessage("");
+                }}
                 className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter your password"
-                required // <-- Added for validation
+                disabled={isLoading}
+                required
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Test: test123
+              </p>
             </div>
 
-            {/* Remember Me / Forgot Password (No changes) */}
+            {/* Remember Me / Forgot Password */}
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center">
                 <input
@@ -156,9 +186,20 @@ const Login = () => {
 
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 transition transform hover:scale-[1.02]"
+              disabled={isLoading}
+              className="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 transition transform hover:scale-[1.02] disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
             >
-              Login
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Logging in...
+                </>
+              ) : (
+                "Login"
+              )}
             </button>
           </form>
 

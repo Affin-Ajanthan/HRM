@@ -1,6 +1,10 @@
 import { Routes, Route } from "react-router-dom";
 import Login from "./Pages/login.jsx";
 import Hero from "./Pages/hero.jsx";
+import About from "./Pages/about.jsx";
+import Services from "./Pages/services.jsx";
+import Blog from "./Pages/blog.jsx";
+import Contact from "./Pages/contact.jsx";
 import CreateAccount from "./Pages/createaccount.jsx";
 import Dashboard from "./Pages/dashboard.jsx";
 import EmployeeDashboard from "./Pages/employee/Dashboard.jsx";
@@ -23,6 +27,10 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Hero />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/services" element={<Services />} />
+      <Route path="/blog" element={<Blog />} />
+      <Route path="/contact" element={<Contact />} />
       <Route path="/login" element={<Login />} />
       <Route path="/createaccount" element={<CreateAccount />} />
       <Route path="/dashboard" element={<Dashboard />} />

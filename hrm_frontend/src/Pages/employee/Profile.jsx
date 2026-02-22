@@ -24,6 +24,7 @@ import {
   Menu,
 } from "lucide-react";
 import logo from "../../assets/logo.jpg";
+import { getRoleLabel } from "../../utils/roleLabel";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -209,7 +210,7 @@ const Profile = () => {
             <div className="flex items-center gap-2">
               <div className="text-right">
                 <p className="text-sm font-medium">{user.fullName}</p>
-                <p className="text-xs text-gray-500">{user.employeeId || "Employee"}</p>
+                <p className="text-xs text-gray-500">{getRoleLabel(user.role) ?? "Employee"}</p>
               </div>
               <div className="h-10 w-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
                 {user.fullName?.charAt(0)}

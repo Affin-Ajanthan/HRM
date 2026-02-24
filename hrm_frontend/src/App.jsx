@@ -22,7 +22,9 @@ import AdminAttendance from "./Pages/admin/Attendance.jsx";
 import AdminLeave from "./Pages/admin/Leave.jsx";
 import AdminPayslip from "./Pages/admin/Payslip.jsx";
 import AdminProfile from "./Pages/admin/Profile.jsx";
-
+import Companies from "./Pages/admin/Companies.jsx";
+import AdminSystemUsers from "./Pages/admin/SystemUser.jsx";
+import AdminSystemConfig from "./Pages/admin/SystemConfig.jsx";
 function App() {
   return (
     <Routes>
@@ -49,6 +51,9 @@ function App() {
       <Route path="/admin/leave" element={<AdminLeave />} />
       <Route path="/admin/payslip" element={<AdminPayslip />} />
       <Route path="/admin/profile" element={<AdminProfile />} />
+            <Route path="/admin/companies" element={<Companies />} />
+            <Route path="/admin/system-users" element={<AdminSystemUsers />} />
+            <Route path="/admin/system-config" element={<AdminSystemConfig />} />
     </Routes>
   );
 }

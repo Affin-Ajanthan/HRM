@@ -4,6 +4,8 @@ import com.affin.hrm.DTO.ApiResponse;
 import com.affin.hrm.DTO.AuthRequest;
 import com.affin.hrm.DTO.AuthResponse;
 import com.affin.hrm.DTO.RegisterRequest;
+import com.affin.hrm.DTO.RegisterResponse;
+import com.affin.hrm.Model.Employee;
 import com.affin.hrm.Service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +17,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "*")
 public class AuthController {
 
     @Autowired
@@ -50,10 +51,26 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<?>> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse<RegisterResponse>> register(@Valid @RequestBody RegisterRequest request) {
         try {
-            var employee = authService.register(request);
-            return ResponseEntity.ok(ApiResponse.success(employee, "Registration successful"));
+            Employee employee = authService.register(request);
+
+            RegisterResponse response = new RegisterResponse(
+                    employee.getId(),
+                    employee.getEmployeeId(),
+                    employee.getFullName(),
+                    employee.getEmail(),
+                    employee.getRole() != null ? employee.getRole().name() : null,
+                    employee.getGender() != null ? employee.getGender().name() : null,
+                    employee.getDesignation(),
+                    employee.getJoiningDate(),
+                    employee.getCompany() != null ? employee.getCompany().getId() : null,
+                    employee.getCompany() != null ? employee.getCompany().getCompanyName() : null,
+                    employee.getDepartment() != null ? employee.getDepartment().getId() : null,
+                    employee.getDepartment() != null ? employee.getDepartment().getName() : null
+            );
+
+            return ResponseEntity.ok(ApiResponse.success(response, "Registration successful"));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Registration failed: " + e.getMessage()));

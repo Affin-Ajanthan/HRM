@@ -28,12 +28,12 @@ const AdminAttendance = () => {
 
   const menuItems = [
     { name: "Overview", icon: LayoutDashboard, path: "/admin/dashboard" },
-    { name: "Companies", icon: Building2, path: "/admin/dashboard" },
-    { name: "System Users", icon: Users, path: "/admin/dashboard" },
+    { name: "Companies", icon: Building2, path: "/admin/companies" },
+    { name: "System Users", icon: Users, path: "/admin/system-users" },
     { name: "Attendance", icon: CalendarCheck, path: "/admin/attendance" },
     { name: "Leave", icon: FileText, path: "/admin/leave" },
     { name: "Payroll", icon: Activity, path: "/admin/payslip" },
-    { name: "System Config", icon: Settings, path: "/admin/dashboard" },
+    { name: "System Config", icon: Settings, path: "/admin/system-config" },
   ];
 
   useEffect(() => {

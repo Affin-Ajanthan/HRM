@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -19,12 +20,12 @@ import {
 } from "lucide-react";
 import logo from "../../assets/logo.jpg";
 
-const AdminLeave = () => {
+const AdminCompanies = () => {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [viewingRequest, setViewingRequest] = useState(null);
+  const [viewingCompany, setViewingCompany] = useState(null);
 
   const menuItems = [
     { name: "Overview", icon: LayoutDashboard, path: "/admin/dashboard" },
@@ -60,103 +61,89 @@ const AdminLeave = () => {
     navigate(path);
   };
 
-  const [leaveRequests, setLeaveRequests] = useState([
+  const [companies, setCompanies] = useState([
     {
       id: 1,
-      empId: "EMP001",
-      name: "John Doe",
-      department: "IT",
-      leaveType: "Sick Leave",
-      startDate: "2026-01-25",
-      endDate: "2026-01-27",
-      days: 3,
-      reason: "Medical checkup",
+      name: "Tech Solutions Ltd",
+      industry: "IT Services",
+      contact: "contact@techsol.com",
+      phone: "+1 234 567 8901",
+      employees: 50,
+      address: "123 Tech Park, Silicon Valley",
+      submittedOn: "2026-02-22",
       status: "Pending",
-      appliedOn: "2026-01-20",
     },
     {
       id: 2,
-      empId: "EMP002",
-      name: "Jane Smith",
-      department: "HR",
-      leaveType: "Casual Leave",
-      startDate: "2026-02-01",
-      endDate: "2026-02-03",
-      days: 3,
-      reason: "Personal work",
+      name: "Global Marketing Inc",
+      industry: "Marketing",
+      contact: "info@globalmark.com",
+      phone: "+1 234 567 8902",
+      employees: 120,
+      address: "456 Market Blvd, New York",
+      submittedOn: "2026-02-21",
       status: "Pending",
-      appliedOn: "2026-01-19",
     },
     {
       id: 3,
-      empId: "EMP003",
-      name: "Mike Johnson",
-      department: "Finance",
-      leaveType: "Annual Leave",
-      startDate: "2026-01-22",
-      endDate: "2026-01-24",
-      days: 3,
-      reason: "Family vacation",
-      status: "Approved",
-      appliedOn: "2026-01-18",
+      name: "ABC Corporation",
+      industry: "Finance",
+      contact: "admin@abccorp.com",
+      phone: "+1 234 567 8903",
+      employees: 80,
+      address: "789 Finance Ave, Chicago",
+      submittedOn: "2026-02-19",
+      status: "Active",
     },
     {
       id: 4,
-      empId: "EMP004",
-      name: "Sarah Williams",
-      department: "IT",
-      leaveType: "Sick Leave",
-      startDate: "2026-01-20",
-      endDate: "2026-01-20",
-      days: 1,
-      reason: "Fever and cold",
-      status: "Approved",
-      appliedOn: "2026-01-19",
+      name: "Blue Sky Retail",
+      industry: "Retail",
+      contact: "hello@bluesky.com",
+      phone: "+1 234 567 8904",
+      employees: 30,
+      address: "22 Commerce St, Dallas",
+      submittedOn: "2026-02-17",
+      status: "Rejected",
     },
     {
       id: 5,
-      empId: "EMP005",
-      name: "David Brown",
-      department: "Marketing",
-      leaveType: "Emergency Leave",
-      startDate: "2026-01-18",
-      endDate: "2026-01-19",
-      days: 2,
-      reason: "Family emergency",
-      status: "Rejected",
-      appliedOn: "2026-01-17",
+      name: "MedCare Solutions",
+      industry: "Healthcare",
+      contact: "support@medcare.com",
+      phone: "+1 234 567 8905",
+      employees: 200,
+      address: "99 Health Rd, Boston",
+      submittedOn: "2026-02-23",
+      status: "Pending",
     },
   ]);
 
   const stats = {
-    total: leaveRequests.length,
-    pending: leaveRequests.filter((r) => r.status === "Pending").length,
-    approved: leaveRequests.filter((r) => r.status === "Approved").length,
-    rejected: leaveRequests.filter((r) => r.status === "Rejected").length,
+    total: companies.length,
+    pending: companies.filter((c) => c.status === "Pending").length,
+    active: companies.filter((c) => c.status === "Active").length,
+    rejected: companies.filter((c) => c.status === "Rejected").length,
   };
 
-  const filteredData = leaveRequests.filter((request) => {
+  const filteredData = companies.filter((company) => {
     const matchesSearch =
-      request.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.empId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.department.toLowerCase().includes(searchTerm.toLowerCase());
+      company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      company.industry.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      company.contact.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus =
-      filterStatus === "all" || request.status.toLowerCase() === filterStatus.toLowerCase();
+      filterStatus === "all" || company.status.toLowerCase() === filterStatus.toLowerCase();
     return matchesSearch && matchesStatus;
   });
 
   const handleApprove = (id) => {
-    setLeaveRequests(leaveRequests.map((req) => 
-      req.id === id ? { ...req, status: "Approved" } : req
-    ));
-    setViewingRequest(null);
+    setCompanies(companies.map((c) => (c.id === id ? { ...c, status: "Active" } : c)));
+    setViewingCompany(null);
   };
 
   const handleReject = (id) => {
-    setLeaveRequests(leaveRequests.map((req) => 
-      req.id === id ? { ...req, status: "Rejected" } : req
-    ));
-    setViewingRequest(null);
+    setCompanies(companies.map((c) => (c.id === id ? { ...c, status: "Rejected" } : c)));
+    setViewingCompany(null);
   };
 
   if (!user) {
@@ -199,7 +186,7 @@ const AdminLeave = () => {
               key={item.name}
               onClick={() => handleMenuClick(item.path)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                item.name === "Leave"
+                item.name === "Companies"
                   ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg"
                   : "hover:bg-gray-100 text-gray-700"
               }`}
@@ -227,11 +214,11 @@ const AdminLeave = () => {
           <div>
             <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
               <div className="bg-purple-100 p-3 rounded-xl">
-                <FileText className="text-purple-600" size={32} />
+                <Building2 className="text-purple-600" size={32} />
               </div>
-              System-Wide Leave Management
+              Company Onboarding & Management
             </h2>
-            <p className="text-sm text-gray-500 mt-1">Monitor and approve leave requests across all departments</p>
+            <p className="text-sm text-gray-500 mt-1">Review, approve, and manage all companies registered on the platform</p>
           </div>
         </header>
 
@@ -240,11 +227,11 @@ const AdminLeave = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
             <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-purple-100 text-sm">Total Requests</p>
-                <FileText size={24} />
+                <p className="text-purple-100 text-sm">Total Companies</p>
+                <Building2 size={24} />
               </div>
               <p className="text-4xl font-bold">{stats.total}</p>
-              <p className="text-sm text-purple-100 mt-1">All time</p>
+              <p className="text-sm text-purple-100 mt-1">All registered</p>
             </div>
 
             <div className="bg-gradient-to-br from-yellow-500 to-orange-500 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
@@ -253,16 +240,16 @@ const AdminLeave = () => {
                 <Clock size={24} />
               </div>
               <p className="text-4xl font-bold">{stats.pending}</p>
-              <p className="text-sm text-yellow-100 mt-1">Needs action</p>
+              <p className="text-sm text-yellow-100 mt-1">Needs review</p>
             </div>
 
             <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-green-100 text-sm">Approved</p>
+                <p className="text-green-100 text-sm">Active</p>
                 <CheckCircle size={24} />
               </div>
-              <p className="text-4xl font-bold">{stats.approved}</p>
-              <p className="text-sm text-green-100 mt-1">Granted</p>
+              <p className="text-4xl font-bold">{stats.active}</p>
+              <p className="text-sm text-green-100 mt-1">Approved & active</p>
             </div>
 
             <div className="bg-gradient-to-br from-red-500 to-red-600 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
@@ -282,7 +269,7 @@ const AdminLeave = () => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                 <input
                   type="text"
-                  placeholder="Search by name, ID, or department..."
+                  placeholder="Search by name, industry, or contact..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -298,63 +285,57 @@ const AdminLeave = () => {
                 >
                   <option value="all">All Status</option>
                   <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
+                  <option value="active">Active</option>
                   <option value="rejected">Rejected</option>
                 </select>
               </div>
             </div>
           </div>
 
-          {/* Leave Requests Table */}
+          {/* Companies Table */}
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gradient-to-r from-purple-500 to-pink-600 text-white">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Emp ID</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Employee</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Department</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Leave Type</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Duration</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Days</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Applied On</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold">Company Name</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold">Industry</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold">Contact</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold">Employees</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold">Submitted On</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {filteredData.map((request, index) => (
+                  {filteredData.map((company, index) => (
                     <tr
-                      key={request.id}
+                      key={company.id}
                       className={`hover:bg-purple-50 transition-colors ${
                         index % 2 === 0 ? "bg-white" : "bg-gray-50"
                       }`}
                     >
-                      <td className="px-6 py-4 text-sm font-semibold text-gray-800">{request.empId}</td>
-                      <td className="px-6 py-4 text-sm text-gray-800">{request.name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{request.department}</td>
-                      <td className="px-6 py-4 text-sm text-gray-800">{request.leaveType}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600 text-xs">
-                        {request.startDate} to {request.endDate}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-gray-800">{request.days}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{request.appliedOn}</td>
+                      <td className="px-6 py-4 text-sm font-semibold text-gray-800">{company.name}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{company.industry}</td>
+                      <td className="px-6 py-4 text-sm text-gray-800">{company.contact}</td>
+                      <td className="px-6 py-4 text-sm font-semibold text-gray-800">{company.employees}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{company.submittedOn}</td>
                       <td className="px-6 py-4">
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            request.status === "Approved"
+                            company.status === "Active"
                               ? "bg-green-100 text-green-700"
-                              : request.status === "Rejected"
+                              : company.status === "Rejected"
                               ? "bg-red-100 text-red-700"
                               : "bg-yellow-100 text-yellow-700"
                           }`}
                         >
-                          {request.status}
+                          {company.status}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <button
-                          onClick={() => setViewingRequest(request)}
+                          onClick={() => setViewingCompany(company)}
                           className="flex items-center gap-1 text-purple-600 hover:text-purple-800 font-semibold"
                         >
                           <Eye size={16} />
@@ -370,58 +351,73 @@ const AdminLeave = () => {
         </div>
       </main>
 
-      {/* Leave Detail Modal */}
-      {viewingRequest && (
+      {/* Company Detail Modal */}
+      {viewingCompany && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full">
             <div className="p-6 border-b bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-t-xl">
-              <h3 className="text-2xl font-bold">Leave Request Details</h3>
+              <h3 className="text-2xl font-bold">Company Registration Details</h3>
             </div>
 
             <div className="p-6">
               <div className="grid grid-cols-2 gap-6 mb-6">
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Employee ID</p>
-                  <p className="font-semibold text-gray-800">{viewingRequest.empId}</p>
+                  <p className="text-sm text-gray-500 mb-1">Company Name</p>
+                  <p className="font-semibold text-gray-800">{viewingCompany.name}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Employee Name</p>
-                  <p className="font-semibold text-gray-800">{viewingRequest.name}</p>
+                  <p className="text-sm text-gray-500 mb-1">Industry</p>
+                  <p className="font-semibold text-gray-800">{viewingCompany.industry}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Department</p>
-                  <p className="font-semibold text-gray-800">{viewingRequest.department}</p>
+                  <p className="text-sm text-gray-500 mb-1">Contact Email</p>
+                  <p className="font-semibold text-gray-800">{viewingCompany.contact}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Leave Type</p>
-                  <p className="font-semibold text-gray-800">{viewingRequest.leaveType}</p>
+                  <p className="text-sm text-gray-500 mb-1">Phone</p>
+                  <p className="font-semibold text-gray-800">{viewingCompany.phone}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Start Date</p>
-                  <p className="font-semibold text-gray-800">{viewingRequest.startDate}</p>
+                  <p className="text-sm text-gray-500 mb-1">No. of Employees</p>
+                  <p className="font-semibold text-gray-800">{viewingCompany.employees}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">End Date</p>
-                  <p className="font-semibold text-gray-800">{viewingRequest.endDate}</p>
+                  <p className="text-sm text-gray-500 mb-1">Submitted On</p>
+                  <p className="font-semibold text-gray-800">{viewingCompany.submittedOn}</p>
                 </div>
               </div>
 
               <div className="mb-6">
-                <p className="text-sm text-gray-500 mb-1">Reason</p>
-                <p className="text-gray-800 bg-gray-50 p-4 rounded-lg">{viewingRequest.reason}</p>
+                <p className="text-sm text-gray-500 mb-1">Address</p>
+                <p className="text-gray-800 bg-gray-50 p-4 rounded-lg">{viewingCompany.address}</p>
               </div>
 
-              {viewingRequest.status === "Pending" && (
+              <div className="mb-4">
+                <p className="text-sm text-gray-500 mb-1">Current Status</p>
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    viewingCompany.status === "Active"
+                      ? "bg-green-100 text-green-700"
+                      : viewingCompany.status === "Rejected"
+                      ? "bg-red-100 text-red-700"
+                      : "bg-yellow-100 text-yellow-700"
+                  }`}
+                >
+                  {viewingCompany.status}
+                </span>
+              </div>
+
+              {viewingCompany.status === "Pending" && (
                 <div className="flex gap-4">
                   <button
-                    onClick={() => handleApprove(viewingRequest.id)}
+                    onClick={() => handleApprove(viewingCompany.id)}
                     className="flex-1 flex items-center justify-center gap-2 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition-colors"
                   >
                     <CheckCircle size={20} />
-                    Approve
+                    Approve & Activate
                   </button>
                   <button
-                    onClick={() => handleReject(viewingRequest.id)}
+                    onClick={() => handleReject(viewingCompany.id)}
                     className="flex-1 flex items-center justify-center gap-2 bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors"
                   >
                     <XCircle size={20} />
@@ -431,7 +427,7 @@ const AdminLeave = () => {
               )}
 
               <button
-                onClick={() => setViewingRequest(null)}
+                onClick={() => setViewingCompany(null)}
                 className="w-full mt-4 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors"
               >
                 Close
@@ -444,4 +440,4 @@ const AdminLeave = () => {
   );
 };
 
-export default AdminLeave;
+export default AdminCompanies;

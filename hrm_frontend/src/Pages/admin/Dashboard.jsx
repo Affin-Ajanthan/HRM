@@ -63,12 +63,12 @@ const AdminDashboard = () => {
 
   const menuItems = [
     { name: "Overview", icon: LayoutDashboard, path: null },
-    { name: "Companies", icon: Building2, path: null },
-    { name: "System Users", icon: Users, path: null },
+    { name: "Companies", icon: Building2, path: "/admin/companies" },
+    { name: "System Users", icon: Users, path: "/admin/system-users" },
     { name: "Attendance", icon: CalendarCheck, path: "/admin/attendance" },
     { name: "Leave", icon: FileText, path: "/admin/leave" },
     { name: "Payroll", icon: Activity, path: "/admin/payslip" },
-    { name: "System Config", icon: Settings, path: null },
+    { name: "System Config", icon: Settings, path: "/admin/system-config" },
   ];
 
   if (!user) {

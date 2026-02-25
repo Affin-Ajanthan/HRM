@@ -184,12 +184,14 @@ const CreateAccount = () => {
   if (validateStep(currentStep)) {
     setIsSubmitting(true);
     try {
-      const normalizedRole = (formData.userRole || "")
-        .toString()
-        .trim()
-        .toUpperCase()
-        .replace("-", "_")
-        .replace(" ", "_");
+      // Map frontend role values to backend role values
+      const roleMapping = {
+        "employee": "EMPLOYEE",
+        "hr": "HR_MANAGER",
+        "admin": "ADMIN"
+      };
+      
+      const normalizedRole = roleMapping[formData.userRole?.toLowerCase()] || "EMPLOYEE";
 
       const userPayload = {
         fullName: `${formData.firstName} ${formData.lastName}`,
@@ -213,24 +215,11 @@ const CreateAccount = () => {
       );
 
       console.log("✅ User created successfully:", response.data);
-      alert("Account created successfully!");
+      alert("Account created successfully! Please login with your credentials.");
 
-      const createdUser = response?.data?.data;
-      if (createdUser) {
-        localStorage.setItem("user", JSON.stringify(createdUser));
-      }
-
-      const roleValue = (createdUser?.role || formData.userRole || "").toString().trim().toUpperCase();
-      if (roleValue === "ADMIN") {
-        navigate("/admin/dashboard");
-      } else if (roleValue === "HR_MANAGER") {
-        navigate("/hr/dashboard");
-      } else if (roleValue === "EMPLOYEE") {
-        navigate("/employee/dashboard");
-      } else {
-        navigate("/dashboard");
-      }
-
+      // Navigate to login page after successful registration
+      navigate("/login");
+      
       setFormData({ ...formData, password: "", confirmPassword: "" });
     } catch (error) {
       const message =

@@ -210,7 +210,7 @@ const CreateAccount = () => {
       };
 
       const response = await axios.post(
-        "http://localhost:5002/api/auth/register",
+        "http://localhost:5004/api/auth/register",
         userPayload
       );
 

@@ -79,11 +79,24 @@
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "Admin__Forntend__Updated",
+    "git-widget-placeholder": "new__branch__pull",
     "ignore.virus.scanning.warn.message": "true",
     "last_opened_file_path": "C:/Users/Dulanga/Documents/GitHub/HRM_Update"
   }
 }]]></component>
+  <component name="RunManager">
+    <configuration default="true" type="JetRunConfigurationType">
+      <module name="HRM_Update" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
+      <module name="HRM_Update" />
+      <option name="filePath" />
+      <method v="2" />
+    </configuration>
+  </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
       <changelist id="1c0fc4ff-cce4-45ac-9f4c-dd4fdf89b666" name="Changes" comment="" />

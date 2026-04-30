@@ -1,431 +1,155 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  LayoutDashboard,
-  Users,
-  Building2,
-  Settings,
-  FileText,
-  Activity,
-  LogOut,
-  CalendarCheck,
-  DollarSign,
-  Search,
-  Download,
-  Eye,
-  TrendingUp,
-  BarChart3,
-} from "lucide-react";
-import logo from "../../assets/logo.jpg";
+import { Search, Download, Eye, TrendingUp, Users, X, DollarSign } from "lucide-react";
+import { PageLayout } from "../../components/PageLayout";
 
 const AdminPayslip = () => {
-  const [user, setUser] = useState(null);
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewingPayslip, setViewingPayslip] = useState(null);
 
-  const menuItems = [
-    { name: "Overview", icon: LayoutDashboard, path: "/admin/dashboard" },
-    { name: "Companies", icon: Building2, path: "/admin/companies" },
-    { name: "System Users", icon: Users, path: "/admin/system-users" },
-    { name: "Attendance", icon: CalendarCheck, path: "/admin/attendance" },
-    { name: "Leave", icon: FileText, path: "/admin/leave" },
-    { name: "Payroll", icon: Activity, path: "/admin/payslip" },
-    { name: "System Config", icon: Settings, path: "/admin/system-config" },
-  ];
-
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      if (userData.role !== "ADMIN") {
-        navigate("/unauthorized");
-        return;
-      }
-      setUser(userData);
-    } else {
-      navigate("/login");
-    }
+    const s = localStorage.getItem("user");
+    if (s) { const u = JSON.parse(s); if (u.role !== "ADMIN") { navigate("/unauthorized"); return; } setUser(u); }
+    else navigate("/login");
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    navigate("/login");
-  };
-
-  const handleMenuClick = (path) => {
-    navigate(path);
-  };
-
-  const [departmentPayroll] = useState([
-    {
-      id: 1,
-      department: "IT",
-      employees: 25,
-      totalSalary: 1375000,
-      avgSalary: 55000,
-      processed: 25,
-      pending: 0,
-    },
-    {
-      id: 2,
-      department: "HR",
-      employees: 10,
-      totalSalary: 490000,
-      avgSalary: 49000,
-      processed: 9,
-      pending: 1,
-    },
-    {
-      id: 3,
-      department: "Finance",
-      employees: 15,
-      totalSalary: 787500,
-      avgSalary: 52500,
-      processed: 14,
-      pending: 1,
-    },
-    {
-      id: 4,
-      department: "Marketing",
-      employees: 12,
-      totalSalary: 732000,
-      avgSalary: 61000,
-      processed: 12,
-      pending: 0,
-    },
-    {
-      id: 5,
-      department: "Operations",
-      employees: 18,
-      totalSalary: 846000,
-      avgSalary: 47000,
-      processed: 18,
-      pending: 0,
-    },
-  ]);
-
+  const deptPayroll = [
+    { id:1, department:"IT",         employees:25, totalSalary:1375000, avgSalary:55000, processed:25, pending:0 },
+    { id:2, department:"HR",         employees:10, totalSalary:490000,  avgSalary:49000, processed:9,  pending:1 },
+    { id:3, department:"Finance",    employees:15, totalSalary:787500,  avgSalary:52500, processed:14, pending:1 },
+    { id:4, department:"Marketing",  employees:12, totalSalary:732000,  avgSalary:61000, processed:12, pending:0 },
+    { id:5, department:"Operations", employees:18, totalSalary:846000,  avgSalary:47000, processed:18, pending:0 },
+  ];
   const stats = {
-    totalEmployees: departmentPayroll.reduce((sum, d) => sum + d.employees, 0),
-    totalPayroll: departmentPayroll.reduce((sum, d) => sum + d.totalSalary, 0),
-    totalProcessed: departmentPayroll.reduce((sum, d) => sum + d.processed, 0),
-    totalPending: departmentPayroll.reduce((sum, d) => sum + d.pending, 0),
+    employees: deptPayroll.reduce((s,d) => s+d.employees, 0),
+    payroll:   deptPayroll.reduce((s,d) => s+d.totalSalary, 0),
+    processed: deptPayroll.reduce((s,d) => s+d.processed, 0),
+    pending:   deptPayroll.reduce((s,d) => s+d.pending, 0),
   };
+  const filtered = deptPayroll.filter(d => d.department.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  const filteredData = departmentPayroll.filter((dept) => 
-    dept.department.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
-      </div>
-    );
-  }
-
+  if (!user) return null;
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-lg flex flex-col">
-        <div className="p-4 border-b">
-          <div className="flex items-center gap-2">
-            <img src={logo} alt="Logo" className="h-10 w-10 rounded" />
-            <div>
-              <h1 className="font-bold text-lg">HRM System</h1>
-              <p className="text-xs text-gray-500">Administrator</p>
+    <PageLayout role="admin" activePage="Payroll" title="System-Wide Payroll" subtitle="Monitor payroll across all departments">
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-5">
+          {[
+            { label:"Employees",  value:stats.employees,  gradient:"from-indigo-400 to-violet-500" },
+            { label:"Total Pay",  value:`Rs.${(stats.payroll/1000000).toFixed(2)}M`, gradient:"from-emerald-400 to-teal-500" },
+            { label:"Processed",  value:stats.processed,  gradient:"from-violet-400 to-purple-600" },
+            { label:"Pending",    value:stats.pending,    gradient:"from-amber-400 to-orange-500" },
+          ].map(s => (
+            <div key={s.label} className={`bg-gradient-to-br ${s.gradient} p-6 rounded-2xl text-white hover:-translate-y-1 transition-all duration-300`}>
+              <p className="text-white/80 text-sm mb-1">{s.label}</p>
+              <p className="text-3xl font-bold">{s.value}</p>
             </div>
-          </div>
-        </div>
-
-        <div className="p-4 border-b bg-gradient-to-r from-purple-50 to-pink-50">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
-              {user.fullName?.charAt(0)}
-            </div>
-            <div>
-              <p className="font-semibold text-gray-800">{user.fullName}</p>
-              <p className="text-xs text-gray-500">{user.role}</p>
-            </div>
-          </div>
-        </div>
-
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {menuItems.map((item) => (
-            <button
-              key={item.name}
-              onClick={() => handleMenuClick(item.path)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                item.name === "Payroll"
-                  ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg"
-                  : "hover:bg-gray-100 text-gray-700"
-              }`}
-            >
-              <item.icon size={20} />
-              <span>{item.name}</span>
-            </button>
           ))}
-        </nav>
-
-        <div className="p-4 border-t">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-          >
-            <LogOut size={20} />
-            <span>Logout</span>
-          </button>
         </div>
-      </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        <header className="bg-white shadow-sm p-6 border-b">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-              <div className="bg-purple-100 p-3 rounded-xl">
-                <DollarSign className="text-purple-600" size={32} />
-              </div>
-              System-Wide Payroll Overview
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">Monitor payroll across all departments and employees</p>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search departments…"
+                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50" />
+            </div>
+            <button className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors">
+              <Download size={15} /> Export Report
+            </button>
           </div>
-        </header>
+        </div>
 
-        <div className="p-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-purple-100 text-sm">Total Employees</p>
-                <Users size={24} />
-              </div>
-              <p className="text-4xl font-bold">{stats.totalEmployees}</p>
-              <p className="text-sm text-purple-100 mt-1">On payroll</p>
-            </div>
-
-            <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-green-100 text-sm">Total Payroll</p>
-                <TrendingUp size={24} />
-              </div>
-              <p className="text-4xl font-bold">Rs. {(stats.totalPayroll / 1000000).toFixed(2)}M</p>
-              <p className="text-sm text-green-100 mt-1">January 2026</p>
-            </div>
-
-            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-blue-100 text-sm">Processed</p>
-                <BarChart3 size={24} />
-              </div>
-              <p className="text-4xl font-bold">{stats.totalProcessed}</p>
-              <p className="text-sm text-blue-100 mt-1">Payslips sent</p>
-            </div>
-
-            <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-orange-100 text-sm">Pending</p>
-                <Activity size={24} />
-              </div>
-              <p className="text-4xl font-bold">{stats.totalPending}</p>
-              <p className="text-sm text-orange-100 mt-1">To process</p>
-            </div>
-          </div>
-
-          {/* Filters */}
-          <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Search departments..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-              </div>
-
-              <button className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white px-6 py-3 rounded-lg hover:from-purple-600 hover:to-pink-700 transition-all duration-200 shadow-lg">
-                <Download size={20} />
-                Export Payroll Report
-              </button>
-            </div>
-          </div>
-
-          {/* Department Payroll Table */}
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-purple-500 to-pink-600 text-white">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Department</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Total Employees</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Total Salary</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Avg Salary</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Processed</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Pending</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredData.map((dept, index) => (
-                    <tr
-                      key={dept.id}
-                      className={`hover:bg-purple-50 transition-colors ${
-                        index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                      }`}
-                    >
-                      <td className="px-6 py-4 text-sm font-bold text-gray-800">{dept.department}</td>
-                      <td className="px-6 py-4 text-sm text-gray-800">{dept.employees}</td>
-                      <td className="px-6 py-4 text-sm font-semibold text-green-600">
-                        Rs. {dept.totalSalary.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-800">
-                        Rs. {dept.avgSalary.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full font-semibold">
-                          {dept.processed}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <span className={`px-3 py-1 rounded-full font-semibold ${
-                          dept.pending > 0 ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-600"
-                        }`}>
-                          {dept.pending}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-xs">
+                  {["Department","Employees","Total Salary","Avg Salary","Processed","Pending","Progress","Actions"].map(h => <th key={h} className="px-5 py-4 text-left font-semibold">{h}</th>)}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {filtered.map((d, i) => {
+                  const pct = ((d.processed/d.employees)*100).toFixed(0);
+                  return (
+                    <tr key={d.id} className={`hover:bg-indigo-50/40 transition-colors ${i%2===1?"bg-gray-50/40":""}`}>
+                      <td className="px-5 py-3.5 font-bold text-gray-800">{d.department}</td>
+                      <td className="px-5 py-3.5">{d.employees}</td>
+                      <td className="px-5 py-3.5 text-emerald-600 font-semibold">Rs.{d.totalSalary.toLocaleString()}</td>
+                      <td className="px-5 py-3.5">Rs.{d.avgSalary.toLocaleString()}</td>
+                      <td className="px-5 py-3.5"><span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">{d.processed}</span></td>
+                      <td className="px-5 py-3.5"><span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${d.pending>0?"bg-amber-100 text-amber-700":"bg-gray-100 text-gray-500"}`}>{d.pending}</span></td>
+                      <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-gray-200 rounded-full h-2 w-20">
-                            <div
-                              className="bg-green-500 h-2 rounded-full"
-                              style={{ width: `${(dept.processed / dept.employees) * 100}%` }}
-                            ></div>
+                          <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden w-20">
+                            <div className="h-full bg-emerald-500 rounded-full" style={{ width:`${pct}%` }} />
                           </div>
-                          <span className="text-sm font-bold text-gray-800">
-                            {((dept.processed / dept.employees) * 100).toFixed(0)}%
-                          </span>
+                          <span className="text-xs font-bold text-gray-700">{pct}%</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => setViewingPayslip(dept)}
-                          className="flex items-center gap-1 text-purple-600 hover:text-purple-800 font-semibold"
-                        >
-                          <Eye size={16} />
-                          View
-                        </button>
+                      <td className="px-5 py-3.5">
+                        <button onClick={() => setViewingPayslip(d)} className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-semibold text-xs"><Eye size={13} /> View</button>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Payroll Summary Chart */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-            <div className="bg-white p-6 rounded-xl shadow-lg">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Department Wise Distribution</h3>
-              <div className="space-y-3">
-                {departmentPayroll.map((dept) => {
-                  const percentage = ((dept.totalSalary / stats.totalPayroll) * 100).toFixed(1);
-                  return (
-                    <div key={dept.id}>
-                      <div className="flex justify-between mb-1">
-                        <span className="text-sm font-semibold text-gray-700">{dept.department}</span>
-                        <span className="text-sm font-bold text-gray-800">{percentage}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div
-                          className="bg-gradient-to-r from-purple-500 to-pink-600 h-3 rounded-full"
-                          style={{ width: `${percentage}%` }}
-                        ></div>
-                      </div>
-                    </div>
                   );
                 })}
-              </div>
-            </div>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-            <div className="bg-white p-6 rounded-xl shadow-lg">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Monthly Trend</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-                  <div>
-                    <p className="text-sm text-gray-600">January 2026</p>
-                    <p className="text-2xl font-bold text-green-600">Rs. {(stats.totalPayroll / 1000000).toFixed(2)}M</p>
+        {/* Distribution bars */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 className="font-semibold text-gray-800 mb-4 text-sm">Department-Wise Distribution</h3>
+            <div className="space-y-3">
+              {deptPayroll.map(d => {
+                const pct = ((d.totalSalary/stats.payroll)*100).toFixed(1);
+                return (
+                  <div key={d.department}>
+                    <div className="flex justify-between text-sm mb-1.5"><span className="font-medium text-gray-700">{d.department}</span><span className="font-bold text-gray-800">{pct}%</span></div>
+                    <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-600 rounded-full transition-all duration-700" style={{ width:`${pct}%` }} />
+                    </div>
                   </div>
-                  <TrendingUp size={32} className="text-green-600" />
+                );
+              })}
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 className="font-semibold text-gray-800 mb-4 text-sm">Monthly Trend</h3>
+            <div className="space-y-3">
+              {[["January 2026",`Rs.${(stats.payroll/1000000).toFixed(2)}M`,"from-indigo-400 to-violet-500"],["December 2025","Rs.4.15M","from-sky-400 to-blue-500"],["November 2025","Rs.4.10M","from-teal-400 to-emerald-500"]].map(([m,v,g]) => (
+                <div key={m} className={`flex items-center justify-between p-4 bg-gradient-to-r ${g} bg-opacity-10 rounded-xl`}>
+                  <div><p className="text-xs text-gray-500">{m}</p><p className="text-lg font-bold text-gray-800">{v}</p></div>
+                  <TrendingUp size={22} className="text-indigo-500 opacity-50" />
                 </div>
-                <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
-                  <div>
-                    <p className="text-sm text-gray-600">December 2025</p>
-                    <p className="text-2xl font-bold text-blue-600">Rs. 4.15M</p>
-                  </div>
-                  <TrendingUp size={32} className="text-blue-600" />
-                </div>
-                <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg">
-                  <div>
-                    <p className="text-sm text-gray-600">November 2025</p>
-                    <p className="text-2xl font-bold text-purple-600">Rs. 4.10M</p>
-                  </div>
-                  <TrendingUp size={32} className="text-purple-600" />
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
-      </main>
+      </div>
 
-      {/* Department Detail Modal */}
       {viewingPayslip && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full">
-            <div className="p-6 border-b bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-t-xl">
-              <h3 className="text-2xl font-bold">{viewingPayslip.department} - Payroll Details</h3>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+            <div className="flex items-center justify-between p-6 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-t-2xl">
+              <h3 className="text-xl font-bold">{viewingPayslip.department} – Payroll Details</h3>
+              <button onClick={() => setViewingPayslip(null)} className="p-1.5 hover:bg-white/20 rounded-xl"><X size={18} /></button>
             </div>
-
             <div className="p-6">
-              <div className="grid grid-cols-2 gap-6 mb-6">
-                <div className="bg-purple-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Total Employees</p>
-                  <p className="text-3xl font-bold text-purple-600">{viewingPayslip.employees}</p>
-                </div>
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Total Salary</p>
-                  <p className="text-3xl font-bold text-green-600">
-                    Rs. {viewingPayslip.totalSalary.toLocaleString()}
-                  </p>
-                </div>
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Average Salary</p>
-                  <p className="text-3xl font-bold text-blue-600">
-                    Rs. {viewingPayslip.avgSalary.toLocaleString()}
-                  </p>
-                </div>
-                <div className="bg-orange-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Pending</p>
-                  <p className="text-3xl font-bold text-orange-600">{viewingPayslip.pending}</p>
-                </div>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                {[["Total Employees",viewingPayslip.employees,"bg-violet-50 text-violet-600"],["Total Salary",`Rs.${viewingPayslip.totalSalary.toLocaleString()}`,"bg-emerald-50 text-emerald-600"],["Avg Salary",`Rs.${viewingPayslip.avgSalary.toLocaleString()}`,"bg-sky-50 text-sky-600"],["Pending",viewingPayslip.pending,"bg-amber-50 text-amber-600"]].map(([l,v,cls]) => (
+                  <div key={l} className={`${cls} p-4 rounded-xl`}><p className="text-xs text-gray-500 mb-1">{l}</p><p className="text-2xl font-bold">{v}</p></div>
+                ))}
               </div>
-
-              <button
-                onClick={() => setViewingPayslip(null)}
-                className="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Close
-              </button>
+              <button onClick={() => setViewingPayslip(null)} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold text-sm transition-colors">Close</button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 };
-
 export default AdminPayslip;

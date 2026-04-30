@@ -1,404 +1,119 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  LayoutDashboard,
-  Users,
-  CalendarCheck,
-  FileText,
-  DollarSign,
-  Building2,
-  BarChart3,
-  LogOut,
-  Search,
-  Download,
-  Filter,
-  Calendar,
-  Clock,
-  CheckCircle,
-  XCircle,
-  UserCheck,
-  UserX,
-  TrendingUp,
-} from "lucide-react";
-import logo from "../../assets/logo.jpg";
+import { Search, Download, Filter, Calendar, Clock, CheckCircle, XCircle } from "lucide-react";
+import { PageLayout } from "../../components/PageLayout";
 
 const HRAttendance = () => {
-  const [user, setUser] = useState(null);
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split("T")[0]);
   const [filterStatus, setFilterStatus] = useState("all");
 
-  const menuItems = [
-    { name: "Overview", icon: LayoutDashboard, path: "/hr/dashboard" },
-    { name: "Employees", icon: Users, path: "/hr/dashboard" },
-    { name: "Departments", icon: Building2, path: "/hr/dashboard" },
-    { name: "Attendance", icon: CalendarCheck, path: "/hr/attendance" },
-    { name: "Leave Management", icon: FileText, path: "/hr/leave" },
-    { name: "Payroll", icon: DollarSign, path: "/hr/payslip" },
-    { name: "Reports", icon: BarChart3, path: "/hr/dashboard" },
-  ];
-
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      if (userData.role !== "HR_MANAGER" && userData.role !== "ADMIN") {
-        navigate("/unauthorized");
-        return;
-      }
-      setUser(userData);
-    } else {
-      navigate("/login");
-    }
+    const s = localStorage.getItem("user");
+    if (s) { const u = JSON.parse(s); if (u.role !== "HR_MANAGER" && u.role !== "ADMIN") { navigate("/unauthorized"); return; } setUser(u); }
+    else navigate("/login");
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    navigate("/login");
-  };
+  const attendanceData = [
+    { id:1, empId:"EMP001", name:"John Doe",      department:"IT",        date:"2026-01-21", checkIn:"09:00 AM", checkOut:"06:00 PM", status:"Present",  workHours:"9h 0m" },
+    { id:2, empId:"EMP002", name:"Jane Smith",    department:"HR",        date:"2026-01-21", checkIn:"08:45 AM", checkOut:"05:45 PM", status:"Present",  workHours:"9h 0m" },
+    { id:3, empId:"EMP003", name:"Mike Johnson",  department:"Finance",   date:"2026-01-21", checkIn:"-",        checkOut:"-",        status:"Absent",   workHours:"-" },
+    { id:4, empId:"EMP004", name:"Sarah Williams",department:"IT",        date:"2026-01-21", checkIn:"09:15 AM", checkOut:"-",        status:"Half Day", workHours:"4h 30m" },
+    { id:5, empId:"EMP005", name:"David Brown",   department:"Marketing", date:"2026-01-21", checkIn:"09:30 AM", checkOut:"06:30 PM", status:"Present",  workHours:"9h 0m" },
+  ];
+  const stats = { total:45, present:38, absent:5, halfDay:2, late:8, onTime:30 };
+  const filtered = attendanceData.filter(r =>
+    (r.name.toLowerCase().includes(searchTerm.toLowerCase()) || r.empId.toLowerCase().includes(searchTerm.toLowerCase()) || r.department.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    (filterStatus === "all" || r.status.toLowerCase() === filterStatus.toLowerCase())
+  );
+  const statusBadge = (s) => ({ Present:"bg-emerald-100 text-emerald-700", Absent:"bg-red-100 text-red-700", "Half Day":"bg-amber-100 text-amber-700" }[s] || "bg-gray-100 text-gray-600");
 
-  const handleMenuClick = (path) => {
-    navigate(path);
-  };
-
-  // Sample attendance data
-  const [attendanceData] = useState([
-    {
-      id: 1,
-      empId: "EMP001",
-      name: "John Doe",
-      department: "IT",
-      date: "2026-01-21",
-      checkIn: "09:00 AM",
-      checkOut: "06:00 PM",
-      status: "Present",
-      workHours: "9h 0m",
-    },
-    {
-      id: 2,
-      empId: "EMP002",
-      name: "Jane Smith",
-      department: "HR",
-      date: "2026-01-21",
-      checkIn: "08:45 AM",
-      checkOut: "05:45 PM",
-      status: "Present",
-      workHours: "9h 0m",
-    },
-    {
-      id: 3,
-      empId: "EMP003",
-      name: "Mike Johnson",
-      department: "Finance",
-      date: "2026-01-21",
-      checkIn: "-",
-      checkOut: "-",
-      status: "Absent",
-      workHours: "-",
-    },
-    {
-      id: 4,
-      empId: "EMP004",
-      name: "Sarah Williams",
-      department: "IT",
-      date: "2026-01-21",
-      checkIn: "09:15 AM",
-      checkOut: "-",
-      status: "Half Day",
-      workHours: "4h 30m",
-    },
-    {
-      id: 5,
-      empId: "EMP005",
-      name: "David Brown",
-      department: "Marketing",
-      date: "2026-01-21",
-      checkIn: "09:30 AM",
-      checkOut: "06:30 PM",
-      status: "Present",
-      workHours: "9h 0m",
-    },
-  ]);
-
-  const stats = {
-    totalEmployees: 45,
-    present: 38,
-    absent: 5,
-    halfDay: 2,
-    late: 8,
-    onTime: 30,
-  };
-
-  const filteredData = attendanceData.filter((record) => {
-    const matchesSearch =
-      record.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.empId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.department.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus =
-      filterStatus === "all" || record.status.toLowerCase() === filterStatus.toLowerCase();
-    return matchesSearch && matchesStatus;
-  });
-
-  const handleExport = () => {
-    alert("Exporting attendance data...");
-  };
-
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
+  if (!user) return null;
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-lg flex flex-col">
-        {/* Logo */}
-        <div className="p-4 border-b">
-          <div className="flex items-center gap-2">
-            <img src={logo} alt="Logo" className="h-10 w-10 rounded" />
-            <div>
-              <h1 className="font-bold text-lg">HRM System</h1>
-              <p className="text-xs text-gray-500">HR Manager</p>
+    <PageLayout role="hr" activePage="Attendance" title="Attendance Management" subtitle="Track and manage employee attendance"
+      actions={
+        <button onClick={() => alert("Exporting…")} className="flex items-center gap-2 bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors">
+          <Download size={16} /> Export
+        </button>
+      }
+    >
+      <div className="space-y-6">
+        {/* Stat cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+          {[
+            { label:"Total",    value:stats.total,   gradient:"from-teal-400 to-emerald-500" },
+            { label:"Present",  value:stats.present, gradient:"from-emerald-400 to-green-500" },
+            { label:"Absent",   value:stats.absent,  gradient:"from-red-400 to-rose-500" },
+            { label:"Half Day", value:stats.halfDay, gradient:"from-amber-400 to-orange-500" },
+            { label:"Late",     value:stats.late,    gradient:"from-violet-400 to-purple-500" },
+            { label:"On Time",  value:stats.onTime,  gradient:"from-sky-400 to-blue-500" },
+          ].map(s => (
+            <div key={s.label} className={`bg-gradient-to-br ${s.gradient} p-5 rounded-2xl text-white hover:-translate-y-1 transition-all duration-300`}>
+              <p className="text-white/80 text-xs mb-1">{s.label}</p>
+              <p className="text-3xl font-bold">{s.value}</p>
             </div>
-          </div>
-        </div>
-
-        {/* User Profile */}
-        <div className="p-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
-              {user.fullName?.charAt(0)}
-            </div>
-            <div>
-              <p className="font-semibold text-gray-800">{user.fullName}</p>
-              <p className="text-xs text-gray-500">{user.role}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Menu Items */}
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {menuItems.map((item) => (
-            <button
-              key={item.name}
-              onClick={() => handleMenuClick(item.path)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                item.name === "Attendance"
-                  ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg"
-                  : "hover:bg-gray-100 text-gray-700"
-              }`}
-            >
-              <item.icon size={20} />
-              <span>{item.name}</span>
-            </button>
           ))}
-        </nav>
-
-        {/* Logout */}
-        <div className="p-4 border-t">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-          >
-            <LogOut size={20} />
-            <span>Logout</span>
-          </button>
         </div>
-      </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        {/* Header */}
-        <header className="bg-white shadow-sm p-6 border-b">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-                <div className="bg-blue-100 p-3 rounded-xl">
-                  <CalendarCheck className="text-blue-600" size={32} />
-                </div>
-                Attendance Management
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">Track and manage employee attendance</p>
+        {/* Filters */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search by name, ID, department…"
+                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50" />
             </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-500">Today's Date</p>
-              <p className="text-lg font-bold text-gray-800">
-                {new Date().toLocaleDateString("en-US", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </p>
+            <div className="relative">
+              <Calendar size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)}
+                className="pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50" />
+            </div>
+            <div className="relative">
+              <Filter size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+                className="pl-9 pr-8 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 appearance-none">
+                <option value="all">All Status</option>
+                <option value="present">Present</option>
+                <option value="absent">Absent</option>
+                <option value="half day">Half Day</option>
+              </select>
             </div>
           </div>
-        </header>
+        </div>
 
-        <div className="p-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-5 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-blue-100 text-sm">Total Employees</p>
-                <Users size={20} />
-              </div>
-              <p className="text-3xl font-bold">{stats.totalEmployees}</p>
-            </div>
-
-            <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-5 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-green-100 text-sm">Present</p>
-                <CheckCircle size={20} />
-              </div>
-              <p className="text-3xl font-bold">{stats.present}</p>
-            </div>
-
-            <div className="bg-gradient-to-br from-red-500 to-red-600 p-5 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-red-100 text-sm">Absent</p>
-                <XCircle size={20} />
-              </div>
-              <p className="text-3xl font-bold">{stats.absent}</p>
-            </div>
-
-            <div className="bg-gradient-to-br from-yellow-500 to-orange-500 p-5 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-yellow-100 text-sm">Half Day</p>
-                <Clock size={20} />
-              </div>
-              <p className="text-3xl font-bold">{stats.halfDay}</p>
-            </div>
-
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-5 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-purple-100 text-sm">Late</p>
-                <UserX size={20} />
-              </div>
-              <p className="text-3xl font-bold">{stats.late}</p>
-            </div>
-
-            <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-indigo-100 text-sm">On Time</p>
-                <UserCheck size={20} />
-              </div>
-              <p className="text-3xl font-bold">{stats.onTime}</p>
-            </div>
-          </div>
-
-          {/* Filters and Search */}
-          <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Search by name, ID, or department..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="date"
-                  value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
-                >
-                  <option value="all">All Status</option>
-                  <option value="present">Present</option>
-                  <option value="absent">Absent</option>
-                  <option value="half day">Half Day</option>
-                </select>
-              </div>
-
-              <button
-                onClick={handleExport}
-                className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-lg"
-              >
-                <Download size={20} />
-                Export Data
-              </button>
-            </div>
-          </div>
-
-          {/* Attendance Table */}
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Emp ID</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Employee Name</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Department</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Date</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Check In</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Check Out</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Work Hours</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
+        {/* Table */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white text-xs">
+                  {["Emp ID","Employee","Department","Date","Check In","Check Out","Hours","Status"].map(h => <th key={h} className="px-5 py-4 text-left font-semibold">{h}</th>)}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {filtered.map((r, i) => (
+                  <tr key={r.id} className={`hover:bg-teal-50/40 transition-colors ${i % 2 === 1 ? "bg-gray-50/40" : ""}`}>
+                    <td className="px-5 py-3.5 font-mono font-semibold text-gray-700">{r.empId}</td>
+                    <td className="px-5 py-3.5 font-medium text-gray-800">{r.name}</td>
+                    <td className="px-5 py-3.5 text-gray-500">{r.department}</td>
+                    <td className="px-5 py-3.5 text-gray-500">{r.date}</td>
+                    <td className="px-5 py-3.5 text-gray-600">{r.checkIn}</td>
+                    <td className="px-5 py-3.5 text-gray-600">{r.checkOut}</td>
+                    <td className="px-5 py-3.5 font-semibold text-gray-800">{r.workHours}</td>
+                    <td className="px-5 py-3.5"><span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge(r.status)}`}>{r.status}</span></td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredData.map((record, index) => (
-                    <tr
-                      key={record.id}
-                      className={`hover:bg-blue-50 transition-colors ${
-                        index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                      }`}
-                    >
-                      <td className="px-6 py-4 text-sm font-semibold text-gray-800">{record.empId}</td>
-                      <td className="px-6 py-4 text-sm text-gray-800">{record.name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{record.department}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{record.date}</td>
-                      <td className="px-6 py-4 text-sm text-gray-800">{record.checkIn}</td>
-                      <td className="px-6 py-4 text-sm text-gray-800">{record.checkOut}</td>
-                      <td className="px-6 py-4 text-sm font-semibold text-gray-800">{record.workHours}</td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            record.status === "Present"
-                              ? "bg-green-100 text-green-700"
-                              : record.status === "Absent"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-yellow-100 text-yellow-700"
-                          }`}
-                        >
-                          {record.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {filteredData.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No attendance records found</p>
-              </div>
-            )}
+                ))}
+                {filtered.length === 0 && (
+                  <tr><td colSpan={8} className="text-center py-12 text-gray-400">No records found</td></tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </PageLayout>
   );
 };
-
 export default HRAttendance;

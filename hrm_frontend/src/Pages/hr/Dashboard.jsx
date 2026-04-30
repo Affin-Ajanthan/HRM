@@ -1321,10 +1321,17 @@ const HRDashboard = () => {
     { name: "Reports",          icon: BarChart3       },
   ];
 
-  if (!user) return <div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" /></div>;
+  if (!user) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-gray-500 text-sm">Loading…</p>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
       <Toast toasts={toast.toasts} removeToast={toast.removeToast} />
 
       <AddEmployeePanel
@@ -1333,49 +1340,88 @@ const HRDashboard = () => {
         toast={toast}
       />
 
-      {/* ── SIDEBAR ── */}
-      <aside className={`${isSidebarOpen ? "w-64" : "w-20"} bg-white shadow-lg transition-all duration-300 flex flex-col flex-shrink-0`}>
-        <div className="p-4 border-b flex items-center justify-between">
+      {/* ── Premium Navy Sidebar ── */}
+      <nav
+        className={`flex flex-col transition-all duration-300 shadow-2xl flex-shrink-0 ${isSidebarOpen ? 'w-64' : 'w-20'}`}
+        style={{ background: 'linear-gradient(180deg, #0a1120 0%, #0f172a 100%)' }}
+      >
+        <div className="flex items-center gap-3 px-4 h-16 border-b border-white/10 flex-shrink-0">
+          <img src={logo} alt="Logo" className="w-9 h-9 rounded-xl flex-shrink-0 shadow-md" />
+          {isSidebarOpen && <span className="text-white text-base font-bold tracking-tight">HRM Portal</span>}
+          <button
+            onClick={() => setSidebarOpen(!isSidebarOpen)}
+            className="ml-auto p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            {isSidebarOpen ? <X size={16} /> : <Menu size={16} />}
+          </button>
+        </div>
+        <ul className="flex-1 py-4 space-y-1 px-3 overflow-y-auto">
+          {menuItems.map(item => {
+            const isActive = activeMenu === item.name;
+            return (
+              <li key={item.name}>
+                <button
+                  onClick={() => setActiveMenu(item.name)}
+                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
+                    ${isActive ? 'text-white' : 'text-gray-400 hover:text-white hover:bg-white/10'}
+                    ${!isSidebarOpen ? 'justify-center px-0' : ''}`}
+                  style={isActive ? {
+                    background: 'linear-gradient(135deg, rgba(20,184,166,0.75), rgba(13,148,136,0.55))',
+                    boxShadow: '0 2px 12px rgba(20,184,166,0.3)'
+                  } : {}}
+                  title={!isSidebarOpen ? item.name : undefined}
+                >
+                  <item.icon size={18} className="flex-shrink-0" />
+                  {isSidebarOpen && <span>{item.name}</span>}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="border-t border-white/10 p-3 space-y-2 flex-shrink-0">
           {isSidebarOpen && (
-            <div className="flex items-center gap-2">
-              <img src={logo} alt="Logo" className="h-10 w-10 rounded" />
-              <div><h1 className="font-bold text-lg">HRM System</h1><p className="text-xs text-gray-500">HR Manager</p></div>
+            <div className="flex items-center gap-3 px-2 py-2">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400 to-emerald-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-md">
+                {user.fullName?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="text-white text-sm font-semibold truncate">{user.fullName}</p>
+                <p className="text-gray-500 text-xs">HR Manager</p>
+              </div>
             </div>
           )}
-          <button onClick={() => setSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-gray-100 rounded">
-            {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+          <button
+            onClick={handleLogout}
+            className={`flex items-center gap-3 w-full p-2.5 rounded-xl text-gray-400 hover:text-white hover:bg-red-500/20 transition-all ${!isSidebarOpen ? 'justify-center' : ''}`}
+          >
+            <LogOut size={18} />
+            {isSidebarOpen && <span className="text-sm font-medium">Sign Out</span>}
           </button>
         </div>
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {menuItems.map((item) => (
-            <button key={item.name} onClick={() => setActiveMenu(item.name)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeMenu === item.name ? "bg-blue-500 text-white" : "hover:bg-gray-100 text-gray-700"}`}>
-              <item.icon size={20} />{isSidebarOpen && <span>{item.name}</span>}
-            </button>
-          ))}
-        </nav>
-        <div className="p-4 border-t">
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 transition-colors">
-            <LogOut size={20} />{isSidebarOpen && <span>Logout</span>}
-          </button>
-        </div>
-      </aside>
+      </nav>
 
       {/* ── MAIN ── */}
-      <main className="flex-1 overflow-auto">
-        <header className="bg-white shadow-sm p-4 flex items-center justify-between sticky top-0 z-20">
+      <main className="flex-1 overflow-auto flex flex-col">
+        <header className="flex-shrink-0 h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 shadow-sm sticky top-0 z-20">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">{activeMenu}</h2>
-            <p className="text-sm text-gray-500">HR Management Dashboard</p>
+            <h1 className="text-lg font-bold text-gray-900">{activeMenu}</h1>
+            <p className="text-xs text-gray-400">HR Management Dashboard</p>
           </div>
-          <div className="flex items-center gap-4">
-            <button className="relative p-2 hover:bg-gray-100 rounded-full">
+          <div className="flex items-center gap-3">
+            <button className="relative p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors">
               <Bell size={20} />
-              {stats.pendingLeaves > 0 && <span className="absolute top-0 right-0 h-4 w-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">{stats.pendingLeaves}</span>}
+              {stats.pendingLeaves > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+              )}
             </button>
-            <div className="flex items-center gap-2">
-              <div className="text-right"><p className="text-sm font-medium">{user.fullName}</p><p className="text-xs text-gray-500">{user.role}</p></div>
-              <div className="h-10 w-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">{user.fullName?.charAt(0)}</div>
+            <div className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-400 to-emerald-500 flex items-center justify-center text-white text-xs font-bold shadow">
+                {user.fullName?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+              </div>
+              <div className="hidden md:flex flex-col items-start">
+                <span className="text-sm font-semibold text-gray-800 leading-tight">{user.fullName}</span>
+                <span className="text-xs text-gray-400">HR Manager</span>
+              </div>
             </div>
           </div>
         </header>

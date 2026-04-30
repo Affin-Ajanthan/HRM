@@ -1,445 +1,158 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  DollarSign,
-  Download,
-  Eye,
-  Calendar,
-  TrendingUp,
-  FileText,
-  CreditCard,
-  LayoutDashboard,
-  Clock,
-  CalendarDays,
-  User,
-  Bell,
-  LogOut,
-  Menu,
-  X,
-} from "lucide-react";
-import logo from "../../assets/logo.jpg";
+import { DollarSign, Download, Eye, Calendar, TrendingUp, FileText, CreditCard, X } from "lucide-react";
+import { PageLayout } from "../../components/PageLayout";
 
 const Payslip = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [selectedYear, setSelectedYear] = useState("2026");
   const [viewingPayslip, setViewingPayslip] = useState(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    } else {
-      navigate("/login");
-    }
+    const s = localStorage.getItem("user");
+    if (s) setUser(JSON.parse(s));
+    else navigate("/login");
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    navigate("/login");
-  };
-
-  const menuItems = [
-    { name: "Overview", icon: LayoutDashboard, path: "/employee/dashboard" },
-    { name: "Attendance", icon: Clock, path: "/employee/attendance" },
-    { name: "Leave", icon: CalendarDays, path: "/employee/leave" },
-    { name: "Payslip", icon: DollarSign, path: "/employee/payslip" },
-    { name: "Profile", icon: User, path: "/employee/profile" },
-  ];
-
-  // Sample payslip data
   const payslips = [
-    {
-      id: 1,
-      month: "January 2026",
-      basicSalary: 50000,
-      allowances: 10000,
-      deductions: 5000,
-      netSalary: 55000,
-      paidDate: "2026-01-31",
-      status: "Paid",
-    },
-    {
-      id: 2,
-      month: "December 2025",
-      basicSalary: 50000,
-      allowances: 12000,
-      deductions: 5200,
-      netSalary: 56800,
-      paidDate: "2025-12-31",
-      status: "Paid",
-    },
-    {
-      id: 3,
-      month: "November 2025",
-      basicSalary: 50000,
-      allowances: 9000,
-      deductions: 4800,
-      netSalary: 54200,
-      paidDate: "2025-11-30",
-      status: "Paid",
-    },
+    { id: 1, month: "January 2026",   basicSalary: 50000, allowances: 10000, deductions: 5000, netSalary: 55000, paidDate: "2026-01-31", status: "Paid" },
+    { id: 2, month: "December 2025",  basicSalary: 50000, allowances: 12000, deductions: 5200, netSalary: 56800, paidDate: "2025-12-31", status: "Paid" },
+    { id: 3, month: "November 2025",  basicSalary: 50000, allowances: 9000,  deductions: 4800, netSalary: 54200, paidDate: "2025-11-30", status: "Paid" },
   ];
 
-  const handleDownload = (payslip) => {
-    // Add PDF download logic here
-    console.log("Downloading payslip:", payslip.month);
-  };
+  const handleDownload = (p) => console.log("Downloading:", p.month);
 
-  const handleView = (payslip) => {
-    setViewingPayslip(payslip);
-  };
-
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
+  if (!user) return null;
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Sidebar */}
-      <aside
-        className={`${
-          isSidebarOpen ? "w-64" : "w-20"
-        } bg-white shadow-lg transition-all duration-300 flex flex-col`}
-      >
-        <div className="p-4 border-b flex items-center justify-between">
-          {isSidebarOpen && (
-            <div className="flex items-center gap-2">
-              <img src={logo} alt="Logo" className="h-10 w-10 rounded" />
-              <div>
-                <h1 className="font-bold text-lg">HRM System</h1>
-                <p className="text-xs text-gray-500">Employee Portal</p>
+    <PageLayout
+      role="employee"
+      activePage="Payslip"
+      title="Payslip"
+      subtitle="View and download your salary payslips"
+      actions={
+        <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 bg-gray-50">
+          <option>2026</option><option>2025</option><option>2024</option>
+        </select>
+      }
+    >
+      <div className="space-y-6">
+        {/* Summary cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+          {[
+            { label: "Last Salary",   value: "Rs. 55,000", icon: "💳", gradient: "from-sky-400 to-blue-500",    sub: "January 2026" },
+            { label: "Avg. Monthly",  value: "Rs. 55,333", icon: "📈", gradient: "from-emerald-400 to-teal-500", sub: "Last 3 months" },
+            { label: "YTD Earnings",  value: "Rs. 55,000", icon: "💰", gradient: "from-violet-400 to-purple-500", sub: "Year to date" },
+            { label: "Total Payslips",value: payslips.length, icon: "📄", gradient: "from-amber-400 to-orange-500", sub: "Available" },
+          ].map(s => (
+            <div key={s.label} className={`bg-gradient-to-br ${s.gradient} p-6 rounded-2xl text-white relative overflow-hidden hover:-translate-y-1 transition-all duration-300 shadow-md`}>
+              <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/10" />
+              <div className="flex items-center justify-between mb-2 relative z-10">
+                <p className="text-white/80 text-sm">{s.label}</p>
+                <span className="text-2xl">{s.icon}</span>
               </div>
+              <p className="text-2xl font-bold relative z-10">{s.value}</p>
+              <p className="text-white/70 text-xs mt-1 relative z-10">{s.sub}</p>
             </div>
-          )}
-          <button
-            onClick={() => setSidebarOpen(!isSidebarOpen)}
-            className="p-2 hover:bg-gray-100 rounded"
-          >
-            {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
-
-        <nav className="flex-1 p-4 space-y-2">
-          {menuItems.map((item) => (
-            <button
-              key={item.name}
-              onClick={() => navigate(item.path)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                item.name === "Payslip"
-                  ? "bg-blue-500 text-white"
-                  : "hover:bg-gray-100 text-gray-700"
-              }`}
-            >
-              <item.icon size={20} />
-              {isSidebarOpen && <span>{item.name}</span>}
-            </button>
           ))}
-        </nav>
-
-        <div className="p-4 border-t">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-          >
-            <LogOut size={20} />
-            {isSidebarOpen && <span>Logout</span>}
-          </button>
         </div>
-      </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        {/* Header */}
-        <header className="bg-white shadow-sm p-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">Payslip Management</h2>
-            <p className="text-sm text-gray-500">View and download your salary payslips</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option>2026</option>
-              <option>2025</option>
-              <option>2024</option>
-            </select>
-            <button className="relative p-2 hover:bg-gray-100 rounded-full">
-              <Bell size={20} />
-              <span className="absolute top-0 right-0 h-4 w-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
-                2
-              </span>
-            </button>
-            <div className="flex items-center gap-2">
-              <div className="text-right">
-                <p className="text-sm font-medium">{user.fullName}</p>
-                <p className="text-xs text-gray-500">{user.employeeId || "Employee"}</p>
+        {/* Payslip list */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2 mb-5">
+            <FileText size={18} className="text-sky-500" /> Payslip History
+          </h2>
+          <div className="space-y-4">
+            {payslips.map(p => (
+              <div key={p.id} className="border border-gray-100 rounded-xl p-5 hover:border-sky-200 hover:shadow-sm transition-all">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-sky-100 rounded-xl flex items-center justify-center text-sky-600">
+                      <Calendar size={22} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-800">{p.month}</h3>
+                      <p className="text-sm text-gray-500">Paid on {p.paidDate}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm flex-1 md:ml-6 bg-gray-50 rounded-xl p-4">
+                    <div><p className="text-gray-400 text-xs mb-0.5">Basic</p><p className="font-bold text-gray-800">Rs. {p.basicSalary.toLocaleString()}</p></div>
+                    <div><p className="text-gray-400 text-xs mb-0.5">Allowances</p><p className="font-bold text-emerald-600">+{p.allowances.toLocaleString()}</p></div>
+                    <div><p className="text-gray-400 text-xs mb-0.5">Deductions</p><p className="font-bold text-red-500">-{p.deductions.toLocaleString()}</p></div>
+                    <div><p className="text-gray-400 text-xs mb-0.5">Net</p><p className="font-bold text-sky-600 text-base">Rs. {p.netSalary.toLocaleString()}</p></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setViewingPayslip(p)} className="flex items-center gap-1.5 px-4 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-xl text-sm font-semibold transition-colors">
+                      <Eye size={14} /> View
+                    </button>
+                    <button onClick={() => handleDownload(p)} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-sm font-semibold transition-colors">
+                      <Download size={14} /> PDF
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="h-10 w-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
-                {user.fullName?.charAt(0)}
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <div className="p-6">
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-xl shadow-xl text-white transform hover:scale-105 transition-all duration-300 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-white opacity-10 rounded-full -mr-12 -mt-12"></div>
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-blue-100 text-sm">Last Salary</p>
-              <DollarSign size={24} />
-            </div>
-            <p className="text-3xl font-bold">Rs. 55,000</p>
-            <p className="text-sm text-blue-100 mt-1">January 2026</p>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-xl shadow-xl text-white transform hover:scale-105 transition-all duration-300 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-white opacity-10 rounded-full -mr-12 -mt-12"></div>
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-green-100 text-sm">Avg. Monthly</p>
-              <TrendingUp size={24} />
-            </div>
-            <p className="text-3xl font-bold">Rs. 55,333</p>
-            <p className="text-sm text-green-100 mt-1">Last 3 months</p>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-xl shadow-xl text-white transform hover:scale-105 transition-all duration-300 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-white opacity-10 rounded-full -mr-12 -mt-12"></div>
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-purple-100 text-sm">YTD Earnings</p>
-              <CreditCard size={24} />
-            </div>
-            <p className="text-3xl font-bold">Rs. 55,000</p>
-            <p className="text-sm text-purple-100 mt-1">Year to date</p>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-6 rounded-xl shadow-xl text-white transform hover:scale-105 transition-all duration-300 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-white opacity-10 rounded-full -mr-12 -mt-12"></div>
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-orange-100 text-sm">Total Payslips</p>
-              <FileText size={24} />
-            </div>
-            <p className="text-3xl font-bold">{payslips.length}</p>
-            <p className="text-sm text-orange-100 mt-1">Available</p>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Payslips List */}
-      <div className="bg-white p-6 rounded-xl shadow-lg">
-        <h2 className="text-xl font-bold mb-6 flex items-center text-gray-800">
-          <div className="bg-blue-100 p-2 rounded-lg mr-3">
-            <FileText className="text-blue-600" size={24} />
-          </div>
-          Payslip History
-        </h2>
-
-        <div className="space-y-4">
-          {payslips.map((payslip) => (
-            <div
-              key={payslip.id}
-              className="border border-gray-200 rounded-xl p-5 hover:shadow-md transition-all duration-300 hover:border-blue-300"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="bg-blue-100 p-3 rounded-lg">
-                      <Calendar className="text-blue-600" size={24} />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-800">{payslip.month}</h3>
-                      <p className="text-sm text-gray-500">Paid on {payslip.paidDate}</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50 rounded-lg p-4">
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">Basic Salary</p>
-                      <p className="text-lg font-bold text-gray-800">Rs. {payslip.basicSalary.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">Allowances</p>
-                      <p className="text-lg font-bold text-green-600">+Rs. {payslip.allowances.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">Deductions</p>
-                      <p className="text-lg font-bold text-red-600">-Rs. {payslip.deductions.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">Net Salary</p>
-                      <p className="text-xl font-bold text-blue-600">Rs. {payslip.netSalary.toLocaleString()}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="ml-6 flex flex-col gap-3">
-                  <button
-                    onClick={() => handleView(payslip)}
-                    className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
-                  >
-                    <Eye size={18} />
-                    View
-                  </button>
-                  <button
-                    onClick={() => handleDownload(payslip)}
-                    className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition"
-                  >
-                    <Download size={18} />
-                    Download
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Payslip Detail Modal */}
+      {/* Detail Modal */}
       {viewingPayslip && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold">Payslip Details</h2>
-                  <p className="text-blue-100 mt-1">{viewingPayslip.month}</p>
-                </div>
-                <button
-                  onClick={() => setViewingPayslip(null)}
-                  className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition"
-                >
-                  ✕
-                </button>
-              </div>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-t-2xl">
+              <div><h2 className="text-xl font-bold">Payslip Details</h2><p className="text-sky-100 text-sm">{viewingPayslip.month}</p></div>
+              <button onClick={() => setViewingPayslip(null)} className="p-2 hover:bg-white/20 rounded-xl transition-colors"><X size={18} /></button>
             </div>
-
-            <div className="p-6">
-              {/* Employee Info */}
-              <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Employee Name</p>
-                    <p className="font-semibold">John Doe</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Employee ID</p>
-                    <p className="font-semibold">EMP-12345</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Department</p>
-                    <p className="font-semibold">Engineering</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Designation</p>
-                    <p className="font-semibold">Senior Developer</p>
+            <div className="p-6 space-y-5">
+              <div className="bg-gray-50 rounded-xl p-4 grid grid-cols-2 gap-3 text-sm">
+                {[["Employee Name","John Doe"],["Employee ID","EMP-12345"],["Department","Engineering"],["Designation","Senior Developer"]].map(([l,v]) => (
+                  <div key={l}><p className="text-gray-400 text-xs">{l}</p><p className="font-semibold text-gray-800">{v}</p></div>
+                ))}
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800 mb-3">Earnings</h3>
+                <div className="space-y-2 text-sm">
+                  {[["Basic Salary", viewingPayslip.basicSalary],["HRA","5000"],["Transport","3000"],["Other","2000"]].map(([l,v]) => (
+                    <div key={l} className="flex justify-between py-2 border-b border-gray-100">
+                      <span className="text-gray-600">{l}</span><span className="font-semibold">Rs. {Number(v).toLocaleString()}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between py-2.5 px-3 bg-emerald-50 rounded-lg font-bold text-emerald-700">
+                    <span>Total Earnings</span><span>Rs. {(viewingPayslip.basicSalary + viewingPayslip.allowances).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
-
-              {/* Earnings */}
-              <div className="mb-6">
-                <h3 className="text-lg font-bold mb-3 text-gray-800">Earnings</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-600">Basic Salary</span>
-                    <span className="font-semibold">Rs. {viewingPayslip.basicSalary.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-600">House Rent Allowance</span>
-                    <span className="font-semibold">Rs. 5,000</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-600">Transport Allowance</span>
-                    <span className="font-semibold">Rs. 3,000</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-600">Other Allowances</span>
-                    <span className="font-semibold">Rs. 2,000</span>
-                  </div>
-                  <div className="flex justify-between py-3 bg-green-50 px-3 rounded-lg">
-                    <span className="font-bold text-green-700">Total Earnings</span>
-                    <span className="font-bold text-green-700">
-                      Rs. {(viewingPayslip.basicSalary + viewingPayslip.allowances).toLocaleString()}
-                    </span>
+              <div>
+                <h3 className="font-bold text-gray-800 mb-3">Deductions</h3>
+                <div className="space-y-2 text-sm">
+                  {[["Provident Fund","2500"],["Professional Tax","2000"],["Income Tax","500"]].map(([l,v]) => (
+                    <div key={l} className="flex justify-between py-2 border-b border-gray-100">
+                      <span className="text-gray-600">{l}</span><span className="font-semibold">Rs. {Number(v).toLocaleString()}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between py-2.5 px-3 bg-red-50 rounded-lg font-bold text-red-600">
+                    <span>Total Deductions</span><span>Rs. {viewingPayslip.deductions.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
-
-              {/* Deductions */}
-              <div className="mb-6">
-                <h3 className="text-lg font-bold mb-3 text-gray-800">Deductions</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-600">Provident Fund</span>
-                    <span className="font-semibold">Rs. 2,500</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-600">Professional Tax</span>
-                    <span className="font-semibold">Rs. 2,000</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-gray-600">Income Tax</span>
-                    <span className="font-semibold">Rs. 500</span>
-                  </div>
-                  <div className="flex justify-between py-3 bg-red-50 px-3 rounded-lg">
-                    <span className="font-bold text-red-700">Total Deductions</span>
-                    <span className="font-bold text-red-700">Rs. {viewingPayslip.deductions.toLocaleString()}</span>
-                  </div>
-                </div>
+              <div className="bg-gradient-to-r from-sky-500 to-blue-600 text-white p-5 rounded-xl flex justify-between items-center">
+                <span className="text-lg font-bold">Net Salary</span>
+                <span className="text-2xl font-bold">Rs. {viewingPayslip.netSalary.toLocaleString()}</span>
               </div>
-
-              {/* Net Salary */}
-              <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-xl">
-                <div className="flex justify-between items-center">
-                  <span className="text-xl font-bold">Net Salary</span>
-                  <span className="text-3xl font-bold">Rs. {viewingPayslip.netSalary.toLocaleString()}</span>
-                </div>
-                <p className="text-blue-100 mt-2 text-sm">
-                  Amount paid on {viewingPayslip.paidDate}
-                </p>
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => handleDownload(viewingPayslip)}
-                  className="flex-1 bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition flex items-center justify-center gap-2 font-semibold"
-                >
-                  <Download size={20} />
-                  Download PDF
+              <div className="flex gap-3">
+                <button onClick={() => handleDownload(viewingPayslip)} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2">
+                  <Download size={16} /> Download PDF
                 </button>
-                <button
-                  onClick={() => setViewingPayslip(null)}
-                  className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition font-semibold"
-                >
-                  Close
-                </button>
+                <button onClick={() => setViewingPayslip(null)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold text-sm transition-colors">Close</button>
               </div>
             </div>
           </div>
         </div>
       )}
-      </div>
-      </main>
-    </div>
+    </PageLayout>
   );
 };
-
 export default Payslip;

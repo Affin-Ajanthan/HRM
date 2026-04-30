@@ -1,398 +1,199 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  LayoutDashboard,
-  Users,
-  Building2,
-  Settings,
-  FileText,
-  Activity,
-  LogOut,
-  CalendarCheck,
-  User,
-  Mail,
-  Phone,
-  Shield,
-  Edit2,
-  Save,
-  X,
-  Lock,
-  Bell,
-} from "lucide-react";
-import logo from "../../assets/logo.jpg";
+import { User, Mail, Phone, Shield, Edit2, Save, X, Lock, Bell, Briefcase, Award, Settings, MapPin } from "lucide-react";
+import { PageLayout } from "../../components/PageLayout";
 
-const AdminProfile = () => {
-  const [user, setUser] = useState(null);
+const ProfilePage = ({ role = "admin" }) => {
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState("personal");
   const [isEditing, setIsEditing] = useState(false);
 
-  const menuItems = [
-    { name: "Overview", icon: LayoutDashboard, path: "/admin/dashboard" },
-    { name: "Companies", icon: Building2, path: "/admin/dashboard" },
-    { name: "System Users", icon: Users, path: "/admin/system-users" },
-    { name: "Attendance", icon: CalendarCheck, path: "/admin/attendance" },
-    { name: "Leave", icon: FileText, path: "/admin/leave" },
-    { name: "Payroll", icon: Activity, path: "/admin/payslip" },
-    { name: "System Config", icon: Settings, path: "/admin/system-config" },
-  ];
+  const isAdmin = role === "admin";
+  const accentGrad = isAdmin ? "from-indigo-500 to-violet-600" : "from-teal-500 to-emerald-600";
+  const ringColor  = isAdmin ? "focus:ring-indigo-500" : "focus:ring-teal-500";
 
-  const [profileData, setProfileData] = useState({
+  const defaultProfile = isAdmin ? {
     fullName: "System Administrator",
     email: "admin@hrmsystem.com",
     phone: "+92 300 9876543",
     role: "ADMIN",
-    privileges: ["Full System Access", "User Management", "Data Management", "System Configuration"],
-    systemInfo: {
-      lastLogin: "2026-01-21 09:00 AM",
-      accountCreated: "2020-01-01",
-      accessLevel: "Super Admin",
-    },
-  });
+    privileges: ["Full System Access","User Management","Data Management","System Configuration"],
+    systemInfo: { lastLogin: "2026-01-21 09:00 AM", accountCreated: "2020-01-01", accessLevel: "Super Admin" },
+  } : {
+    fullName: "HR Manager",
+    email: "hr.manager@company.com",
+    phone: "+92 300 1234567",
+    address: "123 Business Street, Karachi",
+    employeeId: "HR001",
+    designation: "HR Manager",
+    department: "Human Resources",
+    joiningDate: "2020-01-15",
+    experience: "6 years",
+    education: "MBA in Human Resource Management",
+    certifications: ["SHRM-CP","PHR","CIPD Level 5"],
+    skills: ["Recruitment","Employee Relations","Payroll Management","Performance Appraisal"],
+  };
+
+  const [profileData, setProfileData] = useState(defaultProfile);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      if (userData.role !== "ADMIN") {
-        navigate("/unauthorized");
-        return;
-      }
-      setUser(userData);
-      setProfileData((prev) => ({
-        ...prev,
-        fullName: userData.fullName || prev.fullName,
-        email: userData.email || prev.email,
-      }));
-    } else {
-      navigate("/login");
-    }
-  }, [navigate]);
+    const s = localStorage.getItem("user");
+    if (s) {
+      const u = JSON.parse(s);
+      const allowed = isAdmin ? u.role === "ADMIN" : u.role === "HR_MANAGER" || u.role === "ADMIN";
+      if (!allowed) { navigate("/unauthorized"); return; }
+      setUser(u);
+      setProfileData(prev => ({ ...prev, fullName: u.fullName || prev.fullName, email: u.email || prev.email }));
+    } else navigate("/login");
+  }, [navigate, isAdmin]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    navigate("/login");
-  };
+  const handleSave = () => { setIsEditing(false); alert("Profile updated successfully!"); };
 
-  const handleMenuClick = (path) => {
-    navigate(path);
-  };
+  const field = (label, key, type = "text", disabled = false) => (
+    <div key={key}>
+      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{label}</label>
+      <input type={type} value={profileData[key] || ""} disabled={disabled || !isEditing} onChange={e => setProfileData({ ...profileData, [key]: e.target.value })}
+        className={`w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 ${ringColor} disabled:bg-gray-50 disabled:cursor-not-allowed transition-all`} />
+    </div>
+  );
 
-  const handleSave = () => {
-    setIsEditing(false);
-    alert("Profile updated successfully!");
-  };
+  const tabs = isAdmin
+    ? [["personal","Personal","User"],["security","Security","Lock"],["system","System","Settings"]]
+    : [["personal","Personal","User"],["employment","Employment","Briefcase"],["qualifications","Qualifications","Award"],["settings","Settings","Settings"]];
 
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
-      </div>
-    );
-  }
-
+  if (!user) return null;
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-lg flex flex-col">
-        <div className="p-4 border-b">
-          <div className="flex items-center gap-2">
-            <img src={logo} alt="Logo" className="h-10 w-10 rounded" />
+    <PageLayout role={role} activePage="Profile" title={isAdmin ? "Administrator Profile" : "My Profile"} subtitle="Manage your personal information and settings"
+      actions={
+        isEditing ? (
+          <div className="flex gap-2">
+            <button onClick={handleSave} className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"><Save size={15} /> Save</button>
+            <button onClick={() => setIsEditing(false)} className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-semibold transition-colors"><X size={15} /> Cancel</button>
+          </div>
+        ) : (
+          <button onClick={() => setIsEditing(true)} className={`flex items-center gap-2 bg-gradient-to-r ${accentGrad} text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-md hover:shadow-lg`}><Edit2 size={15} /> Edit Profile</button>
+        )
+      }
+    >
+      <div className="space-y-6">
+        {/* Profile Hero */}
+        <div className={`bg-gradient-to-r ${accentGrad} rounded-2xl p-8 text-white shadow-xl`}>
+          <div className="flex items-center gap-6">
+            <div className="h-24 w-24 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center text-5xl font-bold shadow-xl border-2 border-white/40">
+              {profileData.fullName.charAt(0)}
+            </div>
             <div>
-              <h1 className="font-bold text-lg">HRM System</h1>
-              <p className="text-xs text-gray-500">Administrator</p>
+              <h2 className="text-3xl font-bold mb-1">{profileData.fullName}</h2>
+              <p className="text-white/80 text-base mb-3">{isAdmin ? profileData.systemInfo?.accessLevel : profileData.designation}</p>
+              <div className="flex flex-wrap gap-4 text-sm text-white/80">
+                <span className="flex items-center gap-1.5"><Mail size={14} />{profileData.email}</span>
+                <span className="flex items-center gap-1.5"><Phone size={14} />{profileData.phone}</span>
+                {!isAdmin && <span className="flex items-center gap-1.5"><Shield size={14} />ID: {profileData.employeeId}</span>}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="p-4 border-b bg-gradient-to-r from-purple-50 to-pink-50">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
-              {user.fullName?.charAt(0)}
-            </div>
-            <div>
-              <p className="font-semibold text-gray-800">{user.fullName}</p>
-              <p className="text-xs text-gray-500">{user.role}</p>
-            </div>
-          </div>
-        </div>
-
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {menuItems.map((item) => (
-            <button
-              key={item.name}
-              onClick={() => handleMenuClick(item.path)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 hover:bg-gray-100 text-gray-700"
-            >
-              <item.icon size={20} />
-              <span>{item.name}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div className="p-4 border-t">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-          >
-            <LogOut size={20} />
-            <span>Logout</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        <header className="bg-white shadow-sm p-6 border-b">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-                <div className="bg-purple-100 p-3 rounded-xl">
-                  <User className="text-purple-600" size={32} />
-                </div>
-                Administrator Profile
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">Manage your account and system settings</p>
-            </div>
-            {!isEditing ? (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white px-6 py-3 rounded-lg hover:from-purple-600 hover:to-pink-700 transition-all duration-200 shadow-lg"
-              >
-                <Edit2 size={20} />
-                Edit Profile
+        {/* Tabs + Content */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex gap-1 p-3 border-b border-gray-100 overflow-x-auto">
+            {tabs.map(([key,label]) => (
+              <button key={key} onClick={() => setActiveTab(key)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${activeTab === key ? `bg-gradient-to-r ${accentGrad} text-white shadow-md` : "text-gray-600 hover:bg-gray-100"}`}>
+                {label}
               </button>
-            ) : (
-              <div className="flex gap-3">
-                <button
-                  onClick={handleSave}
-                  className="flex items-center gap-2 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition-colors"
-                >
-                  <Save size={20} />
-                  Save
-                </button>
-                <button
-                  onClick={() => setIsEditing(false)}
-                  className="flex items-center gap-2 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  <X size={20} />
-                  Cancel
-                </button>
+            ))}
+          </div>
+
+          <div className="p-6">
+            {activeTab === "personal" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {field("Full Name","fullName")}
+                {field("Email Address","email","email")}
+                {field("Phone Number","phone","tel")}
+                {isAdmin ? field("Role","role","text",true) : field("Address","address")}
+                {isAdmin && (
+                  <div className="md:col-span-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Admin Privileges</p>
+                    <div className="flex flex-wrap gap-2">
+                      {profileData.privileges.map((p,i) => <span key={i} className={`px-3 py-1.5 bg-gradient-to-r ${accentGrad} text-white rounded-xl text-xs font-semibold shadow`}>{p}</span>)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            {activeTab === "employment" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {field("Employee ID","employeeId","text",true)}
+                {field("Designation","designation")}
+                {field("Department","department")}
+                {field("Joining Date","joiningDate","date",true)}
+                {field("Experience","experience")}
+              </div>
+            )}
+            {activeTab === "qualifications" && (
+              <div className="space-y-6">
+                {field("Education","education")}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Certifications</p>
+                  <div className="flex flex-wrap gap-2">
+                    {profileData.certifications.map((c,i) => <span key={i} className={`px-3 py-1.5 bg-gradient-to-r ${accentGrad} text-white rounded-xl text-xs font-semibold shadow`}>{c}</span>)}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Skills</p>
+                  <div className="flex flex-wrap gap-2">
+                    {profileData.skills.map((s,i) => <span key={i} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-semibold">{s}</span>)}
+                  </div>
+                </div>
+              </div>
+            )}
+            {(activeTab === "security" || activeTab === "settings") && (
+              <div className="space-y-5">
+                <div className={`bg-gradient-to-r ${accentGrad} bg-opacity-10 border border-indigo-200 rounded-2xl p-5`}>
+                  <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-4"><Shield size={18} className="text-indigo-500" /> Account Security</h3>
+                  {isAdmin && activeTab === "security" && (
+                    <div className="space-y-2 mb-4 text-sm">
+                      {[["Last Login",profileData.systemInfo?.lastLogin],["Account Created",profileData.systemInfo?.accountCreated]].map(([l,v]) => (
+                        <div key={l} className="flex justify-between bg-white p-3 rounded-xl"><span className="text-gray-500">{l}</span><span className="font-semibold">{v}</span></div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-3">
+                    <button className={`px-5 py-2.5 bg-gradient-to-r ${accentGrad} text-white rounded-xl text-sm font-semibold shadow transition-all hover:shadow-md`}>Change Password</button>
+                    <button className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-semibold shadow transition-colors">Enable 2FA</button>
+                  </div>
+                </div>
+                <div className="bg-gray-50 border border-gray-100 rounded-2xl p-5">
+                  <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-4"><Bell size={18} className="text-gray-500" /> Notification Preferences</h3>
+                  <div className="space-y-3">
+                    {["System alerts and updates","User activity notifications","Security notifications","Email notifications"].map((p,i) => (
+                      <label key={i} className="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" defaultChecked={i < 3} className="w-4 h-4 rounded" />
+                        <span className="text-sm text-gray-700">{p}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                {isAdmin && (
+                  <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5">
+                    <h3 className="font-semibold text-gray-800 mb-4">System Configuration</h3>
+                    <div className="flex flex-wrap gap-3">
+                      <button className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-semibold transition-colors">Manage Settings</button>
+                      <button className="px-5 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-sm font-semibold transition-colors">View Audit Logs</button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        </header>
-
-        <div className="p-6">
-          {/* Profile Header */}
-          <div className="bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl shadow-lg p-8 mb-6 text-white">
-            <div className="flex items-center gap-6">
-              <div className="h-32 w-32 bg-white bg-opacity-20 backdrop-blur-lg rounded-full flex items-center justify-center text-white font-bold text-5xl shadow-xl border-4 border-white">
-                {profileData.fullName.charAt(0)}
-              </div>
-              <div className="flex-1">
-                <h1 className="text-4xl font-bold mb-2">{profileData.fullName}</h1>
-                <p className="text-purple-100 text-lg mb-3 flex items-center gap-2">
-                  <Shield size={20} />
-                  {profileData.systemInfo.accessLevel}
-                </p>
-                <div className="flex gap-6 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Mail size={16} />
-                    <span>{profileData.email}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Phone size={16} />
-                    <span>{profileData.phone}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="bg-white rounded-xl shadow-lg mb-6">
-            <div className="border-b">
-              <div className="flex gap-1 p-2">
-                <button
-                  onClick={() => setActiveTab("personal")}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all ${
-                    activeTab === "personal"
-                      ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg"
-                      : "text-gray-600 hover:bg-gray-100"
-                  }`}
-                >
-                  <User size={18} />
-                  Personal Info
-                </button>
-                <button
-                  onClick={() => setActiveTab("security")}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all ${
-                    activeTab === "security"
-                      ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg"
-                      : "text-gray-600 hover:bg-gray-100"
-                  }`}
-                >
-                  <Lock size={18} />
-                  Security
-                </button>
-                <button
-                  onClick={() => setActiveTab("system")}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all ${
-                    activeTab === "system"
-                      ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg"
-                      : "text-gray-600 hover:bg-gray-100"
-                  }`}
-                >
-                  <Settings size={18} />
-                  System Settings
-                </button>
-              </div>
-            </div>
-
-            {/* Tab Content */}
-            <div className="p-6">
-              {activeTab === "personal" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
-                    <input
-                      type="text"
-                      value={profileData.fullName}
-                      onChange={(e) => setProfileData({ ...profileData, fullName: e.target.value })}
-                      disabled={!isEditing}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-                    <input
-                      type="email"
-                      value={profileData.email}
-                      onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                      disabled={!isEditing}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
-                    <input
-                      type="tel"
-                      value={profileData.phone}
-                      onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                      disabled={!isEditing}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Role</label>
-                    <input
-                      type="text"
-                      value={profileData.role}
-                      disabled
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100"
-                    />
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-3">Admin Privileges</label>
-                    <div className="flex flex-wrap gap-2">
-                      {profileData.privileges.map((privilege, index) => (
-                        <span
-                          key={index}
-                          className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-full text-sm font-semibold shadow-md"
-                        >
-                          {privilege}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "security" && (
-                <div className="space-y-6">
-                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-6">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                      <Shield size={24} className="text-purple-600" />
-                      Account Security
-                    </h3>
-                    <div className="space-y-4">
-                      <button className="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg hover:from-purple-600 hover:to-pink-700 transition-all shadow-lg">
-                        Change Password
-                      </button>
-                      <button className="w-full md:w-auto px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors ml-0 md:ml-4">
-                        Enable Two-Factor Authentication
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4">Login Activity</h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center p-3 bg-white rounded-lg">
-                        <span className="text-sm text-gray-700">Last Login</span>
-                        <span className="text-sm font-semibold text-gray-800">{profileData.systemInfo.lastLogin}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-white rounded-lg">
-                        <span className="text-sm text-gray-700">Account Created</span>
-                        <span className="text-sm font-semibold text-gray-800">{profileData.systemInfo.accountCreated}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "system" && (
-                <div className="space-y-6">
-                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-6">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                      <Bell size={24} className="text-purple-600" />
-                      Notification Preferences
-                    </h3>
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" defaultChecked className="w-5 h-5 text-purple-600" />
-                        <span className="text-gray-700">System alerts and updates</span>
-                      </label>
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" defaultChecked className="w-5 h-5 text-purple-600" />
-                        <span className="text-gray-700">User activity notifications</span>
-                      </label>
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" defaultChecked className="w-5 h-5 text-purple-600" />
-                        <span className="text-gray-700">Security notifications</span>
-                      </label>
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" className="w-5 h-5 text-purple-600" />
-                        <span className="text-gray-700">Marketing emails</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4">System Configuration</h3>
-                    <div className="space-y-4">
-                      <button className="w-full md:w-auto px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
-                        Manage System Settings
-                      </button>
-                      <button className="w-full md:w-auto px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors ml-0 md:ml-4">
-                        View Audit Logs
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </PageLayout>
   );
 };
 
+export const AdminProfile = () => <ProfilePage role="admin" />;
+export const HRProfile = () => <ProfilePage role="hr" />;
 export default AdminProfile;

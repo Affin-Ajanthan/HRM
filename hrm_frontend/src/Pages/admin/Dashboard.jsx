@@ -9,26 +9,28 @@ import {
   Activity,
   LogOut,
   Bell,
-  Menu,
-  X,
+  ChevronLeft,
+  ChevronRight,
   TrendingUp,
   AlertCircle,
   CheckCircle,
   Clock,
   ArrowUpRight,
-  ArrowDownRight,
   CalendarCheck,
+  Search,
+  ChevronDown,
 } from "lucide-react";
 import logo from "../../assets/logo.jpg";
 
 const AdminDashboard = () => {
-  const [user, setUser] = useState(null);
+  const [user, setUser]           = useState(null);
   const [activeMenu, setActiveMenu] = useState("Overview");
   const [isSidebarOpen, setSidebarOpen] = useState(true);
-  const [stats, setStats] = useState({
-    totalCompanies: 0,
-    pendingApprovals: 0,
-    activeUsers: 0,
+  const [isProfileOpen, setProfileOpen] = useState(false);
+  const [stats] = useState({
+    totalCompanies: 24,
+    pendingApprovals: 3,
+    activeUsers: 156,
     systemHealth: "Good",
   });
   const navigate = useNavigate();
@@ -37,10 +39,7 @@ const AdminDashboard = () => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       const userData = JSON.parse(storedUser);
-      if (userData.role !== "ADMIN") {
-        navigate("/unauthorized");
-        return;
-      }
+      if (userData.role !== "ADMIN") { navigate("/unauthorized"); return; }
       setUser(userData);
     } else {
       navigate("/login");
@@ -53,328 +52,282 @@ const AdminDashboard = () => {
     navigate("/login");
   };
 
-  const handleMenuClick = (path) => {
-    if (path) {
-      navigate(path);
-    } else {
-      setActiveMenu("Overview");
-    }
+  const menuItems = [
+    { name: "Overview",    icon: LayoutDashboard, path: null },
+    { name: "Companies",   icon: Building2,        path: "/admin/companies" },
+    { name: "System Users",icon: Users,            path: "/admin/system-users" },
+    { name: "Attendance",  icon: CalendarCheck,    path: "/admin/attendance" },
+    { name: "Leave",       icon: FileText,         path: "/admin/leave" },
+    { name: "Payroll",     icon: Activity,         path: "/admin/payslip" },
+    { name: "System Config",icon: Settings,        path: "/admin/system-config" },
+  ];
+
+  const handleMenuClick = (item) => {
+    if (item.path) navigate(item.path);
+    else setActiveMenu(item.name);
   };
 
-  const menuItems = [
-    { name: "Overview", icon: LayoutDashboard, path: null },
-    { name: "Companies", icon: Building2, path: "/admin/companies" },
-    { name: "System Users", icon: Users, path: "/admin/system-users" },
-    { name: "Attendance", icon: CalendarCheck, path: "/admin/attendance" },
-    { name: "Leave", icon: FileText, path: "/admin/leave" },
-    { name: "Payroll", icon: Activity, path: "/admin/payslip" },
-    { name: "System Config", icon: Settings, path: "/admin/system-config" },
-  ];
+  const initials = user?.fullName?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'A';
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-gray-500 text-sm">Loading…</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Sidebar */}
-      <aside
-        className={`${
-          isSidebarOpen ? "w-64" : "w-20"
-        } bg-white shadow-lg transition-all duration-300 flex flex-col`}
+    <div className="flex h-screen bg-gray-50">
+
+      {/* ── Premium Navy Sidebar ── */}
+      <nav
+        className={`flex flex-col transition-all duration-300 shadow-2xl flex-shrink-0 ${isSidebarOpen ? 'w-64' : 'w-20'}`}
+        style={{ background: 'linear-gradient(180deg, #0a1120 0%, #0f172a 100%)' }}
       >
-        {/* Logo */}
-        <div className="p-4 border-b flex items-center justify-between">
+        {/* Logo row */}
+        <div className="flex items-center gap-3 px-4 h-16 border-b border-white/10 flex-shrink-0">
+          <img src={logo} alt="Logo" className="w-9 h-9 rounded-xl flex-shrink-0 shadow-md" />
+          {isSidebarOpen && <span className="text-white text-base font-bold tracking-tight">HRM Admin</span>}
+          <button
+            onClick={() => setSidebarOpen(!isSidebarOpen)}
+            className="ml-auto p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            {isSidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+          </button>
+        </div>
+
+        {/* Nav items */}
+        <ul className="flex-1 py-4 space-y-1 px-3 overflow-y-auto">
+          {menuItems.map(item => {
+            const isActive = activeMenu === item.name;
+            return (
+              <li key={item.name}>
+                <button
+                  onClick={() => handleMenuClick(item)}
+                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
+                    ${isActive
+                      ? 'text-white'
+                      : 'text-gray-400 hover:text-white hover:bg-white/10'
+                    } ${!isSidebarOpen ? 'justify-center px-0' : ''}`}
+                  style={isActive ? {
+                    background: 'linear-gradient(135deg, rgba(99,102,241,0.8), rgba(79,70,229,0.6))',
+                    boxShadow: '0 2px 12px rgba(99,102,241,0.35)'
+                  } : {}}
+                  title={!isSidebarOpen ? item.name : undefined}
+                >
+                  <item.icon size={18} className="flex-shrink-0" />
+                  {isSidebarOpen && <span>{item.name}</span>}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+
+        {/* User + logout */}
+        <div className="border-t border-white/10 p-3 space-y-2 flex-shrink-0">
           {isSidebarOpen && (
-            <div className="flex items-center gap-2">
-              <img src={logo} alt="Logo" className="h-10 w-10 rounded" />
-              <div>
-                <h1 className="font-bold text-lg">HRM System</h1>
-                <p className="text-xs text-gray-500">Admin Panel</p>
+            <div className="flex items-center gap-3 px-2 py-2">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-md">
+                {initials}
+              </div>
+              <div className="min-w-0">
+                <p className="text-white text-sm font-semibold truncate">{user.fullName}</p>
+                <p className="text-gray-500 text-xs">Administrator</p>
               </div>
             </div>
           )}
           <button
-            onClick={() => setSidebarOpen(!isSidebarOpen)}
-            className="p-2 hover:bg-gray-100 rounded"
-          >
-            {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
-
-        {/* Menu Items */}
-        <nav className="flex-1 p-4 space-y-2">
-          {menuItems.map((item) => (
-            <button
-              key={item.name}
-              onClick={() => handleMenuClick(item.path)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                activeMenu === item.name
-                  ? "bg-blue-500 text-white"
-                  : "hover:bg-gray-100 text-gray-700"
-              }`}
-            >
-              <item.icon size={20} />
-              {isSidebarOpen && <span>{item.name}</span>}
-            </button>
-          ))}
-        </nav>
-
-        {/* Logout */}
-        <div className="p-4 border-t">
-          <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
+            className={`flex items-center gap-3 w-full p-2.5 rounded-xl text-gray-400 hover:text-white hover:bg-red-500/20 transition-all duration-200 ${!isSidebarOpen ? 'justify-center' : ''}`}
           >
-            <LogOut size={20} />
-            {isSidebarOpen && <span>Logout</span>}
+            <LogOut size={18} />
+            {isSidebarOpen && <span className="text-sm font-medium">Sign Out</span>}
           </button>
         </div>
-      </aside>
+      </nav>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
+      {/* ── Main Content ── */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+
         {/* Header */}
-        <header className="bg-white shadow-sm p-4 flex items-center justify-between">
+        <header className="flex-shrink-0 h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 shadow-sm">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">{activeMenu}</h2>
-            <p className="text-sm text-gray-500">System Administrator Dashboard</p>
+            <h1 className="text-lg font-bold text-gray-900">{activeMenu}</h1>
+            <p className="text-xs text-gray-400 hidden md:block">System Administrator Dashboard</p>
           </div>
-          <div className="flex items-center gap-4">
-            <button className="relative p-2 hover:bg-gray-100 rounded-full">
+
+          <div className="flex items-center gap-3">
+            <div className="relative hidden md:block">
+              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input type="text" placeholder="Search…" className="pl-9 pr-4 py-2 w-48 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all" />
+            </div>
+            <button className="relative p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors">
               <Bell size={20} />
-              <span className="absolute top-0 right-0 h-4 w-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
-                3
-              </span>
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
             </button>
-            <div className="flex items-center gap-2">
-              <div className="text-right">
-                <p className="text-sm font-medium">{user.fullName}</p>
-                <p className="text-xs text-gray-500">{user.role}</p>
-              </div>
-              <div className="h-10 w-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
-                {user.fullName?.charAt(0)}
-              </div>
+            <div className="relative">
+              <button
+                onClick={() => setProfileOpen(!isProfileOpen)}
+                className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-gray-100 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold shadow">
+                  {initials}
+                </div>
+                <div className="hidden md:flex flex-col items-start">
+                  <span className="text-sm font-semibold text-gray-800 leading-tight">{user.fullName}</span>
+                  <span className="text-xs text-gray-400">Admin</span>
+                </div>
+                <ChevronDown size={14} className={`text-gray-400 transition-transform ${isProfileOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isProfileOpen && (
+                <div className="absolute right-0 mt-2 w-44 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-20">
+                  <button onClick={handleLogout} className="block w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                    🚪 Sign Out
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
 
         {/* Content Area */}
-        <div className="p-6">
+        <main className="flex-1 overflow-auto p-6">
           {activeMenu === "Overview" && (
-            <div>
-              {/* Stats Cards with Trends */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-xl shadow-xl text-white transform hover:scale-105 hover:shadow-2xl transition-all duration-300 cursor-pointer">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-blue-100 text-sm font-medium">Total Companies</p>
-                    <div className="bg-white bg-opacity-20 p-2 rounded-lg">
-                      <Building2 size={24} />
-                    </div>
-                  </div>
-                  <h3 className="text-4xl font-bold mb-2">{stats.totalCompanies}</h3>
-                  <div className="flex items-center text-sm bg-white bg-opacity-20 rounded-full px-3 py-1 w-fit">
-                    <ArrowUpRight size={16} className="mr-1" />
-                    <span className="font-semibold">12% from last month</span>
-                  </div>
-                </div>
+            <div className="space-y-6 animate-fade-in">
 
-                <div className="bg-gradient-to-br from-yellow-500 to-orange-500 p-6 rounded-xl shadow-xl text-white transform hover:scale-105 hover:shadow-2xl transition-all duration-300 cursor-pointer">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-yellow-100 text-sm font-medium">Pending Approvals</p>
-                    <div className="bg-white bg-opacity-20 p-2 rounded-lg animate-pulse">
-                      <AlertCircle size={24} />
-                    </div>
+              {/* Banner */}
+              <div className="relative overflow-hidden rounded-3xl p-8 text-white"
+                   style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)' }}>
+                <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full opacity-20"
+                     style={{ background: 'radial-gradient(circle, #a78bfa, transparent)' }} />
+                <div className="relative z-10 flex items-center justify-between">
+                  <div>
+                    <p className="text-indigo-200 text-sm font-medium mb-1">Administrator Portal</p>
+                    <h2 className="text-3xl font-bold mb-2">Welcome back, {user.fullName?.split(' ')[0]} 👋</h2>
+                    <p className="text-indigo-200 text-sm">
+                      {new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' })}
+                    </p>
                   </div>
-                  <h3 className="text-4xl font-bold mb-2">{stats.pendingApprovals}</h3>
-                  <div className="flex items-center text-sm bg-white bg-opacity-20 rounded-full px-3 py-1 w-fit">
-                    <Clock size={16} className="mr-1" />
-                    <span className="font-semibold">Needs attention</span>
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-xl shadow-xl text-white transform hover:scale-105 hover:shadow-2xl transition-all duration-300 cursor-pointer">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-green-100 text-sm font-medium">Active Users</p>
-                    <div className="bg-white bg-opacity-20 p-2 rounded-lg">
-                      <Users size={24} />
-                    </div>
-                  </div>
-                  <h3 className="text-4xl font-bold mb-2">{stats.activeUsers}</h3>
-                  <div className="flex items-center text-sm bg-white bg-opacity-20 rounded-full px-3 py-1 w-fit">
-                    <ArrowUpRight size={16} className="mr-1" />
-                    <span className="font-semibold">8% increase</span>
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-purple-500 to-pink-600 p-6 rounded-xl shadow-xl text-white transform hover:scale-105 hover:shadow-2xl transition-all duration-300 cursor-pointer">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-purple-100 text-sm font-medium">System Health</p>
-                    <div className="bg-white bg-opacity-20 p-2 rounded-lg">
-                      <Activity size={24} />
-                    </div>
-                  </div>
-                  <h3 className="text-4xl font-bold mb-2">{stats.systemHealth}</h3>
-                  <div className="flex items-center text-sm bg-white bg-opacity-20 rounded-full px-3 py-1 w-fit">
-                    <CheckCircle size={16} className="mr-1" />
-                    <span className="font-semibold">All systems operational</span>
+                  <div className="hidden md:flex flex-col items-end gap-2">
+                    <span className="px-4 py-2 rounded-full bg-white/20 text-sm font-semibold backdrop-blur-sm">🏢 {stats.totalCompanies} Companies</span>
+                    <span className="px-4 py-2 rounded-full bg-white/20 text-sm font-semibold backdrop-blur-sm">⚠️ {stats.pendingApprovals} Pending</span>
                   </div>
                 </div>
               </div>
 
-              {/* Main Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                {/* Recent Activity */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300">
-                  <h3 className="text-xl font-bold mb-6 flex items-center text-gray-800">
-                    <div className="bg-blue-100 p-2 rounded-lg mr-3">
-                      <Activity className="text-blue-600" size={24} />
+              {/* Stat Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+                {[
+                  { title:'Total Companies',    value:stats.totalCompanies,  icon:'🏢', gradient:'from-indigo-500 to-violet-600', trend:'+12%' },
+                  { title:'Pending Approvals',  value:stats.pendingApprovals,icon:'⚠️', gradient:'from-amber-400 to-orange-500',  trend:'Needs attention' },
+                  { title:'Active Users',       value:stats.activeUsers,     icon:'👥', gradient:'from-emerald-400 to-teal-500',  trend:'+8%' },
+                  { title:'System Health',      value:'Good',                icon:'✅', gradient:'from-sky-400 to-blue-500',      trend:'All operational' },
+                ].map((s, i) => (
+                  <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl bg-gradient-to-br ${s.gradient} shadow-md`}>
+                        {s.icon}
+                      </div>
+                      <span className="text-xs font-semibold px-2 py-1 rounded-full bg-indigo-50 text-indigo-600">{s.trend}</span>
                     </div>
-                    Recent System Activity
-                  </h3>
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-4 p-3 hover:bg-gray-50 rounded-lg transition">
-                      <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Building2 className="text-blue-600" size={20} />
+                    <p className="text-3xl font-bold text-gray-900">{typeof s.value === 'number' ? s.value.toLocaleString() : s.value}</p>
+                    <p className="text-sm text-gray-500 mt-1">{s.title}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Middle Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                {/* Activity Feed */}
+                <div className="card lg:col-span-2">
+                  <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2 mb-5">🔔 Recent System Activity</h3>
+                  <div className="space-y-3">
+                    {[
+                      { icon:'🏢', bg:'bg-indigo-100 text-indigo-600', action:'New company registration', detail:'Tech Solutions Ltd — Pending Approval', time:'2h ago', badge:'Pending', badgeCls:'bg-amber-100 text-amber-700' },
+                      { icon:'⚙️', bg:'bg-purple-100 text-purple-600', action:'System configuration updated', detail:'Leave policy settings modified', time:'5h ago', badge:'Updated', badgeCls:'bg-blue-100 text-blue-700' },
+                      { icon:'✅', bg:'bg-emerald-100 text-emerald-600', action:'Company approved', detail:'ABC Corporation — Now Active', time:'1d ago', badge:'Approved', badgeCls:'bg-emerald-100 text-emerald-700' },
+                    ].map((a, i) => (
+                      <div key={i} className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 transition-colors">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${a.bg} flex-shrink-0`}>{a.icon}</div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-800">{a.action}</p>
+                          <p className="text-xs text-gray-500 truncate">{a.detail}</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${a.badgeCls}`}>{a.badge}</span>
+                          <span className="text-xs text-gray-400">{a.time}</span>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium">New company registration</p>
-                        <p className="text-sm text-gray-500">Tech Solutions Ltd - Pending Approval</p>
-                        <p className="text-xs text-gray-400 mt-1">2 hours ago</p>
-                      </div>
-                      <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full">Pending</span>
-                    </div>
-                    <div className="flex items-start gap-4 p-3 hover:bg-gray-50 rounded-lg transition">
-                      <div className="h-10 w-10 bg-purple-100 rounded-full flex items-center justify-center">
-                        <Settings className="text-purple-600" size={20} />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium">System configuration updated</p>
-                        <p className="text-sm text-gray-500">Leave policy settings modified</p>
-                        <p className="text-xs text-gray-400 mt-1">5 hours ago</p>
-                      </div>
-                      <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">Updated</span>
-                    </div>
-                    <div className="flex items-start gap-4 p-3 hover:bg-gray-50 rounded-lg transition">
-                      <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center">
-                        <CheckCircle className="text-green-600" size={20} />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium">Company approved</p>
-                        <p className="text-sm text-gray-500">ABC Corporation - Now Active</p>
-                        <p className="text-xs text-gray-400 mt-1">1 day ago</p>
-                      </div>
-                      <span className="px-3 py-1 bg-green-100 text-green-700 text-xs rounded-full">Approved</span>
-                    </div>
+                    ))}
                   </div>
                 </div>
 
-                {/* System Health Monitor */}
-                <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300">
-                  <h3 className="text-xl font-bold mb-6 flex items-center text-gray-800">
-                    <div className="bg-green-100 p-2 rounded-lg mr-3">
-                      <Activity className="text-green-600" size={24} />
-                    </div>
-                    System Health
-                  </h3>
-                  <div className="space-y-5">
-                    <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm text-gray-600">Server Uptime</span>
-                        <span className="text-sm font-semibold text-green-600">99.9%</span>
+                {/* System Health */}
+                <div className="card">
+                  <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2 mb-5">📊 System Health</h3>
+                  <div className="space-y-4">
+                    {[
+                      { label:'Server Uptime',  pct:99.9, color:'bg-emerald-500', textCls:'text-emerald-600' },
+                      { label:'Database Load',  pct:45,   color:'bg-blue-500',    textCls:'text-blue-600' },
+                      { label:'API Response',   pct:78,   color:'bg-amber-500',   textCls:'text-amber-600' },
+                      { label:'Storage Used',   pct:62,   color:'bg-orange-500',  textCls:'text-orange-600' },
+                    ].map(m => (
+                      <div key={m.label}>
+                        <div className="flex justify-between text-sm mb-1.5">
+                          <span className="text-gray-600">{m.label}</span>
+                          <span className={`font-semibold ${m.textCls}`}>{m.pct}%</span>
+                        </div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${m.color} transition-all duration-700`} style={{ width:`${m.pct}%` }} />
+                        </div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-green-500 h-2 rounded-full" style={{width: '99.9%'}}></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm text-gray-600">Database Load</span>
-                        <span className="text-sm font-semibold text-blue-600">45%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-blue-500 h-2 rounded-full" style={{width: '45%'}}></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm text-gray-600">API Response</span>
-                        <span className="text-sm font-semibold text-yellow-600">78%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-yellow-500 h-2 rounded-full" style={{width: '78%'}}></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm text-gray-600">Storage</span>
-                        <span className="text-sm font-semibold text-orange-600">62%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-orange-500 h-2 rounded-full" style={{width: '62%'}}></div>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
               </div>
 
               {/* Pending Approvals Table */}
-              <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300">
-                <h3 className="text-xl font-bold mb-6 flex items-center justify-between text-gray-800">
-                  <div className="flex items-center">
-                    <div className="bg-yellow-100 p-2 rounded-lg mr-3">
-                      <Building2 className="text-yellow-600" size={24} />
-                    </div>
-                    Pending Company Approvals
-                  </div>
-                  <span className="text-sm font-normal text-gray-500 bg-yellow-100 px-3 py-1 rounded-full">2 pending</span>
-                </h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="text-left p-3 text-sm font-semibold text-gray-700">Company Name</th>
-                        <th className="text-left p-3 text-sm font-semibold text-gray-700">Contact</th>
-                        <th className="text-left p-3 text-sm font-semibold text-gray-700">Employees</th>
-                        <th className="text-left p-3 text-sm font-semibold text-gray-700">Submitted</th>
-                        <th className="text-left p-3 text-sm font-semibold text-gray-700">Action</th>
+              <div className="card">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">🏢 Pending Company Approvals</h3>
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">2 pending</span>
+                </div>
+                <div className="overflow-x-auto -mx-2">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-xs text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                        <th className="text-left px-4 py-2 font-medium">Company</th>
+                        <th className="text-left px-4 py-2 font-medium">Contact</th>
+                        <th className="text-left px-4 py-2 font-medium">Size</th>
+                        <th className="text-left px-4 py-2 font-medium">Submitted</th>
+                        <th className="text-right px-4 py-2 font-medium">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y">
-                      <tr className="hover:bg-gray-50">
-                        <td className="p-3">
-                          <div className="font-medium">Tech Solutions Ltd</div>
-                          <div className="text-sm text-gray-500">IT Services</div>
-                        </td>
-                        <td className="p-3 text-sm">contact@techsol.com</td>
-                        <td className="p-3 text-sm">~50</td>
-                        <td className="p-3 text-sm">2 hours ago</td>
-                        <td className="p-3">
-                          <div className="flex gap-2">
-                            <button className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600">Approve</button>
-                            <button className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600">Reject</button>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr className="hover:bg-gray-50">
-                        <td className="p-3">
-                          <div className="font-medium">Global Marketing Inc</div>
-                          <div className="text-sm text-gray-500">Marketing</div>
-                        </td>
-                        <td className="p-3 text-sm">info@globalmark.com</td>
-                        <td className="p-3 text-sm">~120</td>
-                        <td className="p-3 text-sm">1 day ago</td>
-                        <td className="p-3">
-                          <div className="flex gap-2">
-                            <button className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600">Approve</button>
-                            <button className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600">Reject</button>
-                          </div>
-                        </td>
-                      </tr>
+                    <tbody className="divide-y divide-gray-50">
+                      {[
+                        { name:'Tech Solutions Ltd', type:'IT Services', contact:'contact@techsol.com', size:'~50', when:'2h ago' },
+                        { name:'Global Marketing Inc',type:'Marketing',  contact:'info@globalmark.com', size:'~120',when:'1d ago' },
+                      ].map((c, i) => (
+                        <tr key={i} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3">
+                            <p className="font-semibold text-gray-800">{c.name}</p>
+                            <p className="text-xs text-gray-400">{c.type}</p>
+                          </td>
+                          <td className="px-4 py-3 text-gray-500">{c.contact}</td>
+                          <td className="px-4 py-3 text-gray-500">{c.size}</td>
+                          <td className="px-4 py-3 text-gray-400">{c.when}</td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold rounded-lg transition-colors">Approve</button>
+                              <button className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-semibold rounded-lg transition-colors">Reject</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -382,42 +335,14 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {activeMenu === "Companies" && (
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-xl font-bold mb-4">Company Management</h3>
-              <p className="text-gray-500">Company approval and management interface will be implemented here.</p>
+          {activeMenu !== "Overview" && (
+            <div className="card animate-fade-in">
+              <h3 className="text-xl font-bold text-gray-800 mb-2">{activeMenu}</h3>
+              <p className="text-gray-400 text-sm">Content for {activeMenu} will be displayed here.</p>
             </div>
           )}
-
-          {activeMenu === "System Users" && (
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-xl font-bold mb-4">System Users</h3>
-              <p className="text-gray-500">User management interface will be implemented here.</p>
-            </div>
-          )}
-
-          {activeMenu === "System Config" && (
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-xl font-bold mb-4">System Configuration</h3>
-              <p className="text-gray-500">System settings interface will be implemented here.</p>
-            </div>
-          )}
-
-          {activeMenu === "Audit Logs" && (
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-xl font-bold mb-4">Audit Logs</h3>
-              <p className="text-gray-500">Audit trail viewer will be implemented here.</p>
-            </div>
-          )}
-
-          {activeMenu === "Analytics" && (
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-xl font-bold mb-4">System Analytics</h3>
-              <p className="text-gray-500">Analytics dashboard will be implemented here.</p>
-            </div>
-          )}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 };

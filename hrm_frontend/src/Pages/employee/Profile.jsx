@@ -1,576 +1,169 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  User,
-  Mail,
-  Phone,
-  MapPin,
-  Calendar,
-  Briefcase,
-  Building2,
-  Edit,
-  Save,
-  X,
-  Camera,
-  Lock,
-  Award,
-  Target,
-  LayoutDashboard,
-  Clock,
-  CalendarDays,
-  DollarSign,
-  Bell,
-  LogOut,
-  Menu,
-} from "lucide-react";
-import logo from "../../assets/logo.jpg";
+import { Edit, Save, X, Camera, Lock, Award, Target, User, Mail, Phone, MapPin, Calendar, Briefcase, Building2 } from "lucide-react";
+import { PageLayout } from "../../components/PageLayout";
 
 const Profile = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
-
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      setUser(userData);
-      setProfileData(prevData => ({
-        ...prevData,
-        fullName: userData.fullName || prevData.fullName,
-        email: userData.email || prevData.email,
-      }));
-    } else {
-      navigate("/login");
-    }
-  }, [navigate]);
-
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    navigate("/login");
-  };
-
-  const menuItems = [
-    { name: "Overview", icon: LayoutDashboard, path: "/employee/dashboard" },
-    { name: "Attendance", icon: Clock, path: "/employee/attendance" },
-    { name: "Leave", icon: CalendarDays, path: "/employee/leave" },
-    { name: "Payslip", icon: DollarSign, path: "/employee/payslip" },
-    { name: "Profile", icon: User, path: "/employee/profile" },
-  ];
-
   const [profileData, setProfileData] = useState({
-    fullName: "John Doe",
-    email: "john.doe@company.com",
-    phone: "+1 234 567 8900",
-    address: "123 Main Street, New York, NY 10001",
-    dateOfBirth: "1990-05-15",
-    gender: "Male",
-    employeeId: "EMP-12345",
-    department: "Engineering",
-    designation: "Senior Developer",
-    joiningDate: "2020-01-15",
-    employmentType: "Full-time",
-    reportingManager: "Jane Smith",
-    emergencyContact: "+1 234 567 8901",
-    emergencyContactName: "Jane Doe",
-    emergencyContactRelation: "Spouse",
+    fullName: "John Doe", email: "john.doe@company.com", phone: "+1 234 567 8900",
+    address: "123 Main Street, New York, NY 10001", dateOfBirth: "1990-05-15",
+    employeeId: "EMP-12345", department: "Engineering", designation: "Senior Developer",
+    joiningDate: "2020-01-15", employmentType: "Full-time", reportingManager: "Jane Smith",
+    emergencyContact: "+1 234 567 8901", emergencyContactName: "Jane Doe", emergencyContactRelation: "Spouse",
   });
 
-  const handleSave = () => {
-    setIsEditing(false);
-    // Add API call to save profile data
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    // Reset form data
-  };
+  useEffect(() => {
+    const s = localStorage.getItem("user");
+    if (s) { const u = JSON.parse(s); setUser(u); setProfileData(p => ({ ...p, fullName: u.fullName || p.fullName, email: u.email || p.email })); }
+    else navigate("/login");
+  }, [navigate]);
 
   const skills = [
-    { name: "React.js", level: 90 },
-    { name: "Node.js", level: 85 },
-    { name: "JavaScript", level: 95 },
-    { name: "TypeScript", level: 80 },
-    { name: "SQL", level: 75 },
+    { name: "React.js", level: 90 }, { name: "Node.js", level: 85 },
+    { name: "JavaScript", level: 95 }, { name: "TypeScript", level: 80 }, { name: "SQL", level: 75 },
   ];
-
   const achievements = [
     { title: "Employee of the Month", date: "December 2025", icon: "🏆" },
     { title: "Project Excellence Award", date: "October 2025", icon: "⭐" },
     { title: "Innovation Award", date: "June 2025", icon: "💡" },
   ];
 
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Sidebar */}
-      <aside
-        className={`${
-          isSidebarOpen ? "w-64" : "w-20"
-        } bg-white shadow-lg transition-all duration-300 flex flex-col`}
-      >
-        <div className="p-4 border-b flex items-center justify-between">
-          {isSidebarOpen && (
-            <div className="flex items-center gap-2">
-              <img src={logo} alt="Logo" className="h-10 w-10 rounded" />
-              <div>
-                <h1 className="font-bold text-lg">HRM System</h1>
-                <p className="text-xs text-gray-500">Employee Portal</p>
-              </div>
-            </div>
-          )}
-          <button
-            onClick={() => setSidebarOpen(!isSidebarOpen)}
-            className="p-2 hover:bg-gray-100 rounded"
-          >
-            {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
-
-        <nav className="flex-1 p-4 space-y-2">
-          {menuItems.map((item) => (
-            <button
-              key={item.name}
-              onClick={() => navigate(item.path)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                item.name === "Profile"
-                  ? "bg-blue-500 text-white"
-                  : "hover:bg-gray-100 text-gray-700"
-              }`}
-            >
-              <item.icon size={20} />
-              {isSidebarOpen && <span>{item.name}</span>}
-            </button>
-          ))}
-        </nav>
-
-        <div className="p-4 border-t">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-          >
-            <LogOut size={20} />
-            {isSidebarOpen && <span>Logout</span>}
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        {/* Header */}
-        <header className="bg-white shadow-sm p-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">My Profile</h2>
-            <p className="text-sm text-gray-500">Manage your personal information and settings</p>
-          </div>
-          <div className="flex items-center gap-4">
-            {!isEditing ? (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="flex items-center gap-2 bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition shadow-lg font-semibold"
-              >
-                <Edit size={20} />
-                Edit Profile
-              </button>
-            ) : (
-              <div className="flex gap-3">
-                <button
-                  onClick={handleSave}
-                  className="flex items-center gap-2 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition shadow-lg font-semibold"
-                >
-                  <Save size={20} />
-                  Save Changes
-                </button>
-                <button
-                  onClick={handleCancel}
-                  className="flex items-center gap-2 bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 transition shadow-lg font-semibold"
-                >
-                  <X size={20} />
-                  Cancel
-                </button>
-              </div>
-            )}
-            <button className="relative p-2 hover:bg-gray-100 rounded-full">
-              <Bell size={20} />
-              <span className="absolute top-0 right-0 h-4 w-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
-                2
-              </span>
-            </button>
-            <div className="flex items-center gap-2">
-              <div className="text-right">
-                <p className="text-sm font-medium">{user.fullName}</p>
-                <p className="text-xs text-gray-500">{user.employeeId || "Employee"}</p>
-              </div>
-              <div className="h-10 w-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
-                {user.fullName?.charAt(0)}
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <div className="p-6">
-
-      {/* Profile Header Card */}
-      <div className="bg-white rounded-xl shadow-lg mb-6 overflow-hidden">
-        <div className="h-32 bg-gradient-to-r from-blue-500 to-purple-600"></div>
-        <div className="px-6 pb-6">
-          <div className="flex items-end gap-6 -mt-16">
-            <div className="relative">
-              <div className="h-32 w-32 bg-white rounded-full border-4 border-white shadow-lg flex items-center justify-center text-4xl font-bold text-blue-600">
-                {profileData.fullName.charAt(0)}
-              </div>
-              <button className="absolute bottom-0 right-0 bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 transition shadow-lg">
-                <Camera size={20} />
-              </button>
-            </div>
-            <div className="flex-1 mt-4">
-              <h2 className="text-2xl font-bold text-gray-800">{profileData.fullName}</h2>
-              <p className="text-gray-600">{profileData.designation} • {profileData.department}</p>
-              <p className="text-sm text-gray-500 mt-1">Employee ID: {profileData.employeeId}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="bg-white rounded-xl shadow-lg mb-6">
-        <div className="flex border-b">
-          <button
-            onClick={() => setActiveTab("personal")}
-            className={`flex-1 px-6 py-4 font-semibold transition ${
-              activeTab === "personal"
-                ? "text-blue-600 border-b-2 border-blue-600"
-                : "text-gray-600 hover:text-gray-800"
-            }`}
-          >
-            Personal Information
-          </button>
-          <button
-            onClick={() => setActiveTab("employment")}
-            className={`flex-1 px-6 py-4 font-semibold transition ${
-              activeTab === "employment"
-                ? "text-blue-600 border-b-2 border-blue-600"
-                : "text-gray-600 hover:text-gray-800"
-            }`}
-          >
-            Employment Details
-          </button>
-          <button
-            onClick={() => setActiveTab("skills")}
-            className={`flex-1 px-6 py-4 font-semibold transition ${
-              activeTab === "skills"
-                ? "text-blue-600 border-b-2 border-blue-600"
-                : "text-gray-600 hover:text-gray-800"
-            }`}
-          >
-            Skills & Achievements
-          </button>
-        </div>
-
-        <div className="p-6">
-          {/* Personal Information Tab */}
-          {activeTab === "personal" && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <User size={18} />
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    value={profileData.fullName}
-                    onChange={(e) => setProfileData({ ...profileData, fullName: e.target.value })}
-                    disabled={!isEditing}
-                    className={`w-full px-4 py-3 border rounded-lg ${
-                      isEditing ? "border-blue-300 focus:ring-2 focus:ring-blue-500" : "bg-gray-50"
-                    } focus:outline-none`}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <Mail size={18} />
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    value={profileData.email}
-                    onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                    disabled={!isEditing}
-                    className={`w-full px-4 py-3 border rounded-lg ${
-                      isEditing ? "border-blue-300 focus:ring-2 focus:ring-blue-500" : "bg-gray-50"
-                    } focus:outline-none`}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <Phone size={18} />
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    value={profileData.phone}
-                    onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                    disabled={!isEditing}
-                    className={`w-full px-4 py-3 border rounded-lg ${
-                      isEditing ? "border-blue-300 focus:ring-2 focus:ring-blue-500" : "bg-gray-50"
-                    } focus:outline-none`}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <Calendar size={18} />
-                    Date of Birth
-                  </label>
-                  <input
-                    type="date"
-                    value={profileData.dateOfBirth}
-                    onChange={(e) => setProfileData({ ...profileData, dateOfBirth: e.target.value })}
-                    disabled={!isEditing}
-                    className={`w-full px-4 py-3 border rounded-lg ${
-                      isEditing ? "border-blue-300 focus:ring-2 focus:ring-blue-500" : "bg-gray-50"
-                    } focus:outline-none`}
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <MapPin size={18} />
-                    Address
-                  </label>
-                  <textarea
-                    value={profileData.address}
-                    onChange={(e) => setProfileData({ ...profileData, address: e.target.value })}
-                    disabled={!isEditing}
-                    rows="3"
-                    className={`w-full px-4 py-3 border rounded-lg ${
-                      isEditing ? "border-blue-300 focus:ring-2 focus:ring-blue-500" : "bg-gray-50"
-                    } focus:outline-none`}
-                  />
-                </div>
-              </div>
-
-              <div className="border-t pt-6">
-                <h3 className="text-lg font-bold text-gray-800 mb-4">Emergency Contact</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Contact Name
-                    </label>
-                    <input
-                      type="text"
-                      value={profileData.emergencyContactName}
-                      onChange={(e) => setProfileData({ ...profileData, emergencyContactName: e.target.value })}
-                      disabled={!isEditing}
-                      className={`w-full px-4 py-3 border rounded-lg ${
-                        isEditing ? "border-blue-300 focus:ring-2 focus:ring-blue-500" : "bg-gray-50"
-                      } focus:outline-none`}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Phone Number
-                    </label>
-                    <input
-                      type="tel"
-                      value={profileData.emergencyContact}
-                      onChange={(e) => setProfileData({ ...profileData, emergencyContact: e.target.value })}
-                      disabled={!isEditing}
-                      className={`w-full px-4 py-3 border rounded-lg ${
-                        isEditing ? "border-blue-300 focus:ring-2 focus:ring-blue-500" : "bg-gray-50"
-                      } focus:outline-none`}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Relationship
-                    </label>
-                    <input
-                      type="text"
-                      value={profileData.emergencyContactRelation}
-                      onChange={(e) => setProfileData({ ...profileData, emergencyContactRelation: e.target.value })}
-                      disabled={!isEditing}
-                      className={`w-full px-4 py-3 border rounded-lg ${
-                        isEditing ? "border-blue-300 focus:ring-2 focus:ring-blue-500" : "bg-gray-50"
-                      } focus:outline-none`}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Employment Details Tab */}
-          {activeTab === "employment" && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <Briefcase size={18} />
-                    Employee ID
-                  </label>
-                  <input
-                    type="text"
-                    value={profileData.employeeId}
-                    disabled
-                    className="w-full px-4 py-3 border rounded-lg bg-gray-50"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <Building2 size={18} />
-                    Department
-                  </label>
-                  <input
-                    type="text"
-                    value={profileData.department}
-                    disabled
-                    className="w-full px-4 py-3 border rounded-lg bg-gray-50"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <Target size={18} />
-                    Designation
-                  </label>
-                  <input
-                    type="text"
-                    value={profileData.designation}
-                    disabled
-                    className="w-full px-4 py-3 border rounded-lg bg-gray-50"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <Calendar size={18} />
-                    Joining Date
-                  </label>
-                  <input
-                    type="text"
-                    value={profileData.joiningDate}
-                    disabled
-                    className="w-full px-4 py-3 border rounded-lg bg-gray-50"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Employment Type
-                  </label>
-                  <input
-                    type="text"
-                    value={profileData.employmentType}
-                    disabled
-                    className="w-full px-4 py-3 border rounded-lg bg-gray-50"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <User size={18} />
-                    Reporting Manager
-                  </label>
-                  <input
-                    type="text"
-                    value={profileData.reportingManager}
-                    disabled
-                    className="w-full px-4 py-3 border rounded-lg bg-gray-50"
-                  />
-                </div>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
-                  <strong>Note:</strong> Employment details are managed by HR. Please contact HR department for any changes.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Skills & Achievements Tab */}
-          {activeTab === "skills" && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <Target className="text-blue-600" size={24} />
-                  Technical Skills
-                </h3>
-                <div className="space-y-4">
-                  {skills.map((skill, index) => (
-                    <div key={index}>
-                      <div className="flex justify-between mb-2">
-                        <span className="font-semibold text-gray-700">{skill.name}</span>
-                        <span className="text-blue-600 font-bold">{skill.level}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div
-                          className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-500"
-                          style={{ width: `${skill.level}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t pt-6">
-                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <Award className="text-yellow-600" size={24} />
-                  Achievements & Awards
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {achievements.map((achievement, index) => (
-                    <div
-                      key={index}
-                      className="bg-gradient-to-br from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-6 text-center hover:shadow-lg transition-all duration-300"
-                    >
-                      <div className="text-4xl mb-3">{achievement.icon}</div>
-                      <h4 className="font-bold text-gray-800 mb-2">{achievement.title}</h4>
-                      <p className="text-sm text-gray-600">{achievement.date}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Security Section */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-          <Lock className="text-red-600" size={24} />
-          Security Settings
-        </h3>
-        <div className="space-y-3">
-          <button className="w-full md:w-auto bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition font-semibold">
-            Change Password
-          </button>
-          <button className="w-full md:w-auto bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition font-semibold ml-0 md:ml-3">
-            Enable Two-Factor Authentication
-          </button>
-        </div>
-      </div>
-        </div>
-      </main>
+  const Field = ({ label, name, type = "text", readOnly = false }) => (
+    <div>
+      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{label}</label>
+      <input type={type} value={profileData[name] || ""} disabled={!isEditing || readOnly}
+        onChange={e => setProfileData({ ...profileData, [name]: e.target.value })}
+        className={`w-full px-4 py-3 border rounded-xl text-sm ${isEditing && !readOnly ? "border-sky-300 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500" : "border-gray-100 bg-gray-50"}`} />
     </div>
   );
-};
 
+  if (!user) return null;
+  const initials = profileData.fullName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+
+  return (
+    <PageLayout role="employee" activePage="Profile" title="My Profile" subtitle="Manage your personal information"
+      actions={
+        !isEditing
+          ? <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"><Edit size={16} /> Edit Profile</button>
+          : <div className="flex gap-2">
+              <button onClick={() => setIsEditing(false)} className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"><Save size={16} /> Save</button>
+              <button onClick={() => setIsEditing(false)} className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-xl text-sm font-semibold transition-colors"><X size={16} /> Cancel</button>
+            </div>
+      }
+    >
+      <div className="space-y-6">
+        {/* Header card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="h-28 bg-gradient-to-r from-sky-400 to-blue-500" />
+          <div className="px-6 pb-6">
+            <div className="flex items-end gap-5 -mt-14">
+              <div className="relative flex-shrink-0">
+                <div className="w-24 h-24 rounded-2xl bg-white shadow-lg flex items-center justify-center text-3xl font-bold text-sky-600 border-4 border-white">{initials}</div>
+                <button className="absolute -bottom-1 -right-1 bg-sky-500 text-white p-1.5 rounded-lg hover:bg-sky-600 transition shadow"><Camera size={14} /></button>
+              </div>
+              <div className="mb-2">
+                <h2 className="text-xl font-bold text-gray-900">{profileData.fullName}</h2>
+                <p className="text-gray-500 text-sm">{profileData.designation} · {profileData.department}</p>
+                <p className="text-xs text-gray-400">ID: {profileData.employeeId}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex border-b border-gray-100">
+            {[["personal","Personal Info"],["employment","Employment"],["skills","Skills & Awards"]].map(([tab,label]) => (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className={`flex-1 py-4 text-sm font-semibold transition-colors ${activeTab === tab ? "text-sky-600 border-b-2 border-sky-500" : "text-gray-500 hover:text-gray-800"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="p-6">
+            {activeTab === "personal" && (
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <Field label="Full Name" name="fullName" />
+                  <Field label="Email" name="email" type="email" />
+                  <Field label="Phone" name="phone" type="tel" />
+                  <Field label="Date of Birth" name="dateOfBirth" type="date" />
+                  <div className="md:col-span-2"><Field label="Address" name="address" /></div>
+                </div>
+                <div className="border-t border-gray-100 pt-5">
+                  <h3 className="text-sm font-bold text-gray-700 mb-4">Emergency Contact</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Field label="Contact Name" name="emergencyContactName" />
+                    <Field label="Phone" name="emergencyContact" type="tel" />
+                    <Field label="Relationship" name="emergencyContactRelation" />
+                  </div>
+                </div>
+              </div>
+            )}
+            {activeTab === "employment" && (
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <Field label="Employee ID" name="employeeId" readOnly />
+                  <Field label="Department" name="department" readOnly />
+                  <Field label="Designation" name="designation" readOnly />
+                  <Field label="Joining Date" name="joiningDate" readOnly />
+                  <Field label="Employment Type" name="employmentType" readOnly />
+                  <Field label="Reporting Manager" name="reportingManager" readOnly />
+                </div>
+                <div className="bg-sky-50 border border-sky-200 rounded-xl p-4 text-sm text-sky-800">
+                  <strong>Note:</strong> Employment details are managed by HR. Contact HR for any changes.
+                </div>
+              </div>
+            )}
+            {activeTab === "skills" && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-sm font-bold text-gray-700 mb-4">Technical Skills</h3>
+                  <div className="space-y-4">
+                    {skills.map(s => (
+                      <div key={s.name}>
+                        <div className="flex justify-between text-sm mb-1.5">
+                          <span className="font-medium text-gray-700">{s.name}</span>
+                          <span className="font-bold text-sky-600">{s.level}%</span>
+                        </div>
+                        <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-sky-400 to-blue-500 rounded-full" style={{ width: `${s.level}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="border-t border-gray-100 pt-5">
+                  <h3 className="text-sm font-bold text-gray-700 mb-4">Achievements</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {achievements.map((a, i) => (
+                      <div key={i} className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-center hover:shadow-sm transition-all">
+                        <div className="text-3xl mb-2">{a.icon}</div>
+                        <h4 className="font-bold text-gray-800 text-sm mb-1">{a.title}</h4>
+                        <p className="text-xs text-gray-500">{a.date}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Security */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2 mb-4"><Lock size={16} className="text-red-500" /> Security</h3>
+          <div className="flex gap-3 flex-wrap">
+            <button className="px-5 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-sm font-semibold transition-colors">Change Password</button>
+            <button className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-semibold transition-colors">Enable 2FA</button>
+          </div>
+        </div>
+      </div>
+    </PageLayout>
+  );
+};
 export default Profile;

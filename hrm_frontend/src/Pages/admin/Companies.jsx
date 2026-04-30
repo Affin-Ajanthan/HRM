@@ -1,443 +1,152 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  LayoutDashboard,
-  Users,
-  Building2,
-  Settings,
-  FileText,
-  Activity,
-  LogOut,
-  CalendarCheck,
-  Search,
-  Filter,
-  Eye,
-  CheckCircle,
-  XCircle,
-  Clock,
-  TrendingUp,
-} from "lucide-react";
-import logo from "../../assets/logo.jpg";
+import { Building2, Search, Filter, Eye, CheckCircle, XCircle, Clock, X } from "lucide-react";
+import { PageLayout } from "../../components/PageLayout";
 
 const AdminCompanies = () => {
-  const [user, setUser] = useState(null);
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [viewingCompany, setViewingCompany] = useState(null);
 
-  const menuItems = [
-    { name: "Overview", icon: LayoutDashboard, path: "/admin/dashboard" },
-    { name: "Companies", icon: Building2, path: "/admin/companies" },
-    { name: "System Users", icon: Users, path: "/admin/system-users" },
-    { name: "Attendance", icon: CalendarCheck, path: "/admin/attendance" },
-    { name: "Leave", icon: FileText, path: "/admin/leave" },
-    { name: "Payroll", icon: Activity, path: "/admin/payslip" },
-    { name: "System Config", icon: Settings, path: "/admin/system-config" },
-  ];
-
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      if (userData.role !== "ADMIN") {
-        navigate("/unauthorized");
-        return;
-      }
-      setUser(userData);
-    } else {
-      navigate("/login");
-    }
+    const s = localStorage.getItem("user");
+    if (s) { const u = JSON.parse(s); if (u.role !== "ADMIN") { navigate("/unauthorized"); return; } setUser(u); }
+    else navigate("/login");
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    navigate("/login");
-  };
-
-  const handleMenuClick = (path) => {
-    navigate(path);
-  };
-
   const [companies, setCompanies] = useState([
-    {
-      id: 1,
-      name: "Tech Solutions Ltd",
-      industry: "IT Services",
-      contact: "contact@techsol.com",
-      phone: "+1 234 567 8901",
-      employees: 50,
-      address: "123 Tech Park, Silicon Valley",
-      submittedOn: "2026-02-22",
-      status: "Pending",
-    },
-    {
-      id: 2,
-      name: "Global Marketing Inc",
-      industry: "Marketing",
-      contact: "info@globalmark.com",
-      phone: "+1 234 567 8902",
-      employees: 120,
-      address: "456 Market Blvd, New York",
-      submittedOn: "2026-02-21",
-      status: "Pending",
-    },
-    {
-      id: 3,
-      name: "ABC Corporation",
-      industry: "Finance",
-      contact: "admin@abccorp.com",
-      phone: "+1 234 567 8903",
-      employees: 80,
-      address: "789 Finance Ave, Chicago",
-      submittedOn: "2026-02-19",
-      status: "Active",
-    },
-    {
-      id: 4,
-      name: "Blue Sky Retail",
-      industry: "Retail",
-      contact: "hello@bluesky.com",
-      phone: "+1 234 567 8904",
-      employees: 30,
-      address: "22 Commerce St, Dallas",
-      submittedOn: "2026-02-17",
-      status: "Rejected",
-    },
-    {
-      id: 5,
-      name: "MedCare Solutions",
-      industry: "Healthcare",
-      contact: "support@medcare.com",
-      phone: "+1 234 567 8905",
-      employees: 200,
-      address: "99 Health Rd, Boston",
-      submittedOn: "2026-02-23",
-      status: "Pending",
-    },
+    { id: 1, name: "Tech Solutions Ltd",  industry: "IT Services",  contact: "contact@techsol.com",  phone: "+1 234 567 8901", employees: 50,  address: "123 Tech Park, Silicon Valley", submittedOn: "2026-02-22", status: "Pending"  },
+    { id: 2, name: "Global Marketing Inc", industry: "Marketing",    contact: "info@globalmark.com",  phone: "+1 234 567 8902", employees: 120, address: "456 Market Blvd, New York",    submittedOn: "2026-02-21", status: "Pending"  },
+    { id: 3, name: "ABC Corporation",      industry: "Finance",      contact: "admin@abccorp.com",    phone: "+1 234 567 8903", employees: 80,  address: "789 Finance Ave, Chicago",    submittedOn: "2026-02-19", status: "Active"   },
+    { id: 4, name: "Blue Sky Retail",      industry: "Retail",       contact: "hello@bluesky.com",    phone: "+1 234 567 8904", employees: 30,  address: "22 Commerce St, Dallas",      submittedOn: "2026-02-17", status: "Rejected" },
+    { id: 5, name: "MedCare Solutions",    industry: "Healthcare",   contact: "support@medcare.com",  phone: "+1 234 567 8905", employees: 200, address: "99 Health Rd, Boston",        submittedOn: "2026-02-23", status: "Pending"  },
   ]);
 
+  const handleApprove = (id) => { setCompanies(c => c.map(x => x.id === id ? { ...x, status: "Active" } : x)); setViewingCompany(null); };
+  const handleReject  = (id) => { setCompanies(c => c.map(x => x.id === id ? { ...x, status: "Rejected" } : x)); setViewingCompany(null); };
+
   const stats = {
-    total: companies.length,
-    pending: companies.filter((c) => c.status === "Pending").length,
-    active: companies.filter((c) => c.status === "Active").length,
-    rejected: companies.filter((c) => c.status === "Rejected").length,
+    total:    companies.length,
+    pending:  companies.filter(c => c.status === "Pending").length,
+    active:   companies.filter(c => c.status === "Active").length,
+    rejected: companies.filter(c => c.status === "Rejected").length,
   };
 
-  const filteredData = companies.filter((company) => {
-    const matchesSearch =
-      company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      company.industry.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      company.contact.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus =
-      filterStatus === "all" || company.status.toLowerCase() === filterStatus.toLowerCase();
-    return matchesSearch && matchesStatus;
+  const filtered = companies.filter(c => {
+    const m = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.industry.toLowerCase().includes(searchTerm.toLowerCase());
+    const s = filterStatus === "all" || c.status.toLowerCase() === filterStatus;
+    return m && s;
   });
 
-  const handleApprove = (id) => {
-    setCompanies(companies.map((c) => (c.id === id ? { ...c, status: "Active" } : c)));
-    setViewingCompany(null);
-  };
+  const statusBadge = (s) => ({ Active:"bg-emerald-100 text-emerald-700", Rejected:"bg-red-100 text-red-700", Pending:"bg-amber-100 text-amber-700" }[s] || "bg-gray-100 text-gray-600");
 
-  const handleReject = (id) => {
-    setCompanies(companies.map((c) => (c.id === id ? { ...c, status: "Rejected" } : c)));
-    setViewingCompany(null);
-  };
-
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
-      </div>
-    );
-  }
-
+  if (!user) return null;
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-lg flex flex-col">
-        <div className="p-4 border-b">
-          <div className="flex items-center gap-2">
-            <img src={logo} alt="Logo" className="h-10 w-10 rounded" />
-            <div>
-              <h1 className="font-bold text-lg">HRM System</h1>
-              <p className="text-xs text-gray-500">Administrator</p>
+    <PageLayout role="admin" activePage="Companies" title="Company Management" subtitle="Review, approve, and manage all registered companies">
+      <div className="space-y-6">
+        {/* Stats */}
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-5">
+          {[
+            { label:"Total Companies", value:stats.total,    icon:"🏢", gradient:"from-indigo-400 to-violet-500" },
+            { label:"Pending",         value:stats.pending,  icon:"⏳", gradient:"from-amber-400 to-orange-500" },
+            { label:"Active",          value:stats.active,   icon:"✅", gradient:"from-emerald-400 to-teal-500" },
+            { label:"Rejected",        value:stats.rejected, icon:"❌", gradient:"from-red-400 to-rose-500" },
+          ].map(s => (
+            <div key={s.label} className={`bg-gradient-to-br ${s.gradient} p-6 rounded-2xl text-white hover:-translate-y-1 hover:shadow-lg transition-all duration-300`}>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-white/80 text-sm">{s.label}</p>
+                <span className="text-2xl">{s.icon}</span>
+              </div>
+              <p className="text-4xl font-bold">{s.value}</p>
             </div>
-          </div>
-        </div>
-
-        <div className="p-4 border-b bg-gradient-to-r from-purple-50 to-pink-50">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
-              {user.fullName?.charAt(0)}
-            </div>
-            <div>
-              <p className="font-semibold text-gray-800">{user.fullName}</p>
-              <p className="text-xs text-gray-500">{user.role}</p>
-            </div>
-          </div>
-        </div>
-
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {menuItems.map((item) => (
-            <button
-              key={item.name}
-              onClick={() => handleMenuClick(item.path)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                item.name === "Companies"
-                  ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg"
-                  : "hover:bg-gray-100 text-gray-700"
-              }`}
-            >
-              <item.icon size={20} />
-              <span>{item.name}</span>
-            </button>
           ))}
-        </nav>
-
-        <div className="p-4 border-t">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-          >
-            <LogOut size={20} />
-            <span>Logout</span>
-          </button>
         </div>
-      </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        <header className="bg-white shadow-sm p-6 border-b">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-              <div className="bg-purple-100 p-3 rounded-xl">
-                <Building2 className="text-purple-600" size={32} />
-              </div>
-              Company Onboarding & Management
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">Review, approve, and manage all companies registered on the platform</p>
-          </div>
-        </header>
-
-        <div className="p-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-purple-100 text-sm">Total Companies</p>
-                <Building2 size={24} />
-              </div>
-              <p className="text-4xl font-bold">{stats.total}</p>
-              <p className="text-sm text-purple-100 mt-1">All registered</p>
+        {/* Filters */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search by name or industry…"
+                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50" />
             </div>
-
-            <div className="bg-gradient-to-br from-yellow-500 to-orange-500 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-yellow-100 text-sm">Pending</p>
-                <Clock size={24} />
-              </div>
-              <p className="text-4xl font-bold">{stats.pending}</p>
-              <p className="text-sm text-yellow-100 mt-1">Needs review</p>
-            </div>
-
-            <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-green-100 text-sm">Active</p>
-                <CheckCircle size={24} />
-              </div>
-              <p className="text-4xl font-bold">{stats.active}</p>
-              <p className="text-sm text-green-100 mt-1">Approved & active</p>
-            </div>
-
-            <div className="bg-gradient-to-br from-red-500 to-red-600 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-red-100 text-sm">Rejected</p>
-                <XCircle size={24} />
-              </div>
-              <p className="text-4xl font-bold">{stats.rejected}</p>
-              <p className="text-sm text-red-100 mt-1">Denied</p>
+            <div className="relative">
+              <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+                className="pl-9 pr-8 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 appearance-none">
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="active">Active</option>
+                <option value="rejected">Rejected</option>
+              </select>
             </div>
           </div>
+        </div>
 
-          {/* Filters */}
-          <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Search by name, industry, or contact..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-              </div>
-
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none"
-                >
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="active">Active</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Companies Table */}
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-purple-500 to-pink-600 text-white">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Company Name</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Industry</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Contact</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Employees</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Submitted On</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredData.map((company, index) => (
-                    <tr
-                      key={company.id}
-                      className={`hover:bg-purple-50 transition-colors ${
-                        index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                      }`}
-                    >
-                      <td className="px-6 py-4 text-sm font-semibold text-gray-800">{company.name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{company.industry}</td>
-                      <td className="px-6 py-4 text-sm text-gray-800">{company.contact}</td>
-                      <td className="px-6 py-4 text-sm font-semibold text-gray-800">{company.employees}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{company.submittedOn}</td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            company.status === "Active"
-                              ? "bg-green-100 text-green-700"
-                              : company.status === "Rejected"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-yellow-100 text-yellow-700"
-                          }`}
-                        >
-                          {company.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => setViewingCompany(company)}
-                          className="flex items-center gap-1 text-purple-600 hover:text-purple-800 font-semibold"
-                        >
-                          <Eye size={16} />
-                          View
-                        </button>
-                      </td>
-                    </tr>
+        {/* Table */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-xs">
+                  {["Company","Industry","Contact","Employees","Submitted","Status","Actions"].map(h => (
+                    <th key={h} className="px-5 py-4 text-left font-semibold">{h}</th>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {filtered.map((c, i) => (
+                  <tr key={c.id} className={`hover:bg-indigo-50/40 transition-colors ${i % 2 === 1 ? "bg-gray-50/40" : ""}`}>
+                    <td className="px-5 py-3.5 font-semibold text-gray-800">{c.name}</td>
+                    <td className="px-5 py-3.5 text-gray-500">{c.industry}</td>
+                    <td className="px-5 py-3.5 text-gray-600">{c.contact}</td>
+                    <td className="px-5 py-3.5 font-semibold">{c.employees}</td>
+                    <td className="px-5 py-3.5 text-gray-400">{c.submittedOn}</td>
+                    <td className="px-5 py-3.5"><span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge(c.status)}`}>{c.status}</span></td>
+                    <td className="px-5 py-3.5">
+                      <button onClick={() => setViewingCompany(c)} className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-semibold text-xs"><Eye size={14} /> View</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
-      </main>
+      </div>
 
-      {/* Company Detail Modal */}
+      {/* Detail Modal */}
       {viewingCompany && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full">
-            <div className="p-6 border-b bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-t-xl">
-              <h3 className="text-2xl font-bold">Company Registration Details</h3>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
+            <div className="flex items-center justify-between p-6 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-t-2xl">
+              <h3 className="text-xl font-bold">Company Details</h3>
+              <button onClick={() => setViewingCompany(null)} className="p-1.5 hover:bg-white/20 rounded-xl transition-colors"><X size={18} /></button>
             </div>
-
             <div className="p-6">
-              <div className="grid grid-cols-2 gap-6 mb-6">
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Company Name</p>
-                  <p className="font-semibold text-gray-800">{viewingCompany.name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Industry</p>
-                  <p className="font-semibold text-gray-800">{viewingCompany.industry}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Contact Email</p>
-                  <p className="font-semibold text-gray-800">{viewingCompany.contact}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Phone</p>
-                  <p className="font-semibold text-gray-800">{viewingCompany.phone}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">No. of Employees</p>
-                  <p className="font-semibold text-gray-800">{viewingCompany.employees}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Submitted On</p>
-                  <p className="font-semibold text-gray-800">{viewingCompany.submittedOn}</p>
-                </div>
+              <div className="grid grid-cols-2 gap-5 mb-5 text-sm">
+                {[["Company Name",viewingCompany.name],["Industry",viewingCompany.industry],["Contact",viewingCompany.contact],["Phone",viewingCompany.phone],["Employees",viewingCompany.employees],["Submitted",viewingCompany.submittedOn]].map(([l,v]) => (
+                  <div key={l}><p className="text-xs text-gray-400 mb-1">{l}</p><p className="font-semibold text-gray-800">{v}</p></div>
+                ))}
               </div>
-
-              <div className="mb-6">
-                <p className="text-sm text-gray-500 mb-1">Address</p>
-                <p className="text-gray-800 bg-gray-50 p-4 rounded-lg">{viewingCompany.address}</p>
+              <div className="mb-5"><p className="text-xs text-gray-400 mb-1">Address</p><p className="bg-gray-50 p-3 rounded-xl text-sm text-gray-700">{viewingCompany.address}</p></div>
+              <div className="mb-5">
+                <p className="text-xs text-gray-400 mb-1">Status</p>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge(viewingCompany.status)}`}>{viewingCompany.status}</span>
               </div>
-
-              <div className="mb-4">
-                <p className="text-sm text-gray-500 mb-1">Current Status</p>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                    viewingCompany.status === "Active"
-                      ? "bg-green-100 text-green-700"
-                      : viewingCompany.status === "Rejected"
-                      ? "bg-red-100 text-red-700"
-                      : "bg-yellow-100 text-yellow-700"
-                  }`}
-                >
-                  {viewingCompany.status}
-                </span>
-              </div>
-
               {viewingCompany.status === "Pending" && (
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => handleApprove(viewingCompany.id)}
-                    className="flex-1 flex items-center justify-center gap-2 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition-colors"
-                  >
-                    <CheckCircle size={20} />
-                    Approve & Activate
-                  </button>
-                  <button
-                    onClick={() => handleReject(viewingCompany.id)}
-                    className="flex-1 flex items-center justify-center gap-2 bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors"
-                  >
-                    <XCircle size={20} />
-                    Reject
-                  </button>
+                <div className="flex gap-3 mb-3">
+                  <button onClick={() => handleApprove(viewingCompany.id)} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2"><CheckCircle size={16} /> Approve</button>
+                  <button onClick={() => handleReject(viewingCompany.id)} className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2"><XCircle size={16} /> Reject</button>
                 </div>
               )}
-
-              <button
-                onClick={() => setViewingCompany(null)}
-                className="w-full mt-4 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Close
-              </button>
+              <button onClick={() => setViewingCompany(null)} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold text-sm transition-colors">Close</button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 };
-
 export default AdminCompanies;

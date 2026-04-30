@@ -1,492 +1,172 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  LayoutDashboard,
-  Users,
-  Building2,
-  Settings,
-  FileText,
-  Activity,
-  LogOut,
-  CalendarCheck,
-  Search,
-  Filter,
-  Eye,
-  CheckCircle,
-  XCircle,
-  ShieldCheck,
-  UserCog,
-  UserPlus,
-} from "lucide-react";
-import logo from "../../assets/logo.jpg";
+import { Users, Search, Filter, Eye, CheckCircle, XCircle, UserCog, UserPlus, ShieldCheck, X } from "lucide-react";
+import { PageLayout } from "../../components/PageLayout";
 
 const AdminSystemUsers = () => {
-  const [user, setUser] = useState(null);
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const [viewingUser, setViewingUser] = useState(null);
-  const [assignRoleModal, setAssignRoleModal] = useState(null);
   const [selectedRole, setSelectedRole] = useState("");
 
-  const menuItems = [
-    { name: "Overview", icon: LayoutDashboard, path: "/admin/dashboard" },
-    { name: "Companies", icon: Building2, path: "/admin/companies" },
-    { name: "System Users", icon: Users, path: "/admin/system-users" },
-    { name: "Attendance", icon: CalendarCheck, path: "/admin/attendance" },
-    { name: "Leave", icon: FileText, path: "/admin/leave" },
-    { name: "Payroll", icon: Activity, path: "/admin/payslip" },
-    { name: "System Config", icon: Settings, path: "/admin/system-config" },
-  ];
-
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      if (userData.role !== "ADMIN") {
-        navigate("/unauthorized");
-        return;
-      }
-      setUser(userData);
-    } else {
-      navigate("/login");
-    }
+    const s = localStorage.getItem("user");
+    if (s) { const u = JSON.parse(s); if (u.role !== "ADMIN") { navigate("/unauthorized"); return; } setUser(u); }
+    else navigate("/login");
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    navigate("/login");
-  };
-
-  const handleMenuClick = (path) => {
-    navigate(path);
-  };
-
   const [systemUsers, setSystemUsers] = useState([
-    {
-      id: 1,
-      name: "Alice Johnson",
-      email: "alice@techsolutions.com",
-      role: "HR Manager",
-      company: "Tech Solutions Ltd",
-      status: "Active",
-      joinedOn: "2026-02-22",
-    },
-    {
-      id: 2,
-      name: "Bob Williams",
-      email: "bob@globalmarketing.com",
-      role: "Unassigned",
-      company: "Global Marketing Inc",
-      status: "Pending",
-      joinedOn: "2026-02-21",
-    },
-    {
-      id: 3,
-      name: "Carol Smith",
-      email: "carol@abccorp.com",
-      role: "HR Manager",
-      company: "ABC Corporation",
-      status: "Active",
-      joinedOn: "2026-02-19",
-    },
-    {
-      id: 4,
-      name: "David Lee",
-      email: "david@system.com",
-      role: "Admin",
-      company: "System",
-      status: "Active",
-      joinedOn: "2026-01-10",
-    },
-    {
-      id: 5,
-      name: "Eva Martinez",
-      email: "eva@medcare.com",
-      role: "Unassigned",
-      company: "MedCare Solutions",
-      status: "Pending",
-      joinedOn: "2026-02-23",
-    },
-    {
-      id: 6,
-      name: "Frank Brown",
-      email: "frank@system.com",
-      role: "Admin",
-      company: "System",
-      status: "Active",
-      joinedOn: "2025-12-01",
-    },
+    { id:1, name:"Alice Johnson",  email:"alice@techsolutions.com",  role:"HR Manager", company:"Tech Solutions Ltd",  status:"Active",  joinedOn:"2026-02-22" },
+    { id:2, name:"Bob Williams",   email:"bob@globalmarketing.com",  role:"Unassigned", company:"Global Marketing Inc",status:"Pending", joinedOn:"2026-02-21" },
+    { id:3, name:"Carol Smith",    email:"carol@abccorp.com",        role:"HR Manager", company:"ABC Corporation",     status:"Active",  joinedOn:"2026-02-19" },
+    { id:4, name:"David Lee",      email:"david@system.com",        role:"Admin",      company:"System",              status:"Active",  joinedOn:"2026-01-10" },
+    { id:5, name:"Eva Martinez",   email:"eva@medcare.com",          role:"Unassigned", company:"MedCare Solutions",   status:"Pending", joinedOn:"2026-02-23" },
+    { id:6, name:"Frank Brown",    email:"frank@system.com",        role:"Admin",      company:"System",              status:"Active",  joinedOn:"2025-12-01" },
   ]);
 
   const stats = {
     total: systemUsers.length,
-    hrManagers: systemUsers.filter((u) => u.role === "HR Manager").length,
-    admins: systemUsers.filter((u) => u.role === "Admin").length,
-    unassigned: systemUsers.filter((u) => u.role === "Unassigned").length,
+    hrManagers: systemUsers.filter(u => u.role === "HR Manager").length,
+    admins: systemUsers.filter(u => u.role === "Admin").length,
+    unassigned: systemUsers.filter(u => u.role === "Unassigned").length,
   };
 
-  const filteredData = systemUsers.filter((u) => {
-    const matchesSearch =
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.company.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole =
-      filterRole === "all" || u.role.toLowerCase() === filterRole.toLowerCase();
-    return matchesSearch && matchesRole;
+  const filtered = systemUsers.filter(u => {
+    const m = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()) || u.company.toLowerCase().includes(searchTerm.toLowerCase());
+    const r = filterRole === "all" || u.role.toLowerCase() === filterRole.toLowerCase();
+    return m && r;
   });
 
-  const handleAssignRole = (userId) => {
+  const handleAssignRole = (id) => {
     if (!selectedRole) return;
-    setSystemUsers(
-      systemUsers.map((u) =>
-        u.id === userId
-          ? { ...u, role: selectedRole, status: "Active" }
-          : u
-      )
-    );
-    setAssignRoleModal(null);
-    setViewingUser(null);
-    setSelectedRole("");
+    setSystemUsers(users => users.map(u => u.id === id ? { ...u, role: selectedRole, status: "Active" } : u));
+    setViewingUser(null); setSelectedRole("");
   };
+  const handleDeactivate = (id) => { setSystemUsers(users => users.map(u => u.id === id ? { ...u, status: "Inactive" } : u)); setViewingUser(null); };
 
-  const handleDeactivate = (userId) => {
-    setSystemUsers(
-      systemUsers.map((u) =>
-        u.id === userId ? { ...u, status: "Inactive" } : u
-      )
-    );
-    setViewingUser(null);
-  };
+  const roleBadge = (r) => ({ Admin:"bg-violet-100 text-violet-700", "HR Manager":"bg-indigo-100 text-indigo-700", Unassigned:"bg-amber-100 text-amber-700" }[r] || "bg-gray-100 text-gray-600");
+  const statusBadge = (s) => ({ Active:"bg-emerald-100 text-emerald-700", Inactive:"bg-red-100 text-red-700", Pending:"bg-amber-100 text-amber-700" }[s] || "bg-gray-100 text-gray-600");
 
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
-      </div>
-    );
-  }
-
+  if (!user) return null;
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-lg flex flex-col">
-        <div className="p-4 border-b">
-          <div className="flex items-center gap-2">
-            <img src={logo} alt="Logo" className="h-10 w-10 rounded" />
-            <div>
-              <h1 className="font-bold text-lg">HRM System</h1>
-              <p className="text-xs text-gray-500">Administrator</p>
+    <PageLayout role="admin" activePage="System Users" title="User & Role Management" subtitle="Manage all system users, assign HR Manager roles, and oversee administrators">
+      <div className="space-y-6">
+        {/* Stats */}
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-5">
+          {[
+            { label:"Total Users",  value:stats.total,      icon:"👥", gradient:"from-indigo-400 to-violet-500" },
+            { label:"Unassigned",   value:stats.unassigned, icon:"⏳", gradient:"from-amber-400 to-orange-500" },
+            { label:"HR Managers",  value:stats.hrManagers, icon:"🎯", gradient:"from-emerald-400 to-teal-500" },
+            { label:"Admins",       value:stats.admins,     icon:"🛡", gradient:"from-violet-400 to-purple-600" },
+          ].map(s => (
+            <div key={s.label} className={`bg-gradient-to-br ${s.gradient} p-6 rounded-2xl text-white hover:-translate-y-1 hover:shadow-lg transition-all duration-300`}>
+              <div className="flex items-center justify-between mb-2"><p className="text-white/80 text-sm">{s.label}</p><span className="text-2xl">{s.icon}</span></div>
+              <p className="text-4xl font-bold">{s.value}</p>
             </div>
-          </div>
-        </div>
-
-        <div className="p-4 border-b bg-gradient-to-r from-purple-50 to-pink-50">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
-              {user.fullName?.charAt(0)}
-            </div>
-            <div>
-              <p className="font-semibold text-gray-800">{user.fullName}</p>
-              <p className="text-xs text-gray-500">{user.role}</p>
-            </div>
-          </div>
-        </div>
-
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {menuItems.map((item) => (
-            <button
-              key={item.name}
-              onClick={() => handleMenuClick(item.path)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                item.name === "System Users"
-                  ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg"
-                  : "hover:bg-gray-100 text-gray-700"
-              }`}
-            >
-              <item.icon size={20} />
-              <span>{item.name}</span>
-            </button>
           ))}
-        </nav>
-
-        <div className="p-4 border-t">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-          >
-            <LogOut size={20} />
-            <span>Logout</span>
-          </button>
         </div>
-      </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        <header className="bg-white shadow-sm p-6 border-b">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-              <div className="bg-purple-100 p-3 rounded-xl">
-                <Users className="text-purple-600" size={32} />
-              </div>
-              User & Role Management
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Manage all system users, assign HR Manager roles, and oversee platform administrators
-            </p>
-          </div>
-        </header>
-
-        <div className="p-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-purple-100 text-sm">Total Users</p>
-                <Users size={24} />
-              </div>
-              <p className="text-4xl font-bold">{stats.total}</p>
-              <p className="text-sm text-purple-100 mt-1">Platform-wide</p>
+        {/* Filters */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search by name, email, or company…"
+                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50" />
             </div>
-
-            <div className="bg-gradient-to-br from-yellow-500 to-orange-500 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-yellow-100 text-sm">Unassigned</p>
-                <UserPlus size={24} />
-              </div>
-              <p className="text-4xl font-bold">{stats.unassigned}</p>
-              <p className="text-sm text-yellow-100 mt-1">Needs role assignment</p>
-            </div>
-
-            <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-green-100 text-sm">HR Managers</p>
-                <UserCog size={24} />
-              </div>
-              <p className="text-4xl font-bold">{stats.hrManagers}</p>
-              <p className="text-sm text-green-100 mt-1">Active across companies</p>
-            </div>
-
-            <div className="bg-gradient-to-br from-pink-500 to-pink-600 p-6 rounded-xl shadow-lg text-white transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-pink-100 text-sm">Admins</p>
-                <ShieldCheck size={24} />
-              </div>
-              <p className="text-4xl font-bold">{stats.admins}</p>
-              <p className="text-sm text-pink-100 mt-1">System-level</p>
+            <div className="relative">
+              <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <select value={filterRole} onChange={e => setFilterRole(e.target.value)}
+                className="pl-9 pr-8 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 appearance-none">
+                <option value="all">All Roles</option>
+                <option value="hr manager">HR Manager</option>
+                <option value="admin">Admin</option>
+                <option value="unassigned">Unassigned</option>
+              </select>
             </div>
           </div>
+        </div>
 
-          {/* Filters */}
-          <div className="bg-white p-6 rounded-xl shadow-lg mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Search by name, email, or company..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-              </div>
-
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <select
-                  value={filterRole}
-                  onChange={(e) => setFilterRole(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none"
-                >
-                  <option value="all">All Roles</option>
-                  <option value="hr manager">HR Manager</option>
-                  <option value="admin">Admin</option>
-                  <option value="unassigned">Unassigned</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Users Table */}
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-purple-500 to-pink-600 text-white">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Name</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Email</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Company</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Role</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Joined On</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Actions</th>
+        {/* Table */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-xs">
+                  {["Name","Email","Company","Role","Joined","Status","Actions"].map(h => <th key={h} className="px-5 py-4 text-left font-semibold">{h}</th>)}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {filtered.map((u, i) => (
+                  <tr key={u.id} className={`hover:bg-indigo-50/40 transition-colors ${i % 2 === 1 ? "bg-gray-50/40" : ""}`}>
+                    <td className="px-5 py-3.5 font-semibold text-gray-800">{u.name}</td>
+                    <td className="px-5 py-3.5 text-gray-500">{u.email}</td>
+                    <td className="px-5 py-3.5 text-gray-600">{u.company}</td>
+                    <td className="px-5 py-3.5"><span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${roleBadge(u.role)}`}>{u.role}</span></td>
+                    <td className="px-5 py-3.5 text-gray-400">{u.joinedOn}</td>
+                    <td className="px-5 py-3.5"><span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge(u.status)}`}>{u.status}</span></td>
+                    <td className="px-5 py-3.5">
+                      <button onClick={() => setViewingUser(u)} className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-semibold text-xs"><Eye size={14} /> Manage</button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredData.map((u, index) => (
-                    <tr
-                      key={u.id}
-                      className={`hover:bg-purple-50 transition-colors ${
-                        index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                      }`}
-                    >
-                      <td className="px-6 py-4 text-sm font-semibold text-gray-800">{u.name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{u.email}</td>
-                      <td className="px-6 py-4 text-sm text-gray-800">{u.company}</td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            u.role === "Admin"
-                              ? "bg-pink-100 text-pink-700"
-                              : u.role === "HR Manager"
-                              ? "bg-purple-100 text-purple-700"
-                              : "bg-yellow-100 text-yellow-700"
-                          }`}
-                        >
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{u.joinedOn}</td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            u.status === "Active"
-                              ? "bg-green-100 text-green-700"
-                              : u.status === "Inactive"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-yellow-100 text-yellow-700"
-                          }`}
-                        >
-                          {u.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => setViewingUser(u)}
-                          className="flex items-center gap-1 text-purple-600 hover:text-purple-800 font-semibold"
-                        >
-                          <Eye size={16} />
-                          Manage
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
-      </main>
+      </div>
 
-      {/* User Detail / Manage Modal */}
+      {/* Manage Modal */}
       {viewingUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full">
-            <div className="p-6 border-b bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-t-xl">
-              <h3 className="text-2xl font-bold">Manage User</h3>
-              <p className="text-purple-100 text-sm mt-1">View details and manage role/status</p>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl">
+            <div className="flex items-center justify-between p-6 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-t-2xl">
+              <div><h3 className="text-xl font-bold">Manage User</h3><p className="text-indigo-200 text-sm">{viewingUser.email}</p></div>
+              <button onClick={() => { setViewingUser(null); setSelectedRole(""); }} className="p-1.5 hover:bg-white/20 rounded-xl"><X size={18} /></button>
             </div>
-
-            <div className="p-6">
-              <div className="grid grid-cols-2 gap-6 mb-6">
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Full Name</p>
-                  <p className="font-semibold text-gray-800">{viewingUser.name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Email</p>
-                  <p className="font-semibold text-gray-800">{viewingUser.email}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Company</p>
-                  <p className="font-semibold text-gray-800">{viewingUser.company}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Joined On</p>
-                  <p className="font-semibold text-gray-800">{viewingUser.joinedOn}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Current Role</p>
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      viewingUser.role === "Admin"
-                        ? "bg-pink-100 text-pink-700"
-                        : viewingUser.role === "HR Manager"
-                        ? "bg-purple-100 text-purple-700"
-                        : "bg-yellow-100 text-yellow-700"
-                    }`}
-                  >
-                    {viewingUser.role}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Status</p>
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      viewingUser.status === "Active"
-                        ? "bg-green-100 text-green-700"
-                        : viewingUser.status === "Inactive"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-yellow-100 text-yellow-700"
-                    }`}
-                  >
-                    {viewingUser.status}
-                  </span>
-                </div>
+            <div className="p-6 space-y-5">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                {[["Name",viewingUser.name],["Company",viewingUser.company],["Role",null],["Status",null]].map(([l,v], i) => (
+                  <div key={i}>
+                    <p className="text-xs text-gray-400 mb-1">{l}</p>
+                    {v ? <p className="font-semibold text-gray-800">{v}</p> : 
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${l === "Role" ? roleBadge(viewingUser.role) : statusBadge(viewingUser.status)}`}>
+                        {l === "Role" ? viewingUser.role : viewingUser.status}
+                      </span>}
+                  </div>
+                ))}
               </div>
-
-              {/* Assign / Change Role */}
-              <div className="mb-6 bg-purple-50 p-4 rounded-lg">
-                <p className="text-sm font-semibold text-purple-700 mb-3 flex items-center gap-2">
-                  <UserCog size={16} /> Assign / Change Role
-                </p>
+              <div className="bg-indigo-50 p-4 rounded-xl">
+                <p className="text-sm font-semibold text-indigo-700 mb-3 flex items-center gap-2"><UserCog size={16} /> Assign / Change Role</p>
                 <div className="flex gap-3">
-                  <select
-                    value={selectedRole}
-                    onChange={(e) => setSelectedRole(e.target.value)}
-                    className="flex-1 px-4 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  >
-                    <option value="">Select a role...</option>
+                  <select value={selectedRole} onChange={e => setSelectedRole(e.target.value)}
+                    className="flex-1 px-4 py-2.5 border border-indigo-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                    <option value="">Select a role…</option>
                     <option value="HR Manager">HR Manager</option>
                     <option value="Admin">Admin</option>
                     <option value="Unassigned">Unassigned</option>
                   </select>
-                  <button
-                    onClick={() => handleAssignRole(viewingUser.id)}
-                    disabled={!selectedRole}
-                    className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center gap-2"
-                  >
-                    <CheckCircle size={16} />
-                    Assign
+                  <button onClick={() => handleAssignRole(viewingUser.id)} disabled={!selectedRole}
+                    className="px-4 py-2.5 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-40 text-white rounded-xl font-semibold text-sm transition-colors flex items-center gap-1.5">
+                    <CheckCircle size={15} /> Assign
                   </button>
                 </div>
               </div>
-
-              {/* Deactivate */}
               {viewingUser.status === "Active" && (
-                <button
-                  onClick={() => handleDeactivate(viewingUser.id)}
-                  className="w-full flex items-center justify-center gap-2 bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors mb-3"
-                >
-                  <XCircle size={20} />
-                  Deactivate User
+                <button onClick={() => handleDeactivate(viewingUser.id)}
+                  className="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2">
+                  <XCircle size={16} /> Deactivate User
                 </button>
               )}
-
-              <button
-                onClick={() => { setViewingUser(null); setSelectedRole(""); }}
-                className="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Close
-              </button>
+              <button onClick={() => { setViewingUser(null); setSelectedRole(""); }}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold text-sm transition-colors">Close</button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 };
-
 export default AdminSystemUsers;

@@ -15,97 +15,89 @@ import {
   ChevronDown,
   Menu,
   X,
-  Briefcase,
 } from "lucide-react";
-import logo from "../assets/logo.jpg";
-import {
-  OverviewContent,
-  TasksContent,
-  LeaveContent,
-  ProfileContent,
+import logo from "../assets/logo.jpg"; // Assuming you have your logo here
+import { 
+  OverviewContent, 
+  TasksContent, 
+  LeaveContent, 
+  ProfileContent, 
   SettingsContent,
-  LeaveManagementContent,
+  LeaveManagementContent 
 } from "./DashboardPages";
-import AdminDashboard    from "./AdminDashboard";
-import HRDashboard       from "./HRDashboard";
+import AdminDashboard from "./AdminDashboard";
+import HRDashboard from "./HRDashboard";
 import EmployeeDashboard from "./EmployeeDashboard";
 
-// ── Context ───────────────────────────────────────────────
-export const UserContext = createContext();
+// 1. User Context (for easy prop drilling)
+const UserContext = createContext();
 
-// ── Role colour helpers ───────────────────────────────────
-const roleGradient = (role) => {
-  if (role === 'ADMIN')      return 'from-indigo-500 to-violet-600';
-  if (role === 'HR_MANAGER') return 'from-teal-400   to-emerald-500';
-  return                            'from-sky-400    to-blue-500';
-};
-
-const roleLabel = (role) => {
-  if (role === 'ADMIN')      return 'Administrator';
-  if (role === 'HR_MANAGER') return 'HR Manager';
-  return 'Employee';
-};
-
-// ── Main Dashboard ────────────────────────────────────────
+// 2. Main Dashboard Component
 const Dashboard = () => {
-  const [user, setUser]         = useState(null);
-  const [activeMenu, setActiveMenu] = useState("Overview");
+  const [user, setUser] = useState(null);
+  const [activeMenu, setActiveMenu] = useState("Overview"); // To control which page is shown
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
+  // 3. Authentication and User Loading
   useEffect(() => {
-    const stored = localStorage.getItem("user");
-    if (stored) setUser(JSON.parse(stored));
-    else navigate("/login");
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    } else {
+      // If no user, redirect to login
+      navigate("/login");
+    }
   }, [navigate]);
 
+  // 4. Logout Function
   const handleLogout = () => {
     localStorage.removeItem("user");
-    localStorage.removeItem("token");
     navigate("/login");
   };
 
+  // 5. Loading State
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-gray-500 text-sm">Loading your workspace…</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
       </div>
     );
   }
 
+  // 6. Main Layout
   return (
     <UserContext.Provider value={{ user, handleLogout, activeMenu, setActiveMenu }}>
-      <div className="flex min-h-screen bg-gray-50">
-
-        {/* Desktop Sidebar */}
+      <div className="flex min-h-screen bg-gray-100">
+        
+        {/* --- Sidebar (Desktop) --- */}
         <Sidebar isOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} />
-
-        {/* Mobile toggle */}
+        
+        {/* --- Mobile Menu Toggle --- */}
         <button
           onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
-          className="md:hidden fixed top-4 left-4 z-50 p-2 bg-navy-900 text-white rounded-xl shadow-lg"
+          className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-full shadow-lg"
         >
-          {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          {isMobileMenuOpen ? <X /> : <Menu />}
         </button>
 
-        {/* Mobile Sidebar */}
+        {/* --- Sidebar (Mobile) --- */}
         {isMobileMenuOpen && (
           <div className="md:hidden fixed inset-0 z-40">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
-            <div className="relative w-72 h-full">
-              <Sidebar isOpen={true} setSidebarOpen={() => {}} isMobile setMobileMenuOpen={setMobileMenuOpen} />
+            <div className="absolute inset-0 bg-black/50" onClick={() => setMobileMenuOpen(false)}></div>
+            <div className="relative w-72">
+              <Sidebar isOpen={true} setSidebarOpen={() => {}} isMobile={true} setMobileMenuOpen={setMobileMenuOpen} />
             </div>
           </div>
         )}
 
-        {/* Main content */}
+        {/* --- Main Content Area with left margin to account for fixed sidebar --- */}
         <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarOpen ? 'md:ml-72' : 'md:ml-20'}`}>
           <Header />
-          <main className="flex-1 p-5 md:p-7 overflow-auto">
+          
+          {/* --- Content based on activeMenu --- */}
+          <main className="flex-1 p-6 md:p-8 overflow-auto">
             {renderContent(activeMenu, user, setActiveMenu)}
           </main>
         </div>
@@ -114,191 +106,201 @@ const Dashboard = () => {
   );
 };
 
-// ── Sidebar ───────────────────────────────────────────────
+// 7. Sidebar Component
 const Sidebar = ({ isOpen, setSidebarOpen, isMobile = false, setMobileMenuOpen }) => {
   const { user, handleLogout, activeMenu, setActiveMenu } = useContext(UserContext);
 
-  const coreItems = [
-    { name: "Overview",    icon: LayoutDashboard },
-    { name: "My Profile",  icon: User },
-    { name: "My Leave",    icon: CalendarDays },
-    { name: "Tasks",       icon: CheckSquare },
-    { name: "Settings",    icon: Settings },
+  const navItems = [
+    { name: "Overview", icon: LayoutDashboard },
+    { name: "My Profile", icon: User },
+    { name: "My Leave", icon: CalendarDays },
+    { name: "Tasks", icon: CheckSquare },
+    { name: "Settings", icon: Settings },
   ];
 
+  // Role-based links
   const adminItems = [
-    { name: "Employees",  icon: Users },
-    { name: "Leave Mgt.", icon: Briefcase },
+    { name: "Employees", icon: Users },
+    { name: "Leave Mgt.", icon: CheckSquare },
   ];
 
-  const handleClick = (name) => {
+  const handleMenuClick = (name) => {
     setActiveMenu(name);
-    if (isMobile) setMobileMenuOpen(false);
+    if (isMobile) {
+      setMobileMenuOpen(false);
+    }
   };
-
-  const initials = user?.fullName
-    ?.split(' ')
-    .map(n => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase() || '?';
 
   return (
     <nav
       className={`
-        flex flex-col transition-all duration-300 shadow-2xl
+        bg-gray-900 text-white flex flex-col shadow-lg transition-all duration-300
         ${isMobile
+          // Mobile classes: Fixed, full-screen overlay
           ? 'fixed top-0 left-0 z-50 h-screen w-72'
+          // Desktop classes: Fixed sidebar that stays in place when scrolling
           : `fixed top-0 left-0 h-screen ${isOpen ? 'w-72' : 'w-20'} hidden md:flex`
         }
       `}
-      style={{ background: 'linear-gradient(180deg, #0a1120 0%, #0f172a 100%)' }}
     >
-      {/* Logo row */}
-      <div className="flex items-center gap-3 px-4 h-16 border-b border-white/10">
-        <img src={logo} alt="Logo" className="w-9 h-9 rounded-xl flex-shrink-0 shadow-md" />
-        {isOpen && <span className="text-white text-lg font-bold tracking-tight">HRM Portal</span>}
+      {/* --- Logo and Toggle --- */}
+      <div className="flex items-center justify-between p-4 h-16 border-b border-gray-700">
+        <img
+          src={logo}
+          alt="Logo"
+          className={`rounded-full transition-all ${isOpen ? "w-10 h-10" : "w-10 h-10"}`}
+        />
+        {isOpen && (
+          <span className="text-xl font-bold text-white flex-1 ml-3">HRM Portal</span>
+        )}
         {!isMobile && (
           <button
             onClick={() => setSidebarOpen(!isOpen)}
-            className="ml-auto p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-1 rounded-full text-gray-400 hover:bg-gray-700"
           >
-            {isOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+            {isOpen ? <ChevronLeft /> : <ChevronRight />}
           </button>
         )}
         {isMobile && (
-          <button onClick={() => setMobileMenuOpen(false)} className="ml-auto p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors">
-            <X size={16} />
+           <button
+            onClick={() => setMobileMenuOpen(false)}
+            className="p-1 rounded-full text-gray-400 hover:bg-gray-700"
+          >
+            <X />
           </button>
         )}
       </div>
 
-      {/* Nav */}
-      <ul className="flex-1 py-4 space-y-1 px-3 overflow-y-auto">
-        {coreItems.map(item => (
-          <SidebarItem key={item.name} item={item} isActive={activeMenu === item.name} onClick={handleClick} isOpen={isOpen} />
+      {/* --- Navigation Links --- */}
+      <ul className="flex-1 py-4 space-y-2">
+        {navItems.map((item) => (
+          <SidebarItem
+            key={item.name}
+            item={item}
+            isActive={activeMenu === item.name}
+            onClick={handleMenuClick}
+            isOpen={isOpen}
+          />
         ))}
 
-        {(user.role === 'ADMIN' || user.role === 'HR_MANAGER') && (
+        {/* --- Role-Based Section --- */}
+        {(user.role === "ADMIN" || user.role === "HR_MANAGER") && (
           <>
-            {isOpen && (
-              <li className="pt-4 pb-1 px-2">
-                <span className="text-xs font-semibold uppercase tracking-widest text-gray-600">Management</span>
-              </li>
-            )}
-            {!isOpen && <li className="border-t border-white/10 mx-2 my-3" />}
-            {adminItems.map(item => (
-              <SidebarItem key={item.name} item={item} isActive={activeMenu === item.name} onClick={handleClick} isOpen={isOpen} />
+            <li className={`px-4 pt-4 pb-2 text-xs uppercase text-gray-500 ${!isOpen && "text-center"}`}>
+              {isOpen ? "Admin" : "---"}
+            </li>
+            {adminItems.map((item) => (
+              <SidebarItem
+                key={item.name}
+                item={item}
+                isActive={activeMenu === item.name}
+                onClick={handleMenuClick}
+                isOpen={isOpen}
+              />
             ))}
           </>
         )}
       </ul>
 
-      {/* User + Logout */}
-      <div className="border-t border-white/10 p-3 space-y-2">
-        {isOpen && (
-          <div className="flex items-center gap-3 px-2 py-2">
-            <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${roleGradient(user.role)} flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-md`}>
-              {initials}
-            </div>
-            <div className="min-w-0">
-              <p className="text-white text-sm font-semibold truncate">{user.fullName}</p>
-              <p className="text-gray-500 text-xs truncate">{roleLabel(user.role)}</p>
-            </div>
-          </div>
-        )}
+      {/* --- Logout Section --- */}
+      <div className="p-4 border-t border-gray-700">
         <button
           onClick={handleLogout}
-          className={`flex items-center gap-3 w-full p-2.5 rounded-xl text-gray-400 hover:text-white hover:bg-red-500/20 transition-all duration-200 ${!isOpen && 'justify-center'}`}
+          className={`flex items-center w-full p-3 rounded-lg text-gray-300 hover:bg-red-600 hover:text-white transition-colors ${!isOpen && "justify-center"}`}
         >
-          <LogOut size={18} />
-          {isOpen && <span className="text-sm font-medium">Sign Out</span>}
+          <LogOut className="w-6 h-6" />
+          {isOpen && <span className="ml-4 font-medium">Logout</span>}
         </button>
       </div>
     </nav>
   );
 };
 
-// ── Sidebar Item ──────────────────────────────────────────
-const SidebarItem = ({ item, isActive, onClick, isOpen }) => (
-  <li>
-    <button
-      onClick={() => onClick(item.name)}
-      className={`nav-item w-full ${isActive ? 'nav-item-active' : ''} ${!isOpen ? 'justify-center px-0' : ''}`}
-    >
-      <item.icon size={18} className="flex-shrink-0" />
-      {isOpen && <span>{item.name}</span>}
-    </button>
-  </li>
-);
+// 8. Sidebar Item Component (No changes)
+const SidebarItem = ({ item, isActive, onClick, isOpen }) => {
+  return (
+    <li className="px-4">
+      <Link
+        to="#"
+        onClick={() => onClick(item.name)}
+        className={`flex items-center p-3 rounded-lg transition-colors ${
+          isActive
+            ? "bg-blue-600 text-white shadow-md"
+            : "text-gray-300 hover:bg-gray-700 hover:text-white"
+        } ${!isOpen && "justify-center"}`}
+      >
+        <item.icon className="w-6 h-6" />
+        {isOpen && <span className="ml-4 font-medium">{item.name}</span>}
+      </Link>
+    </li>
+  );
+};
 
-// ── Header ────────────────────────────────────────────────
+// 9. Header Component (No changes)
 const Header = () => {
-  const { user, handleLogout, activeMenu, setActiveMenu } = useContext(UserContext);
+  const { user, handleLogout, activeMenu } = useContext(UserContext);
   const [isProfileOpen, setProfileOpen] = useState(false);
-  const today = new Date().toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
 
   return (
-    <header className="flex-shrink-0 h-16 bg-white border-b border-gray-100 flex items-center justify-between px-5 md:px-7 shadow-sm">
-      <div>
-        <h1 className="text-lg font-bold text-gray-900">{activeMenu}</h1>
-        <p className="text-xs text-gray-400 hidden md:block">{today}</p>
-      </div>
-
-      <div className="flex items-center gap-3">
-        {/* Search */}
+    <header className="flex-shrink-0 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 md:px-8">
+      {/* --- Page Title --- */}
+      <h1 className="text-xl font-semibold text-gray-800">{activeMenu}</h1>
+      
+      {/* --- Header Controls --- */}
+      <div className="flex items-center gap-4">
+        {/* --- Search --- */}
         <div className="relative hidden md:block">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search…"
-            className="pl-9 pr-4 py-2 w-52 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 transition-all"
+            placeholder="Search..."
+            className="pl-10 pr-4 py-2 w-64 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-
-        {/* Notifications */}
-        <button className="relative p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors">
-          <Bell size={20} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+        
+        {/* --- Notifications --- */}
+        <button className="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700">
+          <Bell className="w-6 h-6" />
         </button>
-
-        {/* Profile dropdown */}
+        
+        {/* --- Profile Dropdown --- */}
         <div className="relative">
           <button
             onClick={() => setProfileOpen(!isProfileOpen)}
-            className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-2"
           >
-            <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${roleGradient(user.role)} flex items-center justify-center text-white text-xs font-bold shadow`}>
-              {user.fullName?.split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase()}
-            </div>
+            <img
+              src={`https://ui-avatars.com/api/?name=${user.fullName}&background=0D8ABC&color=fff&rounded=true&size=40`}
+              alt="Avatar"
+              className="w-10 h-10 rounded-full"
+            />
             <div className="hidden md:flex flex-col items-start">
-              <span className="text-sm font-semibold text-gray-800 leading-tight">{user.fullName}</span>
-              <span className="text-xs text-gray-400">{roleLabel(user.role)}</span>
+              <span className="font-semibold text-sm text-gray-800">{user.fullName}</span>
+              <span className="text-xs text-gray-500">{user.role}</span>
             </div>
-            <ChevronDown size={14} className={`text-gray-400 transition-transform ${isProfileOpen && 'rotate-180'}`} />
+            <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${isProfileOpen && "rotate-180"}`} />
           </button>
-
+          
+          {/* --- Dropdown Menu --- */}
           {isProfileOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-20 animate-fade-in">
-              <button
-                onClick={() => { setActiveMenu('My Profile'); setProfileOpen(false); }}
-                className="block w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl overflow-hidden z-10">
+              <Link
+                to="#"
+                onClick={() => {
+                  setActiveMenu("My Profile"); // Also set active menu
+                  setProfileOpen(false);
+                }}
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
-                👤 My Profile
-              </button>
-              <button
-                onClick={() => { setActiveMenu('Settings'); setProfileOpen(false); }}
-                className="block w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                ⚙️ Settings
-              </button>
-              <hr className="border-gray-100" />
-              <button
+                My Profile
+              </Link>
+              <Link
+                to="#"
                 onClick={handleLogout}
-                className="block w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
               >
-                🚪 Sign Out
-              </button>
+                Logout
+              </Link>
             </div>
           )}
         </div>
@@ -307,72 +309,95 @@ const Header = () => {
   );
 };
 
-// ── Content Router ────────────────────────────────────────
+// 10. Content Renderer Function
 const renderContent = (menu, user, setActiveMenu) => {
+  // Check if we're on Overview and route based on user role
   if (menu === "Overview") {
-    if (user.role === "ADMIN")      return <AdminDashboard userData={user} />;
-    if (user.role === "HR_MANAGER") return <HRDashboard userData={user} />;
-    return <EmployeeDashboard userData={user} />;
-  }
-  switch (menu) {
-    case "My Profile": return <ProfileContent user={user} />;
-    case "My Leave":   return <LeaveContent />;
-    case "Tasks":      return <TasksContent />;
-    case "Settings":   return <SettingsContent />;
-    case "Employees":  return <EmployeeContent />;
-    case "Leave Mgt.": return <LeaveManagementContent />;
-    default:
-      if (user.role === "ADMIN")      return <AdminDashboard userData={user} />;
-      if (user.role === "HR_MANAGER") return <HRDashboard userData={user} />;
+    // Route to specific dashboard based on role
+    if (user.role === "admin") {
+      return <AdminDashboard userData={user} />;
+    } else if (user.role === "hr") {
+      return <HRDashboard userData={user} />;
+    } else {
+      // Default to employee dashboard for "employee" role or any other role
       return <EmployeeDashboard userData={user} />;
+    }
+  }
+
+  // Other menu items remain the same
+  switch (menu) {
+    case "My Profile":
+      return <ProfileContent user={user} />;
+    case "My Leave":
+      return <LeaveContent />;
+    case "Tasks":
+      return <TasksContent />;
+    case "Settings":
+      return <SettingsContent />;
+    case "Employees":
+      return <EmployeeContent />;
+    case "Leave Mgt.":
+      return <LeaveManagementContent />;
+    default:
+      // Default overview also routes by role
+      if (user.role === "admin") {
+        return <AdminDashboard userData={user} />;
+      } else if (user.role === "hr") {
+        return <HRDashboard userData={user} />;
+      } else {
+        return <EmployeeDashboard userData={user} />;
+      }
   }
 };
 
-// ── Employee Management Table ─────────────────────────────
+// 11. Employee Content Component
 const EmployeeContent = () => {
-  const employees = [
-    { id:1, name:"Priya Sharma",  email:"priya@affin.com",  dept:"Engineering", role:"EMPLOYEE" },
-    { id:2, name:"David Lim",     email:"david@affin.com",  dept:"Product",     role:"EMPLOYEE" },
-    { id:3, name:"Aisha Patel",   email:"aisha@affin.com",  dept:"Design",      role:"HR_MANAGER" },
-    { id:4, name:"Tom Walker",    email:"tom@affin.com",    dept:"Analytics",   role:"EMPLOYEE" },
-    { id:5, name:"Chloe Martin",  email:"chloe@affin.com",  dept:"HR",          role:"ADMIN" },
-  ];
-
-  const roleColors = {
-    ADMIN:      'bg-indigo-100 text-indigo-700',
-    HR_MANAGER: 'bg-teal-100 text-teal-700',
-    EMPLOYEE:   'bg-gray-100 text-gray-600',
-  };
+  const [employees] = useState([
+    { id: 1, name: "John Doe", email: "john@example.com", department: "Engineering", role: "employee" },
+    { id: 2, name: "Jane Smith", email: "jane@example.com", department: "Marketing", role: "employee" },
+    { id: 3, name: "Bob Johnson", email: "bob@example.com", department: "Sales", role: "employee" },
+    { id: 4, name: "Admin User", email: "admin@example.com", department: "Engineering", role: "admin" },
+  ]);
 
   return (
-    <div className="card animate-fade-in">
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="section-title"><span>👥</span> Employee Management</h2>
-        <Link to="/createaccount" className="btn-primary text-sm">+ Add Employee</Link>
+    <div className="bg-white p-6 rounded-xl shadow-md">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-semibold text-gray-900">Employee Management</h2>
+        <Link 
+          to="/createaccount"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Add New Employee
+        </Link>
       </div>
-      <div className="overflow-x-auto -mx-2">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-xs text-gray-400 uppercase tracking-wider border-b border-gray-100">
-              <th className="text-left px-4 py-3 font-medium">Name</th>
-              <th className="text-left px-4 py-3 font-medium">Email</th>
-              <th className="text-left px-4 py-3 font-medium">Department</th>
-              <th className="text-left px-4 py-3 font-medium">Role</th>
-              <th className="text-right px-4 py-3 font-medium">Actions</th>
+      
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
-            {employees.map(e => (
-              <tr key={e.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-4 py-3 font-medium text-gray-900">{e.name}</td>
-                <td className="px-4 py-3 text-gray-500">{e.email}</td>
-                <td className="px-4 py-3 text-gray-500">{e.dept}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${roleColors[e.role]}`}>{e.role}</span>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {employees.map((emp) => (
+              <tr key={emp.id}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{emp.name}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{emp.email}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{emp.department}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                    emp.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                  }`}>
+                    {emp.role}
+                  </span>
                 </td>
-                <td className="px-4 py-3 text-right">
-                  <button className="text-primary-600 hover:text-primary-800 font-medium mr-4 text-xs">Edit</button>
-                  <button className="text-red-500 hover:text-red-700 font-medium text-xs">Remove</button>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <a href="#" className="text-blue-600 hover:text-blue-900 mr-4">Edit</a>
+                  <a href="#" className="text-red-600 hover:text-red-900">Delete</a>
                 </td>
               </tr>
             ))}
@@ -382,5 +407,4 @@ const EmployeeContent = () => {
     </div>
   );
 };
-
 export default Dashboard;

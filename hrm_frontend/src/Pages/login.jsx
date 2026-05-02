@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle, LogIn, Shield, Users, BarChart3 } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { FaApple } from "react-icons/fa";
-import { Eye, EyeOff, Mail, Lock, AlertCircle, LogIn, Shield, Users, BarChart3 } from "lucide-react";
 import logo from "../assets/logo.jpg";
 import axios from "axios";
 
@@ -15,8 +14,6 @@ const Login = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading]   = useState(false);
   const navigate = useNavigate();
-
-  useEffect(() => { setMounted(true); }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -252,7 +249,7 @@ const Login = () => {
         </div>
 
       </div>
-    </>
+    </div>
   );
 };
 

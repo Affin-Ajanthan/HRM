@@ -18,9 +18,9 @@
  */
 
 // ─── Toggle these to reconnect each module ────────────────────
-export const MOCK_AUTH  = true;   // Step 1: Login & Register
-export const MOCK_HR    = true;   // Step 2: HR Dashboard
-export const MOCK_ADMIN = true;   // Step 3: Admin Dashboard
+export const MOCK_AUTH  = false;   // Step 1: Login & Register
+export const MOCK_HR    = true;    // Step 2: HR Dashboard
+export const MOCK_ADMIN = true;    // Step 3: Admin Dashboard
 // ─────────────────────────────────────────────────────────────
 
 export const BASE_URL   = "http://localhost:5004/api";
@@ -62,7 +62,7 @@ export const authApi = {
       return { data: user };
     }
     // REAL call
-    return request("POST", `${BASE_URL}/auth/login`, { email, password });
+    return request("POST", `${AUTH_URL}/auth/login`, { email, password });
   },
 
   /** Register — creates a new employee account */
@@ -72,7 +72,7 @@ export const authApi = {
       console.log("📦 [MOCK] Register payload:", payload);
       return { message: "Account created successfully (mock)." };
     }
-    return request("POST", `${BASE_URL}/auth/register`, payload);
+    return request("POST", `${AUTH_URL}/auth/register`, payload);
   },
 };
 

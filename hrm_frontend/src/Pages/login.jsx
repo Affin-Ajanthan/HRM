@@ -61,8 +61,7 @@ const Login = () => {
       localStorage.setItem("user", JSON.stringify(data));
       if      (data.role === "ADMIN")       navigate("/admin/dashboard");
       else if (data.role === "HR_MANAGER")  navigate("/hr/dashboard");
-      else if (data.role === "EMPLOYEE")    navigate("/employee/dashboard");
-      else                                  navigate("/dashboard");
+      else                                   navigate("/employee/dashboard");
     } catch (err) {
       setIsLoading(false);
       if      (err.response) setError(err.response.data?.message || "Invalid email or password.");

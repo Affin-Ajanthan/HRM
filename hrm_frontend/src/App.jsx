@@ -6,7 +6,6 @@ import Services from "./Pages/services.jsx";
 import Blog from "./Pages/blog.jsx";
 import Contact from "./Pages/contact.jsx";
 import CreateAccount from "./Pages/createaccount.jsx";
-import Dashboard from "./Pages/dashboard.jsx";
 import EmployeeDashboard from "./Pages/employee/Dashboard.jsx";
 import HRDashboard from "./Pages/hr/Dashboard.jsx";
 import AdminDashboard from "./Pages/admin/Dashboard.jsx";
@@ -25,6 +24,7 @@ import AdminProfile from "./Pages/admin/Profile.jsx";
 import Companies from "./Pages/admin/Companies.jsx";
 import AdminSystemUsers from "./Pages/admin/SystemUser.jsx";
 import AdminSystemConfig from "./Pages/admin/SystemConfig.jsx";
+
 function App() {
   return (
     <Routes>
@@ -35,7 +35,6 @@ function App() {
       <Route path="/contact" element={<Contact />} />
       <Route path="/login" element={<Login />} />
       <Route path="/createaccount" element={<CreateAccount />} />
-      <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
       <Route path="/employee/attendance" element={<Attendance />} />
       <Route path="/employee/leave" element={<Leave />} />
@@ -51,9 +50,9 @@ function App() {
       <Route path="/admin/leave" element={<AdminLeave />} />
       <Route path="/admin/payslip" element={<AdminPayslip />} />
       <Route path="/admin/profile" element={<AdminProfile />} />
-            <Route path="/admin/companies" element={<Companies />} />
-            <Route path="/admin/system-users" element={<AdminSystemUsers />} />
-            <Route path="/admin/system-config" element={<AdminSystemConfig />} />
+      <Route path="/admin/companies" element={<Companies />} />
+      <Route path="/admin/system-users" element={<AdminSystemUsers />} />
+      <Route path="/admin/system-config" element={<AdminSystemConfig />} />
     </Routes>
   );
 }

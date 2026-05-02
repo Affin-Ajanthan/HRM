@@ -7,9 +7,9 @@ import Blog from "./Pages/blog.jsx";
 import Contact from "./Pages/contact.jsx";
 import CreateAccount from "./Pages/createaccount.jsx";
 import Dashboard from "./Pages/dashboard.jsx";
-import EmployeeDashboard from "./Pages/employee/Dashboard.jsx";
-import HRDashboard from "./Pages/hr/Dashboard.jsx";
-import AdminDashboard from "./Pages/admin/Dashboard.jsx";
+import EmployeeDashboard from "./Pages/employee/EmployeeDashboard.jsx";
+import HRDashboard from "./Pages/hr/HRDashboard.jsx";
+import AdminDashboard from "./Pages/admin/AdminDashboard.jsx";
 import Attendance from "./Pages/employee/Attendance.jsx";
 import Leave from "./Pages/employee/Leave.jsx";
 import Payslip from "./Pages/employee/Payslip.jsx";
@@ -25,6 +25,7 @@ import AdminProfile from "./Pages/admin/Profile.jsx";
 import Companies from "./Pages/admin/Companies.jsx";
 import AdminSystemUsers from "./Pages/admin/SystemUser.jsx";
 import AdminSystemConfig from "./Pages/admin/SystemConfig.jsx";
+
 function App() {
   return (
     <Routes>

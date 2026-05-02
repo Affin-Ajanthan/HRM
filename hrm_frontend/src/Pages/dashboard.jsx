@@ -25,9 +25,9 @@ import {
   SettingsContent,
   LeaveManagementContent 
 } from "./DashboardPages";
-import AdminDashboard from "./AdminDashboard";
-import HRDashboard from "./HRDashboard";
-import EmployeeDashboard from "./EmployeeDashboard";
+import AdminDashboard from "./admin/AdminDashboard";
+import HRDashboard from "./hr/HRDashboard";
+import EmployeeDashboard from "./employee/EmployeeDashboard";
 
 // 1. User Context (for easy prop drilling)
 const UserContext = createContext();

@@ -6,7 +6,7 @@ import {
   Briefcase, Users
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { authApi } from "../services/api";
 
 
 const CreateAccount = () => {
@@ -209,12 +209,9 @@ const CreateAccount = () => {
         joiningDate: formData.hireDate
       };
 
-      const response = await axios.post(
-        "http://localhost:5004/api/auth/register",
-        userPayload
-      );
+      const response = await authApi.register(userPayload);
 
-      console.log("✅ User created successfully:", response.data);
+      console.log("✅ User created successfully:", response);
       alert("Account created successfully! Please login with your credentials.");
 
       // Navigate to login page after successful registration

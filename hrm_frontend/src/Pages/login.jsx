@@ -1,245 +1,368 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom"; // <-- Import useNavigate
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { FcGoogle } from "react-icons/fc";
 import { FaApple } from "react-icons/fa";
+import {
+  Eye, EyeOff, Mail, Lock, AlertCircle, LogIn,
+  Shield, Users, BarChart3, TrendingUp, CheckCircle,
+} from "lucide-react";
 import logo from "../assets/logo.jpg";
-import sideImage from "../assets/002.jpg";
-import axios from "axios"; // <-- Import axios
+import { authApi } from "../services/api";
 
+/* ─── Tiny floating orb ─── */
+const Orb = ({ size, x, y, delay, dur }) => (
+  <div
+    className="absolute rounded-full pointer-events-none"
+    style={{
+      width: size, height: size, left: `${x}%`, top: `${y}%`,
+      background: "radial-gradient(circle, rgba(99,102,241,0.35) 0%, rgba(139,92,246,0.1) 70%, transparent 100%)",
+      animation: `orbFloat ${dur}s ease-in-out ${delay}s infinite alternate`,
+    }}
+  />
+);
+
+const ORBS = [
+  { size: 280, x: -8,  y: -5,  delay: 0,   dur: 8  },
+  { size: 180, x: 60,  y: 60,  delay: 1.5, dur: 7  },
+  { size: 120, x: 80,  y: 5,   delay: 0.5, dur: 9  },
+  { size: 90,  x: 10,  y: 75,  delay: 2,   dur: 6  },
+  { size: 60,  x: 50,  y: 30,  delay: 3,   dur: 10 },
+];
+
+const FEATURES = [
+  { icon: Shield,    title: "Role-Based Access",  desc: "Admin · HR Manager · Employee" },
+  { icon: Users,     title: "Team Management",    desc: "Departments & employee records"  },
+  { icon: BarChart3, title: "Smart Analytics",    desc: "Payroll · Attendance · Reports"  },
+];
+
+const STATS = [["99.9%","Uptime SLA"],["500+","Companies"],["50K+","Employees"]];
+
+/* ───────────────────────── Main Component ───────────────────────── */
 const Login = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [email,        setEmail]        = useState("");
+  const [password,     setPassword]     = useState("");
+  const [showPass,     setShowPass]     = useState(false);
+  const [rememberMe,   setRememberMe]   = useState(false);
+  const [error,        setError]        = useState("");
+  const [isLoading,    setIsLoading]    = useState(false);
+  const [ready,        setReady]        = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => { const t = setTimeout(() => setReady(true), 80); return () => clearTimeout(t); }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setErrorMessage("");
+    setError("");
     setIsLoading(true);
-
-    const loginPayload = {
-      email: email.trim(),
-      password: password,
-    };
-
-    console.log("Attempting login with:", { email: loginPayload.email, passwordLength: loginPayload.password.length });
-
     try {
-      const response = await axios.post(
-        "http://localhost:5004/api/auth/login",
-        loginPayload
-      );
-
-      console.log("Login response:", response.data);
-      
-      const { data } = response.data;
-      
+      const resp = await authApi.login(email, password);
+      const data = resp.data ?? resp;
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data));
-
-      console.log("Login successful! Role:", data.role);
-
-      // Redirect based on role
-      if (data.role === "ADMIN") {
-        navigate("/admin/dashboard");
-      } else if (data.role === "HR_MANAGER") {
-        navigate("/hr/dashboard");
-      } else if (data.role === "EMPLOYEE") {
-        navigate("/employee/dashboard");
-      } else {
-        navigate("/dashboard");
-      }
-
-    } catch (error) {
-      console.error("Login error details:", error);
+      if      (data.role === "ADMIN")       navigate("/admin/dashboard");
+      else if (data.role === "HR_MANAGER")  navigate("/hr/dashboard");
+      else if (data.role === "EMPLOYEE")    navigate("/employee/dashboard");
+      else                                  navigate("/dashboard");
+    } catch (err) {
       setIsLoading(false);
-      
-      if (error.response) {
-        console.error("Server response:", error.response.data);
-        const errorMsg = error.response.data.message || "Invalid email or password. Please try again.";
-        setErrorMessage(errorMsg);
-      } else if (error.request) {
-        console.error("No response received:", error.request);
-        setErrorMessage("Cannot connect to server. Please ensure the backend is running.");
-      } else {
-        console.error("Error:", error.message);
-        setErrorMessage("An error occurred: " + error.message);
-      }
+      if      (err.response) setError(err.response.data?.message || "Invalid email or password.");
+      else if (err.request)  setError("Cannot connect to server. Please ensure the backend is running.");
+      else                   setError("An unexpected error occurred.");
     }
   };
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
-      {/* Left Section (No changes) */}
-      <div className="hidden md:flex w-1/2 bg-gray-900 text-white flex-col justify-center px-10">
-        <div className="mb-10">
-          <img
-            src={sideImage}
-            alt="Team working"
-            className="rounded-lg shadow-lg object-cover w-full h-auto"
-          />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold mb-4 leading-snug">
-            Unlock your employees’ full potential today.
-          </h1>
-          <p className="text-gray-300">
-            Let’s make your HR processes effortless and smarter than ever.
-          </p>
-        </div>
-      </div>
+    <>
+      <style>{`
+        @keyframes orbFloat {
+          from { transform: translateY(0)   scale(1);    opacity: .22; }
+          to   { transform: translateY(-40px) scale(1.12); opacity: .35; }
+        }
+        @keyframes fadeSlideUp {
+          from { opacity:0; transform:translateY(20px); }
+          to   { opacity:1; transform:translateY(0);    }
+        }
+        @keyframes shimmerText {
+          0%   { background-position: -300% center; }
+          100% { background-position:  300% center; }
+        }
+        @keyframes pulseDot {
+          0%,100% { opacity:1; transform:scale(1);   }
+          50%      { opacity:.5; transform:scale(1.4); }
+        }
+        .anim-1 { animation: fadeSlideUp .6s ease both; }
+        .anim-2 { animation: fadeSlideUp .6s .15s ease both; }
+        .anim-3 { animation: fadeSlideUp .6s .3s  ease both; }
+        .shimmer {
+          background: linear-gradient(90deg,#c7d2fe,#a5b4fc,#818cf8,#a5b4fc,#c7d2fe);
+          background-size: 300% auto;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: shimmerText 4s linear infinite;
+        }
+        .pulse-dot { animation: pulseDot 2s ease infinite; }
+        .card-hover { transition: all .25s ease; }
+        .card-hover:hover { transform: translateX(4px); background: rgba(255,255,255,.08) !important; }
+        .btn-primary {
+          background: linear-gradient(135deg,#6366f1,#7c3aed);
+          transition: all .25s ease;
+        }
+        .btn-primary:hover:not(:disabled) {
+          background: linear-gradient(135deg,#4f46e5,#6d28d9);
+          transform: translateY(-1px);
+          box-shadow: 0 8px 24px rgba(99,102,241,.45);
+        }
+        .input-field {
+          background: #f8faff;
+          border: 1.5px solid #e2e8f4;
+          transition: all .2s ease;
+        }
+        .input-field:focus {
+          background: #fff;
+          border-color: #6366f1;
+          box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+          outline: none;
+        }
+      `}</style>
 
-      {/* Right Section (Form changes) */}
-      <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-8 bg-white">
-        <div className="w-full max-w-md bg-white rounded-xl shadow-md p-8">
-          {/* Logo (No changes) */}
-          <div className="flex items-center justify-center mb-8">
-            <img
-              src={logo}
-              alt="HRM logo"
-              className="w-12 h-12 mr-2 rounded-full shadow-sm"
-              loading="lazy"
-            />
-            <h2 className="text-3xl font-bold text-gray-800">
-              Log<span className="text-blue-600">In</span>
-            </h2>
+      <div className="min-h-screen flex" style={{ fontFamily: "'Inter','Segoe UI',system-ui,sans-serif" }}>
+
+        {/* ═══════════════ LEFT PANEL ═══════════════ */}
+        <div
+          className="hidden lg:flex lg:w-[55%] xl:w-1/2 flex-col justify-between p-10 xl:p-14 relative overflow-hidden"
+          style={{ background: "linear-gradient(155deg,#04091a 0%,#080f24 45%,#0c1a3a 100%)" }}
+        >
+          {/* Grid lines */}
+          <div className="absolute inset-0 pointer-events-none" style={{
+            backgroundImage: "linear-gradient(rgba(99,102,241,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,.08) 1px,transparent 1px)",
+            backgroundSize: "48px 48px",
+          }} />
+
+          {/* Floating orbs */}
+          {ORBS.map((o, i) => <Orb key={i} {...o} />)}
+
+          {/* ── Logo ── */}
+          <div className={`relative z-10 flex items-center gap-3 ${ready ? "anim-1" : "opacity-0"}`}>
+            <div className="w-11 h-11 rounded-2xl overflow-hidden ring-2 ring-indigo-500/30 shadow-xl shadow-indigo-900/40 flex-shrink-0">
+              <img src={logo} alt="HRM" className="w-full h-full object-cover" />
+            </div>
+            <div>
+              <p className="text-white font-bold text-base leading-none">HRM System</p>
+              <p className="text-indigo-400 text-xs mt-0.5 font-medium">Human Resource Management</p>
+            </div>
           </div>
 
-          {/* Form */}
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            {/* Error Message Display */}
-            {errorMessage && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg" role="alert">
-                <div className="flex items-start">
-                  <span className="text-xl mr-2">⚠️</span>
+          {/* ── Hero ── */}
+          <div className={`relative z-10 ${ready ? "anim-2" : "opacity-0"}`}>
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-indigo-500/25 bg-indigo-500/10 mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot" />
+              <span className="text-indigo-300 text-xs font-semibold tracking-wide">Trusted by 500+ companies worldwide</span>
+            </div>
+
+            <h1 className="text-4xl xl:text-5xl font-extrabold text-white leading-tight mb-4">
+              Unlock your team's<br />
+              <span className="shimmer">full potential</span>
+            </h1>
+            <p className="text-slate-400 text-base leading-relaxed max-w-md mb-8">
+              Streamline HR operations with intelligent automation, real-time analytics, and seamless collaboration tools.
+            </p>
+
+            {/* Feature cards */}
+            <div className="space-y-3">
+              {FEATURES.map((f, i) => (
+                <div
+                  key={f.title}
+                  className="card-hover flex items-center gap-4 rounded-2xl px-5 py-4 cursor-default"
+                  style={{
+                    background: "rgba(255,255,255,.04)",
+                    border: "1px solid rgba(255,255,255,.08)",
+                    animationDelay: `${.35 + i * .1}s`,
+                  }}
+                >
+                  <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center"
+                    style={{ background: "linear-gradient(135deg,rgba(99,102,241,.3),rgba(139,92,246,.15))" }}>
+                    <f.icon size={17} className="text-indigo-300" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-semibold text-sm">{f.title}</p>
+                    <p className="text-slate-500 text-xs mt-0.5">{f.desc}</p>
+                  </div>
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 shadow shadow-emerald-400/50 flex-shrink-0" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Stats ── */}
+          <div className={`relative z-10 flex items-center gap-10 ${ready ? "anim-3" : "opacity-0"}`}>
+            {STATS.map(([val, label]) => (
+              <div key={label}>
+                <p className="text-2xl font-bold text-white">{val}</p>
+                <p className="text-slate-500 text-xs mt-0.5">{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ═══════════════ RIGHT PANEL ═══════════════ */}
+        <div
+          className="flex-1 flex items-center justify-center p-6 sm:p-10 relative overflow-hidden"
+          style={{ background: "linear-gradient(145deg,#f5f7ff 0%,#eef1fd 100%)" }}
+        >
+          {/* Subtle decorative blobs */}
+          <div className="absolute top-0 right-0 w-72 h-72 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle,rgba(99,102,241,.15),transparent 70%)", transform: "translate(30%,-30%)" }} />
+          <div className="absolute bottom-0 left-0 w-56 h-56 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle,rgba(167,139,250,.12),transparent 70%)", transform: "translate(-30%,30%)" }} />
+
+          <div className={`w-full max-w-[420px] relative z-10 ${ready ? "anim-2" : "opacity-0"}`}>
+
+            {/* Mobile logo */}
+            <div className="flex lg:hidden items-center justify-center gap-3 mb-8">
+              <div className="w-10 h-10 rounded-xl overflow-hidden ring-2 ring-indigo-400/30">
+                <img src={logo} alt="HRM" className="w-full h-full object-cover" />
+              </div>
+              <p className="text-slate-800 font-bold text-xl">HRM System</p>
+            </div>
+
+            {/* ── Card ── */}
+            <div className="bg-white rounded-3xl p-8 shadow-2xl shadow-indigo-100/60" style={{ border: "1px solid rgba(99,102,241,.1)" }}>
+
+              {/* Icon + Heading */}
+              <div className="mb-7">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 shadow-lg shadow-indigo-300/30"
+                  style={{ background: "linear-gradient(135deg,#6366f1,#7c3aed)" }}>
+                  <LogIn size={24} className="text-white" />
+                </div>
+                <h2 className="text-[1.6rem] font-extrabold text-slate-900 leading-tight">Welcome back</h2>
+                <p className="text-slate-500 text-sm mt-1">Sign in to your HRM account to continue</p>
+              </div>
+
+              {/* Error */}
+              {error && (
+                <div className="flex gap-3 items-start bg-red-50 border border-red-200 text-red-700 px-4 py-3.5 rounded-2xl mb-5 text-sm anim-1">
+                  <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-semibold">Login Failed</p>
-                    <p className="text-sm">{errorMessage}</p>
+                    <p className="font-semibold text-sm">Login Failed</p>
+                    <p className="text-red-500 text-xs mt-0.5">{error}</p>
                   </div>
                 </div>
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email Address<span className="text-red-500">*</span>
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  setErrorMessage("");
-                }}
-                className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="hr@test.com"
-                disabled={isLoading}
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Test: hr@test.com
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password<span className="text-red-500">*</span>
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setErrorMessage("");
-                }}
-                className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter your password"
-                disabled={isLoading}
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Test: test123
-              </p>
-            </div>
-
-            {/* Remember Me / Forgot Password */}
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  className="mr-2 accent-blue-600"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                />
-                Remember Me
-              </label>
-              <a href="#" className="text-blue-600 hover:underline">
-                Forgot Password?
-              </a>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 transition transform hover:scale-[1.02] disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
-            >
-              {isLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Logging in...
-                </>
-              ) : (
-                "Login"
               )}
-            </button>
-          </form>
 
-          {/* Divider (No changes) */}
-          <div className="flex items-center my-6">
-            <hr className="flex-grow border-gray-300" />
-            <span className="px-2 text-gray-500 text-sm">Or login with</span>
-            <hr className="flex-grow border-gray-300" />
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Email */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">Email Address</label>
+                  <div className="relative">
+                    <Mail size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      id="email" type="email" required autoComplete="email"
+                      value={email} disabled={isLoading}
+                      placeholder="you@company.com"
+                      onChange={e => { setEmail(e.target.value); setError(""); }}
+                      className="input-field w-full pl-11 pr-4 py-3 rounded-xl text-sm text-slate-800 placeholder-slate-400 disabled:opacity-60"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1.5 ml-1">Hint: hr@test.com</p>
+                </div>
+
+                {/* Password */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">Password</label>
+                  <div className="relative">
+                    <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      id="password" type={showPass ? "text" : "password"} required autoComplete="current-password"
+                      value={password} disabled={isLoading}
+                      placeholder="••••••••"
+                      onChange={e => { setPassword(e.target.value); setError(""); }}
+                      className="input-field w-full pl-11 pr-12 py-3 rounded-xl text-sm text-slate-800 placeholder-slate-400 disabled:opacity-60"
+                    />
+                    <button type="button" tabIndex={-1} onClick={() => setShowPass(v => !v)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors">
+                      {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1.5 ml-1">Hint: test123</p>
+                </div>
+
+                {/* Remember / Forgot */}
+                <div className="flex items-center justify-between pt-1">
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <div
+                      onClick={() => setRememberMe(v => !v)}
+                      className="w-4 h-4 rounded-md flex items-center justify-center transition-all cursor-pointer flex-shrink-0"
+                      style={{
+                        border: rememberMe ? "none" : "1.5px solid #cbd5e1",
+                        background: rememberMe ? "linear-gradient(135deg,#6366f1,#7c3aed)" : "white",
+                      }}
+                    >
+                      {rememberMe && <CheckCircle size={11} className="text-white" />}
+                    </div>
+                    <span className="text-sm text-slate-600">Remember me</span>
+                  </label>
+                  <a href="#" className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">Forgot password?</a>
+                </div>
+
+                {/* Sign In button */}
+                <button
+                  type="submit" disabled={isLoading}
+                  className="btn-primary w-full text-white font-semibold py-3.5 rounded-xl text-sm flex items-center justify-center gap-2 mt-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+                >
+                  {isLoading ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Signing in…
+                    </>
+                  ) : (
+                    <><LogIn size={16} /> Sign In</>
+                  )}
+                </button>
+              </form>
+
+              {/* Divider */}
+              <div className="flex items-center gap-3 my-5">
+                <div className="flex-1 h-px bg-slate-100" />
+                <span className="text-xs text-slate-400 font-medium whitespace-nowrap">or continue with</span>
+                <div className="flex-1 h-px bg-slate-100" />
+              </div>
+
+              {/* Social */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { icon: <FcGoogle size={18} />, label: "Google" },
+                  { icon: <FaApple size={18} className="text-slate-800" />, label: "Apple" },
+                ].map(btn => (
+                  <button key={btn.label}
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-slate-700 transition-all"
+                    style={{ border: "1.5px solid #e2e8f0", background: "white" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#f8faff"; e.currentTarget.style.borderColor = "#c7d2fe"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "white"; e.currentTarget.style.borderColor = "#e2e8f0"; }}
+                  >
+                    {btn.icon} {btn.label}
+                  </button>
+                ))}
+              </div>
+
+              <p className="text-center text-sm text-slate-500 mt-6">
+                New to HRM?{" "}
+                <Link to="/createaccount" className="text-indigo-600 hover:text-indigo-800 font-bold transition-colors">Create account</Link>
+              </p>
+            </div>
+
+            <p className="text-center text-[11px] text-slate-400 mt-5">
+              © 2026 HRM System · All rights reserved ·{" "}
+              <span className="hover:text-indigo-500 cursor-pointer transition-colors">Terms</span>
+              {" · "}
+              <span className="hover:text-indigo-500 cursor-pointer transition-colors">Privacy Policy</span>
+            </p>
           </div>
-
-          {/* Social Buttons (No changes) */}
-          <div className="flex gap-3">
-            <button className="w-1/2 border border-gray-300 py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50 transition">
-              <FcGoogle className="text-xl" />
-              <span className="text-gray-700 font-medium">Google</span>
-            </button>
-
-            <button className="w-1/2 border border-gray-300 py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50 transition">
-              <FaApple className="text-2xl text-black" />
-              <span className="text-gray-700 font-medium">Apple</span>
-            </button>
-          </div>
-
-          {/* Footer (No changes) */}
-          <p className="text-center text-sm mt-6">
-            You’re new in here?{" "}
-            <Link to="/createaccount" className="text-blue-600 hover:underline font-medium">
-              Create Account
-            </Link>
-          </p>
-
-          <p className="text-center text-xs text-gray-400 mt-4">
-            © 2025 HRM Web & Mobile Application. All rights reserved.{" "}
-            <span className="hover:underline cursor-pointer">Terms & Conditions</span> |{" "}
-            <span className="hover:underline cursor-pointer">Privacy Policy</span>
-          </p>
         </div>
-
       </div>
-    </div>
+    </>
   );
 };
 

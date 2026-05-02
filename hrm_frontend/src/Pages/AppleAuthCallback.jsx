@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import axios from "axios";
+import { MOCK_AUTH } from "../services/api";
 
 const AppleAuthCallback = () => {
   const [searchParams] = useSearchParams();
@@ -18,44 +18,8 @@ const AppleAuthCallback = () => {
           throw new Error("No authorization code or ID token received");
         }
 
-        console.log("Processing Apple OAuth callback...");
-
-        // Exchange code/token for our app token with backend
-        const response = await axios.post(
-          "http://localhost:5003/api/auth/oauth/apple/callback",
-          {
-            code: code,
-            idToken: idToken,
-            redirectUri: window.location.origin + "/auth/apple/callback",
-          }
-        );
-
-        const { data } = response.data;
-
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data));
-
-        console.log("Apple login successful! Role:", data.role);
-
-        // Redirect based on role
-        setTimeout(() => {
-          if (data.role === "ADMIN") {
-            navigate("/admin/dashboard");
-          } else if (data.role === "HR_MANAGER") {
-            navigate("/hr/dashboard");
-          } else if (data.role === "EMPLOYEE") {
-            navigate("/employee/dashboard");
-          } else {
-            navigate("/dashboard");
-          }
-        }, 1000);
-      } catch (error) {
-        console.error("Apple authentication error:", error);
-        setError(error.response?.data?.message || "Authentication failed. Please try again.");
-        // Redirect back to login with error after 3 seconds
-        setTimeout(() => {
-          navigate("/login?error=apple_auth_failed");
-        }, 3000);
+        console.log("Apple OAuth callback — not connected yet, redirecting to login.");
+        throw new Error("Apple OAuth is not connected yet. Please use email and password to sign in.");
       }
     };
 

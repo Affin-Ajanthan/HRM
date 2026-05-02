@@ -39,6 +39,9 @@ public class EmployeeService {
     @Autowired
     private AuditService auditService;
 
+    @Autowired
+    private SyncService syncService;
+
     public List<EmployeeDTO> getAllEmployeesByCompany(Long companyId) {
         List<Employee> employees = employeeRepo.findByCompanyId(companyId);
         return employees.stream()
@@ -113,6 +116,11 @@ public class EmployeeService {
         auditService.logAction("CREATE_EMPLOYEE", "Employee", savedEmployee.getId(), 
                 "Created employee: " + savedEmployee.getFullName(), companyId);
 
+        // ===== AUTOMATIC SYNC TO OTHER BACKENDS =====
+        // Sync newly created employee to Employee_Backend for clock-in and attendance
+        // and to HR_Backend for HR management
+        syncService.syncToAllBackends(savedEmployee);
+
         return convertToDTO(savedEmployee);
     }
 
@@ -144,6 +152,9 @@ public class EmployeeService {
         // Audit log
         auditService.logAction("UPDATE_EMPLOYEE", "Employee", updatedEmployee.getId(), 
                 "Updated employee: " + updatedEmployee.getFullName(), employee.getCompany().getId());
+
+        // Sync updated employee to other backends
+        syncService.syncToAllBackends(updatedEmployee);
 
         return convertToDTO(updatedEmployee);
     }

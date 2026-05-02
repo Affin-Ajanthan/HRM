@@ -1,199 +1,178 @@
-# HRM Clock-in "User Not Found" - Fix Documentation
+# Clock-In Error: "Failed to clock in: User not found" — Complete Fix Guide
 
-## Problem Description
+## Problem Summary
 
-When users attempt to clock in after registration, they receive the error:
+When you click **Clock In**, you get this error:
 ```
-Failed to clock in: User not found
 Status: 400
+Error: "Failed to clock in: User not found"
 ```
+
+**Why?** Your user exists in one database but not the other.
+
+---
 
 ## Root Cause Analysis
 
-The HRM system uses a **microservices architecture** with **three separate databases**:
+The HRM system has **3 separate backend services** with **separate databases**:
 
-| Service | Port | Database | Purpose |
-|---------|------|----------|---------|
-| **User_Backend** | 5002 | `hrm_db_user` | User authentication & registration |
-| **Employee_Backend** | 5003 | `hrm_db_employee` | Attendance tracking & leaves |
-| **HR_Backend** | 5004 | `hrm_db_hr` | HR management & reports |
+| Backend | Database | Port | Purpose |
+|---------|----------|------|---------|
+| **User_Backend** | `hrm_db_user` | 5002 | ✓ Login/Registration (YOUR USER IS HERE) |
+| **Employee_Backend** | `hrm_db_employee` | 5003 | ✗ Attendance/Clock-in (MISSING YOUR USER) |
+| **HR_Backend** | `hrm_db_hr` | 5004 | HR Management data |
 
-### The Flow (Before Fix)
+### What Happens When You Log In
+1. ✓ Frontend sends credentials to User_Backend (port 5002)
+2. ✓ User_Backend finds you in `hrm_db_user.employee` table
+3. ✓ Creates JWT token with your email
+4. ✓ You get logged in successfully
 
-1. **User registers** → Calls `User_Backend` (port 5002)
-   - Employee created in `hrm_db_user` ✓
-
-2. **User logs in** → Calls `User_Backend` (port 5002)
-   - Receives JWT token ✓
-
-3. **User clicks Clock In** → Calls `Employee_Backend` (port 5003)
-   - Tries to find employee in `hrm_db_employee` ✗
-   - **Employee doesn't exist** (was only created in `hrm_db_user`)
-   - Returns: "User not found" error
-
-### Why Sync Failed
-
-The `User_Backend` attempted to sync employee data to `Employee_Backend` via:
-```
-POST http://localhost:5003/api/employee/sync
-```
-
-But this endpoint was protected by a **class-level security restriction**:
-```java
-@RestController
-@RequestMapping("/api/employee")
-@PreAuthorize("hasAnyRole('EMPLOYEE', 'HR_MANAGER', 'ADMIN')")  // ← Blocks unauthenticated access
-public class EmployeeController {
-    @PostMapping("/sync")
-    @PreAuthorize("permitAll()")  // ← Method-level permission is overridden
-    public ResponseEntity<ApiResponse<?>> syncEmployee(@RequestBody Employee employee) {
-        // ...
-    }
-}
-```
-
-The **method-level `@PreAuthorize("permitAll()")` was ineffective** because the class-level restriction took precedence, causing the sync call to fail silently.
-
-## Solution
-
-### Changes Made
-
-#### 1. Created Public SyncController in Employee_Backend
-**File**: `Employee_Backend/src/main/java/com/affin/hrm/Controller/SyncController.java`
-
-```java
-@RestController
-@RequestMapping("/api/sync")
-@CrossOrigin(origins = "*")
-@PreAuthorize("permitAll()")  // ← No auth required
-public class SyncController {
-    @PostMapping("/employee")
-    public ResponseEntity<ApiResponse<?>> syncEmployee(@RequestBody Employee employee) {
-        // Sync employee data to hrm_db_employee
-    }
-}
-```
-
-**Key Points:**
-- Public endpoint at `/api/sync/employee` (requires NO authentication)
-- Separate controller avoids class-level auth restrictions
-- Saves/updates employee in `hrm_db_employee`
-
-#### 2. Created SyncController in HR_Backend
-**File**: `HR_Backend/src/main/java/com/affin/hrm/Controller/SyncController.java`
-
-- Similar structure for consistency
-- Acknowledges sync requests from User_Backend
-
-#### 3. Updated User_Backend AuthService
-**File**: `User_Backend/src/main/java/com/affin/hrm/Service/AuthService.java`
-
-Changed sync URL from:
-```java
-String employeeBackendUrl = "http://localhost:5003/api/employee/sync";
-```
-
-To:
-```java
-String employeeBackendUrl = "http://localhost:5003/api/sync/employee";
-```
-
-#### 4. Removed Duplicate Endpoint
-**File**: `Employee_Backend/src/main/java/com/affin/hrm/Controller/EmployeeController.java`
-
-Removed the restricted sync endpoint that is now in `SyncController`.
+### What Happens When You Try to Clock In
+1. ✓ Frontend sends clock-in request to Employee_Backend (port 5003) with token
+2. ✗ Employee_Backend calls: `authService.getCurrentEmployee()`
+3. ✗ This tries: `employeeRepo.findByEmailIgnoreCase(your_email)`
+4. ✗ Your email is NOT in `hrm_db_employee.employee` table
+5. ✗ Throws: `RuntimeException("User not found")`
 
 ---
 
-## Updated Data Flow (After Fix)
+## Solution: Sync Employee Data
 
+You need to **copy your employee record** from `hrm_db_user` to `hrm_db_employee`.
+
+### Method 1: Automated PowerShell Script (Recommended)
+
+Run this script from PowerShell in the project folder:
+
+```powershell
+cd d:\Projects\HRM
+.\FIX_CLOCKIN_SYNC.ps1
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                       USER REGISTRATION                          │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-                    ┌─────────────────┐
-                    │  User_Backend   │ (port 5002)
-                    │  hrm_db_user    │
-                    └─────────────────┘
-                              │
-                   (1) Save employee here ✓
-                              │
-              (2) Call public sync endpoint ──────┐
-                              │                   ↓
-                              │         ┌─────────────────────┐
-                              │         │ Employee_Backend    │
-                              │         │ /api/sync/employee  │
-                              │         │ hrm_db_employee     │
-                              │         └─────────────────────┘
-                              │                   │
-                              │        (3) Save employee here ✓
-                              │                   │
-                   (Later...)  │          User logs in
-                              │                   │
-┌─────────────────────────────────────────────────────────────────┐
-│                         CLOCK-IN REQUEST                         │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-            ┌─────────────────────────────┐
-            │  Employee_Backend           │ (port 5003)
-            │  /api/employee/clock-in     │
-            │  hrm_db_employee            │
-            └─────────────────────────────┘
-                              │
-                    (4) Find employee ✓
-                              │
-                    (5) Create attendance record ✓
-                              │
-                         SUCCESS! ✓
+
+**What it does:**
+- ✓ Checks PostgreSQL connection
+- ✓ Exports employee data from `hrm_db_user`
+- ✓ Imports to `hrm_db_employee`
+- ✓ Verifies sync was successful
+
+### Method 2: Manual SQL (pgAdmin UI)
+
+1. **Open pgAdmin 4** → Connect to PostgreSQL
+2. **Select `hrm_db_employee` database**
+3. **Open Query Tool** (top toolbar)
+4. **Copy the entire contents** of: `SYNC_EMPLOYEE_DATA.sql`
+5. **Paste into Query Tool**
+6. **Run (F5 or ▶ button)**
+7. **Wait for completion** (should show employee records)
+
+### Method 3: Command Line (psql)
+
+If you have psql installed:
+
+```powershell
+# Set password
+$env:PGPASSWORD = "Rush@2001780"
+
+# Export from hrm_db_user
+pg_dump -h localhost -U postgres -d hrm_db_user -t company -t department -t employee --data-only > export.sql
+
+# Import to hrm_db_employee
+psql -h localhost -U postgres -d hrm_db_employee -f export.sql
 ```
 
 ---
 
-## Deployment Instructions
+## Verification Steps
 
-### Step 1: Backup Current Databases
+### After running the fix:
+
+**1. Check pgAdmin:**
 ```sql
--- Optional but recommended
-BACKUP DATABASE hrm_db_employee TO DISK = 'C:\backup\hrm_db_employee.bak';
-BACKUP DATABASE hrm_db_user TO DISK = 'C:\backup\hrm_db_user.bak';
+-- Connect to hrm_db_employee
+SELECT email, full_name, role FROM employee ORDER BY id;
+```
+You should see your email listed.
+
+**2. Check the logs:**
+When Employee_Backend starts, you should see:
+```
+[API] POST http://localhost:5003/api/employee/attendance/clock-in
+  Token: ✓ Present (...)
 ```
 
-### Step 2: Stop Running Services
-```powershell
-# Stop all three backends (if running)
-# - User_Backend (port 5002)
-# - Employee_Backend (port 5003)
-# - HR_Backend (port 5004)
-```
+**3. Test clock-in:**
+- Go to employee dashboard
+- Click "Clock In"
+- Should succeed with ✓ message
 
-### Step 3: Deploy New Code
+---
 
-Each backend has been rebuilt:
-- ✓ `Employee_Backend/build/libs/hrm-0.0.1-SNAPSHOT.jar`
-- ✓ `User_Backend/build/libs/hrm-0.0.1-SNAPSHOT.jar`
-- ✓ `HR_Backend/build/libs/hrm-0.0.1-SNAPSHOT.jar`
+## If Clock-In Still Fails After Sync
 
-**Deploy the new JAR files:**
+Check these:
 
-```powershell
-# Example for Employee_Backend
-cd d:\Projects\HRM\hrm_backend\Employee_Backend
-java -jar build\libs\hrm-0.0.1-SNAPSHOT.jar
+1. **Restart Employee_Backend Service**
+   - The Java application may be caching the employee table
+   - Kill the `java` process and restart it
+   - Or restart the IDE/terminal running the backend
 
-# In another terminal for User_Backend
-cd d:\Projects\HRM\hrm_backend\User_Backend
-java -jar build\libs\hrm-0.0.1-SNAPSHOT.jar
+2. **Verify Employee Record**
+   ```sql
+   -- In hrm_db_employee database
+   SELECT * FROM employee WHERE email = 'your-email@company.com';
+   ```
+   Should return exactly 1 row with your data.
 
-# In another terminal for HR_Backend
-cd d:\Projects\HRM\hrm_backend\HR_Backend
-java -jar build\libs\hrm-0.0.1-SNAPSHOT.jar
-```
+3. **Check JWT Token**
+   - Open browser DevTools (F12)
+   - Console tab
+   - Run: `localStorage.getItem('token')`
+   - Copy the token to [JWT.io](https://jwt.io)
+   - Verify the `email` claim matches an employee email
 
-### Step 4: Verify Deployment
+---
 
-#### Test Sync Health
-```bash
+## Files Provided
+
+| File | Purpose |
+|------|---------|
+| `FIX_CLOCKIN_SYNC.ps1` | Automated PowerShell sync script |
+| `SYNC_EMPLOYEE_DATA.sql` | Manual SQL sync script for pgAdmin |
+| `CLOCKIN_FIX_GUIDE.md` | This documentation |
+
+---
+
+## Technical Details (For Developers)
+
+**Root Code Locations:**
+
+1. **AuthService.java** (Employee_Backend)
+   ```java
+   public Employee getCurrentEmployee() {
+       String email = authentication.getName();  // From JWT
+       return employeeRepo.findByEmailIgnoreCase(normalizedEmail)
+           .orElseThrow(() -> new RuntimeException("User not found"));
+   }
+   ```
+
+2. **EmployeeController.java** (Employee_Backend)
+   ```java
+   @PostMapping("/attendance/clock-in")
+   public ResponseEntity<ApiResponse<AttendanceDTO>> clockIn() {
+       var employee = authService.getCurrentEmployee();  // ← THROWS HERE if not found
+       AttendanceDTO attendance = attendanceService.clockIn(employee.getId(), null);
+       return ResponseEntity.ok(ApiResponse.success(attendance, "Clocked in successfully"));
+   }
+   ```
+
+---
+
+## Questions?
+
+- ✓ Does your email appear in both databases? → Should be yes after sync
+- ✓ Does Employee_Backend service restart? → May need cache clear
+- ✓ Are the ports correct (5002, 5003)? → Check application.properties
 curl -X GET http://localhost:5003/api/sync/health
 # Expected response:
 # {

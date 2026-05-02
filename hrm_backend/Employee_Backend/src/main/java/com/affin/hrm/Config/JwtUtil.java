@@ -4,6 +4,7 @@ import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
@@ -27,13 +28,36 @@ public class JwtUtil {
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpiration);
+        String role = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .findFirst()
+                .map(authority -> authority.startsWith("ROLE_") ? authority.substring(5) : authority)
+                .orElse(null);
 
         return Jwts.builder()
                 .setSubject(userDetails.getUsername())
+                .claim("role", role)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
+    }
+
+    public String getRoleFromToken(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            String role = claims.get("role", String.class);
+            System.out.println("[JWT_UTIL] getRoleFromToken - Extracted role: " + role);
+            System.out.println("[JWT_UTIL] All claims in token: " + claims.keySet());
+            return role;
+        } catch (Exception ex) {
+            System.err.println("[JWT_UTIL] ERROR in getRoleFromToken: " + ex.getMessage());
+            return null;
+        }
     }
 
     public String generateTokenFromEmail(String email) {

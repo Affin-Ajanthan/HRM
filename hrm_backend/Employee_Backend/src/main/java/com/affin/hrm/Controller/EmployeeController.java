@@ -1,9 +1,11 @@
 package com.affin.hrm.Controller;
 
 import com.affin.hrm.DTO.*;
+import com.affin.hrm.Model.Employee;
 import com.affin.hrm.Service.AttendanceService;
 import com.affin.hrm.Service.AuthService;
 import com.affin.hrm.Service.LeaveService;
+import com.affin.hrm.Service.EmployeeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,6 +28,9 @@ public class EmployeeController {
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private EmployeeService employeeService;
 
     // ===== ATTENDANCE ENDPOINTS =====
 
@@ -199,4 +204,6 @@ public class EmployeeController {
                     .body(ApiResponse.error("Failed to retrieve stats: " + e.getMessage()));
         }
     }
+
+    // Note: Sync endpoint has been moved to SyncController for better separation of concerns
 }

@@ -13,6 +13,9 @@ import com.affin.hrm.Repo.DepartmentRepo;
 import com.affin.hrm.Repo.EmployeeRepo;
 import com.affin.hrm.Repo.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -20,6 +23,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class AuthService {
@@ -45,12 +50,16 @@ public class AuthService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-        private static final String DEFAULT_COMPANY_NAME = "Default Company";
+    @Autowired
+    private RestTemplate restTemplate;
+
+    private static final String DEFAULT_COMPANY_NAME = "Default Company";
         private static final String DEFAULT_COMPANY_REG = "DEFAULT-REG-0001";
 
     public AuthResponse login(AuthRequest request) {
                 String normalizedEmail = request.getEmail() == null ? "" : request.getEmail().trim().toLowerCase();
                 String rawPassword = request.getPassword() == null ? "" : request.getPassword();
+                System.out.println("[AUTH_SERVICE] Login attempt for: " + normalizedEmail);
 
                 Authentication authentication;
                 try {
@@ -258,7 +267,38 @@ public class AuthService {
                 }
 
                 employee.setStatus(Employee.EmployeeStatus.ACTIVE);
-                return employeeRepo.save(employee);
+                Employee savedEmployee = employeeRepo.save(employee);
+                
+                // Sync employee to Employee_Backend (hrm_db_employee)
+                syncEmployeeToEmployeeBackend(savedEmployee);
+                
+                return savedEmployee;
+        }
+
+        /**
+         * Sync newly registered employee to Employee_Backend microservice
+         * This ensures the employee exists in hrm_db_employee for attendance operations
+         */
+        private void syncEmployeeToEmployeeBackend(Employee employee) {
+                try {
+                        String employeeBackendUrl = "http://localhost:5003/api/sync/employee";
+                        
+                        HttpHeaders headers = new HttpHeaders();
+                        headers.setContentType(MediaType.APPLICATION_JSON);
+                        
+                        // Create a DTO with employee data
+                        ObjectMapper mapper = new ObjectMapper();
+                        String jsonData = mapper.writeValueAsString(employee);
+                        
+                        HttpEntity<String> request = new HttpEntity<>(jsonData, headers);
+                        restTemplate.postForObject(employeeBackendUrl, request, String.class);
+                        
+                        System.out.println("[SYNC] Employee synced to Employee_Backend: " + employee.getEmail());
+                } catch (Exception e) {
+                        System.err.println("[SYNC ERROR] Failed to sync employee to Employee_Backend: " + e.getMessage());
+                        // Log but don't fail the registration if sync fails
+                        e.printStackTrace();
+                }
         }
 
         private boolean isBcryptHash(String value) {

@@ -5,6 +5,7 @@ import {
   Award, Target, TrendingUp, CheckCircle2, Calendar, Gift,
 } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
+import { employeeApi } from "../../services/api";
 
 const EmployeeDashboard = () => {
   const navigate = useNavigate();
@@ -15,12 +16,97 @@ const EmployeeDashboard = () => {
     pendingLeaves: 0,
     lastSalary: "0.00",
   });
+  const [attendance, setAttendance] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [clockInLoading, setClockInLoading] = useState(false);
+  const [clockOutLoading, setClockOutLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    if (storedUser) setUser(JSON.parse(storedUser));
-    else navigate("/login");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+      fetchTodayAttendance();
+    } else {
+      navigate("/login");
+    }
   }, [navigate]);
+
+  const fetchTodayAttendance = async () => {
+    try {
+      setLoading(true);
+      const response = await employeeApi.getTodayAttendance();
+      if (response.data) {
+        setAttendance(response.data);
+      } else {
+        setAttendance(null);
+      }
+    } catch (error) {
+      console.error("Error fetching attendance:", error);
+      setAttendance(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClockIn = async () => {
+    try {
+      setClockInLoading(true);
+      console.log("Attempting to clock in...");
+      const response = await employeeApi.clockIn();
+      console.log("Clock in response:", response);
+      if (response.data) {
+        setAttendance(response.data);
+        setMessage("✓ Clocked in successfully!");
+        setTimeout(() => setMessage(""), 3000);
+      }
+    } catch (error) {
+      console.error("Clock in error:", error);
+      setMessage("✗ " + (error.message || "Failed to clock in"));
+      setTimeout(() => setMessage(""), 5000);
+    } finally {
+      setClockInLoading(false);
+    }
+  };
+
+  const handleClockOut = async () => {
+    try {
+      setClockOutLoading(true);
+      const response = await employeeApi.clockOut();
+      if (response.data) {
+        setAttendance(response.data);
+        setMessage("✓ Clocked out successfully!");
+        setTimeout(() => setMessage(""), 3000);
+      }
+    } catch (error) {
+      setMessage("✗ " + (error.message || "Failed to clock out"));
+      setTimeout(() => setMessage(""), 3000);
+    } finally {
+      setClockOutLoading(false);
+    }
+  };
+
+  const formatTime = (time) => {
+    if (!time) return "--:--";
+    const [hours, minutes] = time.split(":").slice(0, 2);
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  const calculateWorkingHours = (clockIn, clockOut) => {
+    if (!clockIn || !clockOut) return "0h 0m";
+    const [inH, inM] = clockIn.split(":").map(Number);
+    const [outH, outM] = clockOut.split(":").map(Number);
+    const inMinutes = inH * 60 + inM;
+    const outMinutes = outH * 60 + outM;
+    const diff = outMinutes - inMinutes;
+    if (diff < 0) return "0h 0m";
+    const hours = Math.floor(diff / 60);
+    const minutes = diff % 60;
+    return `${hours}h ${minutes}m`;
+  };
 
   if (!user) return (
     <div className="flex items-center justify-center h-screen">
@@ -36,6 +122,13 @@ const EmployeeDashboard = () => {
       subtitle="Here's your overview for today"
     >
       <div className="space-y-6">
+
+        {/* ── Message Alert ── */}
+        {message && (
+          <div className={`p-4 rounded-lg text-white ${message.startsWith("✓") ? "bg-green-500" : "bg-red-500"}`}>
+            {message}
+          </div>
+        )}
 
         {/* ── Stats Cards ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -68,28 +161,42 @@ const EmployeeDashboard = () => {
               </div>
               Today's Attendance
             </h3>
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <p className="text-gray-500 text-sm mb-2">Clock In</p>
-                <p className="text-3xl font-bold text-blue-600">--:--</p>
+            {loading ? (
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
               </div>
-              <div className="text-center p-4 bg-orange-50 rounded-lg">
-                <p className="text-gray-500 text-sm mb-2">Clock Out</p>
-                <p className="text-3xl font-bold text-orange-600">--:--</p>
-              </div>
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <p className="text-gray-500 text-sm mb-2">Working Hours</p>
-                <p className="text-3xl font-bold text-green-600">0h 0m</p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button className="flex-1 bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-600 transition flex items-center justify-center gap-2 font-semibold">
-                <ClockIcon size={20} /> Clock In
-              </button>
-              <button className="flex-1 bg-gray-200 text-gray-400 py-3 px-4 rounded-lg cursor-not-allowed flex items-center justify-center gap-2 font-semibold">
-                <ClockIcon size={20} /> Clock Out
-              </button>
-            </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <p className="text-gray-500 text-sm mb-2">Clock In</p>
+                    <p className="text-3xl font-bold text-blue-600">{formatTime(attendance?.clockInTime)}</p>
+                  </div>
+                  <div className="text-center p-4 bg-orange-50 rounded-lg">
+                    <p className="text-gray-500 text-sm mb-2">Clock Out</p>
+                    <p className="text-3xl font-bold text-orange-600">{formatTime(attendance?.clockOutTime)}</p>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <p className="text-gray-500 text-sm mb-2">Working Hours</p>
+                    <p className="text-3xl font-bold text-green-600">{calculateWorkingHours(attendance?.clockInTime, attendance?.clockOutTime)}</p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={handleClockIn}
+                    disabled={clockInLoading || (attendance && attendance.clockInTime)}
+                    className="flex-1 bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg hover:bg-blue-600 transition flex items-center justify-center gap-2 font-semibold">
+                    <ClockIcon size={20} /> {clockInLoading ? "Clocking in..." : "Clock In"}
+                  </button>
+                  <button 
+                    onClick={handleClockOut}
+                    disabled={clockOutLoading || !attendance?.clockInTime || attendance?.clockOutTime}
+                    className="flex-1 bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-gray-400 hover:bg-gray-300 hover:text-gray-500 py-3 px-4 rounded-lg flex items-center justify-center gap-2 font-semibold transition">
+                    <ClockIcon size={20} /> {clockOutLoading ? "Clocking out..." : "Clock Out"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Quick Actions */}

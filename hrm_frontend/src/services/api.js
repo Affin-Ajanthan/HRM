@@ -25,6 +25,7 @@ export const MOCK_ADMIN = true;    // Step 3: Admin Dashboard
 
 export const BASE_URL   = "http://localhost:5004/api";
 export const AUTH_URL   = "http://localhost:5002/api";  // User_Backend
+export const EMPLOYEE_URL = "http://localhost:5003/api"; // Employee_Backend
 
 // ─── Shared fetch helper (used when MOCK = false) ────────────
 async function request(method, url, body = null) {
@@ -37,12 +38,41 @@ async function request(method, url, body = null) {
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
   };
-  const res = await fetch(url, opts);
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || "Request failed");
+  
+  console.log(`[API] ${method} ${url}`);
+  console.log(`  Token: ${token ? `✓ Present (${token.substring(0, 20)}...)` : "✗ Missing"}`);
+  console.log(`  Headers:`, opts.headers);
+  
+  try {
+    const res = await fetch(url, opts);
+    console.log(`[API Response] Status: ${res.status}`, res.statusText);
+    
+    if (!res.ok) {
+      let errMsg = res.statusText;
+      try {
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const err = await res.json();
+          errMsg = err.message || err.error || err.detail || JSON.stringify(err) || res.statusText;
+        } else {
+          const text = await res.text();
+          errMsg = text || res.statusText;
+        }
+      } catch (e) {
+        console.error("Error parsing error response:", e);
+      }
+      console.error(`[API Error] Status ${res.status}: "${errMsg}"`);
+      console.error(`[DEBUG] Full response headers:`, Array.from(res.headers.entries()));
+      throw new Error(`${res.status}: ${errMsg}`);
+    }
+    
+    const data = await res.json();
+    console.log(`[API Success]`, data);
+    return data;
+  } catch (error) {
+    console.error(`[API Fetch Error] ${error.message}`);
+    throw error;
   }
-  return res.json();
 }
 
 // ─── AUTH ────────────────────────────────────────────────────
@@ -84,6 +114,24 @@ export const hrApi = {
   getLeave:        () => MOCK_HR ? mockResolve(MOCK_DATA.leave)        : request("GET", `${BASE_URL}/leave`),
   getNotifications:() => MOCK_HR ? mockResolve(MOCK_DATA.notifications): request("GET", `${BASE_URL}/notifications`),
   getDashboardStats:()=> MOCK_HR ? mockResolve(MOCK_DATA.hrStats)      : request("GET", `${BASE_URL}/dashboard/stats`),
+};
+
+// ─── EMPLOYEE DATA ────────────────────────────────────────────
+export const employeeApi = {
+  // Attendance operations
+  clockIn:          () => request("POST", `${EMPLOYEE_URL}/employee/attendance/clock-in`),
+  clockOut:         () => request("POST", `${EMPLOYEE_URL}/employee/attendance/clock-out`),
+  clockInGPS:       (latitude, longitude) => request("POST", `${EMPLOYEE_URL}/employee/attendance/clock-in-gps?latitude=${latitude}&longitude=${longitude}`),
+  clockOutGPS:      (latitude, longitude) => request("POST", `${EMPLOYEE_URL}/employee/attendance/clock-out-gps?latitude=${latitude}&longitude=${longitude}`),
+  getTodayAttendance:    () => request("GET", `${EMPLOYEE_URL}/employee/attendance/today`),
+  getAttendanceHistory:  (startDate, endDate) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append("startDate", startDate);
+    if (endDate) params.append("endDate", endDate);
+    return request("GET", `${EMPLOYEE_URL}/employee/attendance/history?${params.toString()}`);
+  },
+  requestAttendanceAdjustment: (attendanceId, reason) => 
+    request("POST", `${EMPLOYEE_URL}/employee/attendance/adjustment-request?attendanceId=${attendanceId}&reason=${reason}`),
 };
 
 // ─── ADMIN DATA ───────────────────────────────────────────────

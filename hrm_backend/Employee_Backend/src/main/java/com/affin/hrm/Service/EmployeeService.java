@@ -208,4 +208,116 @@ public class EmployeeService {
         
         return dto;
     }
+
+    /**
+     * Sync employee from User_Backend microservice
+     * This method creates or updates an employee in hrm_db_employee
+     */
+    public Employee saveEmployee(Employee employee) {
+        try {
+            // Check if employee already exists by email
+            String normalizedEmail = employee.getEmail() != null ? employee.getEmail().trim().toLowerCase() : null;
+            
+            if (normalizedEmail == null || normalizedEmail.isBlank()) {
+                throw new RuntimeException("Employee email is required");
+            }
+            
+            Employee existingEmployee = employeeRepo.findByEmailIgnoreCase(normalizedEmail).orElse(null);
+            
+            // Ensure company exists or create a default one
+            Company companyRecord = getOrCreateCompany(employee);
+            
+            // Ensure department exists or create a default one
+            Department department = getOrCreateDepartment(employee, companyRecord);
+            
+            if (existingEmployee != null) {
+                // Update existing employee
+                existingEmployee.setFullName(employee.getFullName());
+                existingEmployee.setPassword(employee.getPassword());
+                existingEmployee.setEmployeeId(employee.getEmployeeId());
+                existingEmployee.setNic(employee.getNic());
+                existingEmployee.setDob(employee.getDob());
+                existingEmployee.setAddress(employee.getAddress());
+                existingEmployee.setPhone(employee.getPhone());
+                existingEmployee.setGender(employee.getGender());
+                existingEmployee.setRole(employee.getRole());
+                existingEmployee.setStatus(employee.getStatus());
+                existingEmployee.setDesignation(employee.getDesignation());
+                existingEmployee.setJoiningDate(employee.getJoiningDate());
+                existingEmployee.setCompany(companyRecord);
+                existingEmployee.setDepartment(department);
+                
+                Employee saved = employeeRepo.save(existingEmployee);
+                System.out.println("[EMPLOYEE_SERVICE] Updated existing employee: " + normalizedEmail);
+                return saved;
+            } else {
+                // Create new employee
+                employee.setEmail(normalizedEmail);
+                employee.setCompany(companyRecord);
+                employee.setDepartment(department);
+                
+                if (employee.getStatus() == null) {
+                    employee.setStatus(Employee.EmployeeStatus.ACTIVE);
+                }
+                if (employee.getRole() == null) {
+                    employee.setRole(Employee.Role.EMPLOYEE);
+                }
+                
+                Employee saved = employeeRepo.save(employee);
+                System.out.println("[EMPLOYEE_SERVICE] Created new employee: " + normalizedEmail);
+                return saved;
+            }
+        } catch (Exception e) {
+            System.err.println("[EMPLOYEE_SERVICE ERROR] Failed to save employee: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
+    private Company getOrCreateCompany(Employee employee) {
+        Company company = null;
+        if (employee.getCompany() != null && employee.getCompany().getId() != null) {
+            company = companyRepo.findById(employee.getCompany().getId()).orElse(null);
+        }
+        
+        if (company == null) {
+            company = companyRepo.findByRegistrationNumber("DEFAULT-REG-0001")
+                    .orElseGet(() -> {
+                        Company newCompany = new Company();
+                        newCompany.setCompanyName(employee.getCompany() != null && employee.getCompany().getCompanyName() != null 
+                            ? employee.getCompany().getCompanyName() : "Default Company");
+                        newCompany.setRegistrationNumber("DEFAULT-REG-0001");
+                        newCompany.setStatus(Company.CompanyStatus.APPROVED);
+                        return companyRepo.save(newCompany);
+                    });
+            System.out.println("[EMPLOYEE_SERVICE] Using/created company: " + company.getCompanyName());
+        }
+        
+        return company;
+    }
+
+    private Department getOrCreateDepartment(Employee employee, Company company) {
+        Department department = null;
+        if (employee.getDepartment() != null && employee.getDepartment().getId() != null) {
+            department = departmentRepo.findById(employee.getDepartment().getId()).orElse(null);
+        }
+        
+        if (department == null) {
+            String deptName = employee.getDepartment() != null && employee.getDepartment().getName() != null
+                    ? employee.getDepartment().getName() : "General";
+            
+            final Company finalCompany = company;
+            department = departmentRepo.findByCompanyIdAndName(company.getId(), deptName)
+                    .orElseGet(() -> {
+                        Department newDept = new Department();
+                        newDept.setName(deptName);
+                        newDept.setDescription(deptName + " Department");
+                        newDept.setCompany(finalCompany);
+                        return departmentRepo.save(newDept);
+                    });
+            System.out.println("[EMPLOYEE_SERVICE] Using/created department: " + department.getName());
+        }
+        
+        return department;
+    }
 }

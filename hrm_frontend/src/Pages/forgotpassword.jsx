@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import logo from "../assets/logo.jpg";
 import sideImage from "../assets/002.jpg";
-import axios from "axios";
+
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -18,37 +18,15 @@ const ForgotPassword = () => {
     setIsLoading(true);
 
     try {
-      // Replace this with your actual backend endpoint
-      const response = await axios.post(
-        "http://localhost:5003/api/auth/forgot-password",
-        { email: email.trim() }
-      );
-
-      setSuccessMessage(
-        "Password reset link has been sent to your email. Please check your inbox."
-      );
+      // ⚠️ Backend not connected yet — simulating success
+      await new Promise(r => setTimeout(r, 800));
+      setSuccessMessage("Backend not connected yet. When reconnected, a reset link will be sent to your email.");
       setEmail("");
-
-      // Optional: Redirect to login after 3 seconds
-      setTimeout(() => {
-        navigate("/login");
-      }, 3000);
+      setTimeout(() => navigate("/login"), 4000);
     } catch (error) {
       console.error("Forgot password error:", error);
       setIsLoading(false);
-
-      if (error.response) {
-        const errorMsg =
-          error.response.data.message ||
-          "Email not found. Please enter a registered email address.";
-        setErrorMessage(errorMsg);
-      } else if (error.request) {
-        setErrorMessage(
-          "Cannot connect to server. Please ensure the backend is running."
-        );
-      } else {
-        setErrorMessage("An error occurred: " + error.message);
-      }
+      setErrorMessage(error.message || "An error occurred.");
     }
   };
 

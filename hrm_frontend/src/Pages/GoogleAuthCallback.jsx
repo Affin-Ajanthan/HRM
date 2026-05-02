@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import axios from "axios";
+import { MOCK_AUTH } from "../services/api";
 
 const GoogleAuthCallback = () => {
   const [searchParams] = useSearchParams();
@@ -17,43 +17,12 @@ const GoogleAuthCallback = () => {
           throw new Error("No authorization code received");
         }
 
-        console.log("Processing Google OAuth callback...");
-
-        // Exchange code for token with backend
-        const response = await axios.post(
-          "http://localhost:5003/api/auth/oauth/google/callback",
-          {
-            code: code,
-            redirectUri: window.location.origin + "/auth/google/callback",
-          }
-        );
-
-        const { data } = response.data;
-
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data));
-
-        console.log("Google login successful! Role:", data.role);
-
-        // Redirect based on role
-        setTimeout(() => {
-          if (data.role === "ADMIN") {
-            navigate("/admin/dashboard");
-          } else if (data.role === "HR_MANAGER") {
-            navigate("/hr/dashboard");
-          } else if (data.role === "EMPLOYEE") {
-            navigate("/employee/dashboard");
-          } else {
-            navigate("/dashboard");
-          }
-        }, 1000);
+        console.log("Google OAuth callback — not connected yet, redirecting to login.");
+        throw new Error("Google OAuth is not connected yet. Please use email and password to sign in.");
       } catch (error) {
         console.error("Google authentication error:", error);
-        setError(error.response?.data?.message || "Authentication failed. Please try again.");
-        // Redirect back to login with error after 3 seconds
-        setTimeout(() => {
-          navigate("/login?error=google_auth_failed");
-        }, 3000);
+        setError(error.message || "Authentication failed. Please try again.");
+        setTimeout(() => navigate("/login?error=google_auth_failed"), 3000);
       }
     };
 

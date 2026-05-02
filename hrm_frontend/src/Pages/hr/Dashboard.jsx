@@ -9,12 +9,67 @@ import {
   Download, Filter, Calendar, UserX,
 } from "lucide-react";
 import logo from "../../assets/logo.jpg";
+import { BASE_URL, MOCK_HR } from "../../services/api";
 
-// ─── CONFIG ───────────────────────────────────────────────────────────────────
-const BASE_URL = "http://localhost:5004/api";
+// ─── Mock data store (used when MOCK_HR = true) ───────────────────────────────
+const _mockDelay = (ms = 300) => new Promise(r => setTimeout(r, ms));
 
+const _mockStore = {
+  employees: [
+    { id:1, fullName:"John Doe",       email:"john@test.com",  department:{id:1,name:"Engineering"}, designation:"Senior Developer", role:"EMPLOYEE",   status:"ACTIVE", joiningDate:"2022-03-15", phone:"0300-1234567", salary:85000, gender:"MALE"   },
+    { id:2, fullName:"Jane Smith",     email:"jane@test.com",  department:{id:2,name:"HR"},          designation:"HR Executive",     role:"HR_MANAGER", status:"ACTIVE", joiningDate:"2021-07-01", phone:"0300-2345678", salary:72000, gender:"FEMALE" },
+    { id:3, fullName:"Mike Johnson",   email:"mike@test.com",  department:{id:3,name:"Finance"},     designation:"Accountant",       role:"EMPLOYEE",   status:"ACTIVE", joiningDate:"2023-01-10", phone:"0300-3456789", salary:65000, gender:"MALE"   },
+    { id:4, fullName:"Sarah Williams", email:"sarah@test.com", department:{id:4,name:"Marketing"},   designation:"Marketing Lead",   role:"EMPLOYEE",   status:"ACTIVE", joiningDate:"2022-11-20", phone:"0300-4567890", salary:70000, gender:"FEMALE" },
+    { id:5, fullName:"David Brown",    email:"david@test.com", department:{id:5,name:"Operations"},  designation:"Ops Manager",      role:"EMPLOYEE",   status:"ACTIVE", joiningDate:"2020-05-08", phone:"0300-5678901", salary:90000, gender:"MALE"   },
+  ],
+  departments: [
+    { id:1, name:"Engineering", description:"Tech & Dev",   active:true, managerName:"Alice Lee",  roles:[{id:1,title:"Developer",minSalary:60000,maxSalary:120000}] },
+    { id:2, name:"HR",          description:"People Ops",   active:true, managerName:"Bob Tan",    roles:[{id:2,title:"HR Executive",minSalary:50000,maxSalary:90000}] },
+    { id:3, name:"Finance",     description:"Accounts",     active:true, managerName:"Carol Wu",   roles:[{id:3,title:"Accountant",minSalary:55000,maxSalary:100000}] },
+    { id:4, name:"Marketing",   description:"Brand & Ads",  active:true, managerName:"Dan Roy",    roles:[{id:4,title:"Marketing Lead",minSalary:55000,maxSalary:100000}] },
+    { id:5, name:"Operations",  description:"Day-to-day",   active:true, managerName:"Eve Chan",   roles:[{id:5,title:"Ops Manager",minSalary:70000,maxSalary:130000}] },
+  ],
+  attendance: [
+    { id:1, employeeId:1, employeeName:"John Doe",       date:"2026-05-02", checkIn:"09:00", checkOut:"18:00", status:"PRESENT", hoursWorked:9  },
+    { id:2, employeeId:2, employeeName:"Jane Smith",     date:"2026-05-02", checkIn:"08:45", checkOut:"17:45", status:"PRESENT", hoursWorked:9  },
+    { id:3, employeeId:3, employeeName:"Mike Johnson",   date:"2026-05-02", checkIn:null,    checkOut:null,    status:"ABSENT",  hoursWorked:0  },
+    { id:4, employeeId:4, employeeName:"Sarah Williams", date:"2026-05-02", checkIn:"10:15", checkOut:"18:30", status:"LATE",    hoursWorked:8  },
+    { id:5, employeeId:5, employeeName:"David Brown",    date:"2026-05-02", checkIn:"09:05", checkOut:"18:05", status:"PRESENT", hoursWorked:9  },
+  ],
+  leaves: [
+    { id:1, employee:{id:3,fullName:"Mike Johnson"},   leaveType:"SICK",   startDate:"2026-05-01", endDate:"2026-05-03", status:"APPROVED", reason:"Fever",       totalDays:3 },
+    { id:2, employee:{id:4,fullName:"Sarah Williams"}, leaveType:"ANNUAL",  startDate:"2026-05-10", endDate:"2026-05-15", status:"PENDING",  reason:"Family trip", totalDays:6 },
+    { id:3, employee:{id:5,fullName:"David Brown"},    leaveType:"CASUAL", startDate:"2026-04-28", endDate:"2026-04-29", status:"REJECTED", reason:"Personal",    totalDays:2 },
+  ],
+  notifications: [
+    { id:1, title:"Leave Request",     message:"Mike Johnson submitted a sick leave request.", createdAt:"2026-05-02T07:00:00", read:false, type:"LEAVE"   },
+    { id:2, title:"New Employee",      message:"Sarah Williams joined the Marketing team.",    createdAt:"2026-05-01T09:00:00", read:false, type:"EMPLOYEE" },
+    { id:3, title:"Payroll Processed", message:"January 2026 payroll has been processed.",    createdAt:"2026-04-29T14:00:00", read:true,  type:"PAYROLL"  },
+  ],
+  salaries: [
+    { id:1, employee:{id:1,fullName:"John Doe"},       basicSalary:85000, allowances:10000, deductions:8500,  netSalary:86500,  month:"2026-01", status:"PAID"    },
+    { id:2, employee:{id:2,fullName:"Jane Smith"},     basicSalary:72000, allowances:8000,  deductions:7200,  netSalary:72800,  month:"2026-01", status:"PAID"    },
+    { id:3, employee:{id:3,fullName:"Mike Johnson"},   basicSalary:65000, allowances:7000,  deductions:6500,  netSalary:65500,  month:"2026-01", status:"PENDING" },
+    { id:4, employee:{id:4,fullName:"Sarah Williams"}, basicSalary:70000, allowances:8000,  deductions:7000,  netSalary:71000,  month:"2026-01", status:"PAID"    },
+    { id:5, employee:{id:5,fullName:"David Brown"},    basicSalary:90000, allowances:12000, deductions:9000,  netSalary:93000,  month:"2026-01", status:"PENDING" },
+  ],
+  stats: { totalEmployees:148, presentToday:132, onLeaveToday:8, newJoiningThisMonth:4, totalDepartments:5, maleCount:80, femaleCount:68 },
+};
+
+// ─── Mock-aware API layer ─────────────────────────────────────────────────────
 const api = {
   get: async (path) => {
+    if (MOCK_HR) {
+      await _mockDelay();
+      if (path.includes("/employees"))       return { data: _mockStore.employees,    success:true };
+      if (path.includes("/departments"))     return { data: _mockStore.departments,  success:true };
+      if (path.includes("/attendance"))      return { data: _mockStore.attendance,   success:true };
+      if (path.includes("/leave"))           return { data: _mockStore.leaves,       success:true };
+      if (path.includes("/notifications"))   return { data: _mockStore.notifications,success:true };
+      if (path.includes("/salary")||path.includes("/payslip")) return { data: _mockStore.salaries, success:true };
+      if (path.includes("/stats")||path.includes("/dashboard")) return { data: _mockStore.stats,   success:true };
+      return { data: [], success:true };
+    }
     const token = localStorage.getItem("token");
     const res = await fetch(`${BASE_URL}${path}`, {
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -23,19 +78,35 @@ const api = {
     return res.json();
   },
   post: async (path, body) => {
+    if (MOCK_HR) {
+      await _mockDelay(500);
+      console.log(`[MOCK POST] ${path}`, body);
+      const newId = Date.now();
+      if (path.includes("/employees"))   { const e={...body,id:newId,department:{id:1,name:body.department||"General"},status:"ACTIVE"}; _mockStore.employees.push(e); return {data:e,success:true}; }
+      if (path.includes("/departments")) { const d={...body,id:newId,active:true,roles:[]}; _mockStore.departments.push(d); return {data:d,success:true}; }
+      if (path.includes("/leave"))       { const l={...body,id:newId,status:"PENDING"}; _mockStore.leaves.push(l); return {data:l,success:true}; }
+      if (path.includes("/attendance"))  { const a={...body,id:newId}; _mockStore.attendance.push(a); return {data:a,success:true}; }
+      return { data:{id:newId,...body}, success:true };
+    }
     const token = localStorage.getItem("token");
     const res = await fetch(`${BASE_URL}${path}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || `HTTP ${res.status}`);
-    }
+    if (!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.message||`HTTP ${res.status}`); }
     return res.json();
   },
   put: async (path, body) => {
+    if (MOCK_HR) {
+      await _mockDelay(400);
+      console.log(`[MOCK PUT] ${path}`, body);
+      const id = parseInt(path.split("/").pop());
+      if (path.includes("/employees"))   { const i=_mockStore.employees.findIndex(e=>e.id===id); if(i>-1) _mockStore.employees[i]={..._mockStore.employees[i],...body}; return {data:_mockStore.employees[i]||body,success:true}; }
+      if (path.includes("/departments")) { const i=_mockStore.departments.findIndex(d=>d.id===id); if(i>-1) _mockStore.departments[i]={..._mockStore.departments[i],...body}; return {data:_mockStore.departments[i]||body,success:true}; }
+      if (path.includes("/leave"))       { const i=_mockStore.leaves.findIndex(l=>l.id===id); if(i>-1) _mockStore.leaves[i]={..._mockStore.leaves[i],...body}; return {data:_mockStore.leaves[i]||body,success:true}; }
+      return { data:{id,...body}, success:true };
+    }
     const token = localStorage.getItem("token");
     const res = await fetch(`${BASE_URL}${path}`, {
       method: "PUT",
@@ -46,6 +117,15 @@ const api = {
     return res.json();
   },
   delete: async (path) => {
+    if (MOCK_HR) {
+      await _mockDelay(300);
+      console.log(`[MOCK DELETE] ${path}`);
+      const id = parseInt(path.split("/").pop());
+      if (path.includes("/employees"))   _mockStore.employees   = _mockStore.employees.filter(e=>e.id!==id);
+      if (path.includes("/departments")) _mockStore.departments = _mockStore.departments.filter(d=>d.id!==id);
+      if (path.includes("/leave"))       _mockStore.leaves      = _mockStore.leaves.filter(l=>l.id!==id);
+      return { success:true };
+    }
     const token = localStorage.getItem("token");
     const res = await fetch(`${BASE_URL}${path}`, {
       method: "DELETE",

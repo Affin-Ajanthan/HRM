@@ -25,6 +25,7 @@ export const MOCK_ADMIN = true;    // Step 3: Admin Dashboard
 
 export const BASE_URL   = "http://localhost:5004/api";
 export const AUTH_URL   = "http://localhost:5002/api";  // User_Backend
+export const ADMIN_URL  = "http://localhost:5001/api";  // Admin_Backend
 
 // ─── Shared fetch helper (used when MOCK = false) ────────────
 async function request(method, url, body = null) {
@@ -88,9 +89,9 @@ export const hrApi = {
 
 // ─── ADMIN DATA ───────────────────────────────────────────────
 export const adminApi = {
-  getCompanies:     () => MOCK_ADMIN ? mockResolve(MOCK_DATA.companies)   : request("GET", `${BASE_URL}/companies`),
-  getSystemUsers:   () => MOCK_ADMIN ? mockResolve(MOCK_DATA.employees)   : request("GET", `${BASE_URL}/users`),
-  getDashboardStats:()  => MOCK_ADMIN ? mockResolve(MOCK_DATA.adminStats) : request("GET", `${BASE_URL}/admin/stats`),
+  getCompanies:     () => MOCK_ADMIN ? mockResolve(MOCK_DATA.companies)   : request("GET", `${ADMIN_URL}/companies`),
+  getSystemUsers:   () => MOCK_ADMIN ? mockResolve(MOCK_DATA.employees)   : request("GET", `${ADMIN_URL}/users`),
+  getDashboardStats:()  => MOCK_ADMIN ? mockResolve(MOCK_DATA.adminStats) : request("GET", `${ADMIN_URL}/admin/stats`),
 };
 
 // ─── Helpers ──────────────────────────────────────────────────

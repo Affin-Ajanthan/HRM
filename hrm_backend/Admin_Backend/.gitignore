@@ -1,0 +1,12 @@
+# Gradle
+.gradle/
+build/
+*.lock
+
+# IDE
+.idea/
+*.iml
+
+# Spring Boot
+target/
+*.jar

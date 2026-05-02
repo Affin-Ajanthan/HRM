@@ -13,7 +13,7 @@
  *  ----------------------------------------
  *  USER_BACKEND  → http://localhost:5002  (Auth, Register)
  *  HR_BACKEND    → http://localhost:5004  (HR data)
- *  ADMIN_BACKEND → http://localhost:5004  (Admin data)
+ *  ADMIN_BACKEND → http://localhost:5001  (Admin data)
  * ============================================================
  */
 

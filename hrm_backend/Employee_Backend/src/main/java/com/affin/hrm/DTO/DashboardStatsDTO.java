@@ -1,18 +1,21 @@
-package com.affin.hrm.DTO;
+package com.affin.hrm.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Data Transfer Object for dashboard statistics.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class DashboardStatsDTO {
-    private Long totalEmployees;
-    private Long activeEmployees;
-    private Long totalDepartments;
-    private Long pendingLeaveApplications;
-    private Long todayPresent;
-    private Long todayAbsent;
-    private Long currentMonthPayslips;
+
+    private long totalEmployees;
+    private long presentToday;
+    private long onLeave;
+    private long pendingLeaves;
+    private long totalDepartments;
+    private long newJoining;
 }

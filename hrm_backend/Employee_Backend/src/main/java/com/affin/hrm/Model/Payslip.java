@@ -1,22 +1,27 @@
-package com.affin.hrm.Model;
+package com.affin.hrm.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Payslip entity — monthly payslip records.
+ */
 @Entity
 @Table(name = "payslips", uniqueConstraints = {
     @UniqueConstraint(columnNames = {"employee_id", "month", "year"})
 })
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"employee"})
+@EqualsAndHashCode(of = "id")
 public class Payslip {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -26,7 +31,7 @@ public class Payslip {
     private Employee employee;
 
     @Column(nullable = false)
-    private Integer month; // 1-12
+    private Integer month;
 
     @Column(nullable = false)
     private Integer year;
@@ -52,7 +57,7 @@ public class Payslip {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private PayslipStatus status = PayslipStatus.GENERATED; // GENERATED, PAID
+    private PayslipStatus status = PayslipStatus.GENERATED;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

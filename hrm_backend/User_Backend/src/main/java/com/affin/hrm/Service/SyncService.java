@@ -24,8 +24,12 @@ public class SyncService {
     @Autowired(required = false)
     private RestTemplate restTemplate;
     
-    private static final String EMPLOYEE_BACKEND_SYNC = "http://localhost:5003/api/sync/employee";
-    private static final String HR_BACKEND_SYNC = "http://localhost:5004/api/sync/employee";
+    @org.springframework.beans.factory.annotation.Value("${service.employee-url:http://localhost:5006}")
+    private String employeeServiceUrl;
+
+    @org.springframework.beans.factory.annotation.Value("${service.hr-url:http://localhost:5005}")
+    private String hrServiceUrl;
+
     private static final int RETRY_ATTEMPTS = 3;
     private static final long RETRY_DELAY_MS = 1000;
     
@@ -37,7 +41,8 @@ public class SyncService {
      * @return true if sync was successful, false otherwise
      */
     public boolean syncToEmployeeBackend(Employee employee) {
-        return syncWithRetry(EMPLOYEE_BACKEND_SYNC, employee, "Employee_Backend");
+        String url = employeeServiceUrl + "/api/sync/employee";
+        return syncWithRetry(url, employee, "Employee_Backend");
     }
     
     /**
@@ -48,7 +53,8 @@ public class SyncService {
      * @return true if sync was successful, false otherwise
      */
     public boolean syncToHRBackend(Employee employee) {
-        return syncWithRetry(HR_BACKEND_SYNC, employee, "HR_Backend");
+        String url = hrServiceUrl + "/api/sync/employee";
+        return syncWithRetry(url, employee, "HR_Backend");
     }
     
     /**
@@ -99,8 +105,9 @@ public class SyncService {
                     HttpHeaders headers = new HttpHeaders();
                     headers.setContentType(MediaType.APPLICATION_JSON);
                     
-                    // Create request body
-                    HttpEntity<Employee> request = new HttpEntity<>(employee, headers);
+                    // Create dynamic flat request body to bypass Lazy loading exceptions and circular reference recursion
+                    java.util.Map<String, Object> payload = buildSyncPayload(employee);
+                    HttpEntity<java.util.Map<String, Object>> request = new HttpEntity<>(payload, headers);
                     
                     // Send sync request
                     restTemplate.postForObject(url, request, String.class);
@@ -110,6 +117,7 @@ public class SyncService {
                     
                 } catch (Exception attemptException) {
                     System.err.println("[SYNC ATTEMPT " + attempt + " FAILED] " + backendName + ": " + attemptException.getMessage());
+                    attemptException.printStackTrace();
                     
                     // Retry with delay if not last attempt
                     if (attempt < RETRY_ATTEMPTS) {
@@ -131,6 +139,56 @@ public class SyncService {
             return false;
         }
     }
+
+    private java.util.Map<String, Object> buildSyncPayload(Employee employee) {
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("id", employee.getId());
+        payload.put("employeeId", employee.getEmployeeId());
+        payload.put("fullName", employee.getFullName());
+        payload.put("email", employee.getEmail());
+        payload.put("password", employee.getPassword());
+        payload.put("nic", employee.getNic());
+        payload.put("dob", employee.getDob() != null ? employee.getDob().toString() : null);
+        payload.put("address", employee.getAddress());
+        payload.put("phone", employee.getPhone());
+        payload.put("gender", employee.getGender() != null ? employee.getGender().name() : null);
+        payload.put("role", employee.getRole() != null ? employee.getRole().name() : null);
+        payload.put("designation", employee.getDesignation());
+        payload.put("joiningDate", employee.getJoiningDate() != null ? employee.getJoiningDate().toString() : null);
+        payload.put("terminationDate", employee.getTerminationDate() != null ? employee.getTerminationDate().toString() : null);
+        payload.put("status", employee.getStatus() != null ? employee.getStatus().name() : null);
+
+        // Simple Company DTO structure
+        if (employee.getCompany() != null) {
+            java.util.Map<String, Object> companyMap = new java.util.HashMap<>();
+            try {
+                companyMap.put("id", employee.getCompany().getId());
+                companyMap.put("companyName", employee.getCompany().getCompanyName());
+                companyMap.put("registrationNumber", employee.getCompany().getRegistrationNumber());
+                payload.put("company", companyMap);
+            } catch (org.hibernate.LazyInitializationException e) {
+                // If it's a lazy proxy not initialized, we fall back to a default empty company with ID
+                companyMap.put("id", 1L);
+                companyMap.put("companyName", "Default Company");
+                companyMap.put("registrationNumber", "DEFAULT-REG-0001");
+                payload.put("company", companyMap);
+            }
+        }
+
+        // Simple Department DTO structure
+        if (employee.getDepartment() != null) {
+            java.util.Map<String, Object> deptMap = new java.util.HashMap<>();
+            try {
+                deptMap.put("id", employee.getDepartment().getId());
+                deptMap.put("name", employee.getDepartment().getName());
+                payload.put("department", deptMap);
+            } catch (org.hibernate.LazyInitializationException e) {
+                // Ignore department if it's not initialized
+            }
+        }
+
+        return payload;
+    }
     
     /**
      * Health check - verify sync endpoints are reachable
@@ -143,7 +201,7 @@ public class SyncService {
             }
             
             try {
-                restTemplate.getForObject(EMPLOYEE_BACKEND_SYNC + "/health", String.class);
+                restTemplate.getForObject(employeeServiceUrl + "/api/sync/employee/health", String.class);
                 System.out.println("[SYNC HEALTH] Employee_Backend is healthy");
                 return true;
             } catch (Exception e) {

@@ -1,14 +1,18 @@
-package com.affin.hrm.DTO;
+package com.affin.hrm.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Data Transfer Object for Department data.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class DepartmentDTO {
+
     private Long id;
 
     @NotBlank(message = "Department name is required")
@@ -19,4 +23,5 @@ public class DepartmentDTO {
     private Long managerId;
     private String managerName;
     private Boolean active;
+    private Integer employeeCount;
 }

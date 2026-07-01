@@ -1,182 +1,78 @@
-package com.affin.hrm.Controller;
+package com.affin.hrm.controller;
 
-import com.affin.hrm.DTO.*;
-import com.affin.hrm.Service.AttendanceService;
-import com.affin.hrm.Service.AuthService;
-import com.affin.hrm.Service.LeaveService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.affin.hrm.dto.*;
+import com.affin.hrm.model.Employee;
+import com.affin.hrm.service.*;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.List;
 
+/**
+ * Employee self-service controller — profile, leave, payslip.
+ */
 @RestController
 @RequestMapping("/api/employee")
-@CrossOrigin(origins = "*")
-@PreAuthorize("hasAnyRole('EMPLOYEE', 'HR_MANAGER', 'ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER', 'EMPLOYEE')")
 public class EmployeeController {
 
-    @Autowired
-    private AttendanceService attendanceService;
+    private final EmployeeService employeeService;
+    private final LeaveService leaveService;
+    private final AuthService authService;
 
-    @Autowired
-    private LeaveService leaveService;
-
-    @Autowired
-    private AuthService authService;
-
-    // ===== ATTENDANCE =====
-
-    @PostMapping("/attendance/clock-in")
-    public ResponseEntity<ApiResponse<AttendanceDTO>> clockIn() {
-        try {
-            var employee = authService.getCurrentEmployee();
-            AttendanceDTO attendance = attendanceService.clockIn(employee.getId(), null);
-            return ResponseEntity.ok(ApiResponse.success(attendance, "Clocked in successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to clock in: " + e.getMessage()));
-        }
+    public EmployeeController(EmployeeService employeeService,
+                              LeaveService leaveService,
+                              AuthService authService) {
+        this.employeeService = employeeService;
+        this.leaveService = leaveService;
+        this.authService = authService;
     }
-
-    @PostMapping("/attendance/clock-out")
-    public ResponseEntity<ApiResponse<AttendanceDTO>> clockOut() {
-        try {
-            var employee = authService.getCurrentEmployee();
-            AttendanceDTO attendance = attendanceService.clockOut(employee.getId(), null);
-            return ResponseEntity.ok(ApiResponse.success(attendance, "Clocked out successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to clock out: " + e.getMessage()));
-        }
-    }
-
-    @PostMapping("/attendance/clock-in-gps")
-    public ResponseEntity<ApiResponse<AttendanceDTO>> clockInGPS(
-            @RequestParam String latitude, @RequestParam String longitude) {
-        try {
-            var employee = authService.getCurrentEmployee();
-            AttendanceDTO attendance = attendanceService.clockInGPS(employee.getId(), latitude + "," + longitude);
-            return ResponseEntity.ok(ApiResponse.success(attendance, "Clocked in via GPS successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to clock in: " + e.getMessage()));
-        }
-    }
-
-    @PostMapping("/attendance/clock-out-gps")
-    public ResponseEntity<ApiResponse<AttendanceDTO>> clockOutGPS(
-            @RequestParam String latitude, @RequestParam String longitude) {
-        try {
-            var employee = authService.getCurrentEmployee();
-            AttendanceDTO attendance = attendanceService.clockOutGPS(employee.getId(), latitude + "," + longitude);
-            return ResponseEntity.ok(ApiResponse.success(attendance, "Clocked out via GPS successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to clock out: " + e.getMessage()));
-        }
-    }
-
-    @GetMapping("/attendance/today")
-    public ResponseEntity<ApiResponse<AttendanceDTO>> getTodayAttendance() {
-        try {
-            var employee = authService.getCurrentEmployee();
-            AttendanceDTO attendance = attendanceService.getTodayAttendance(employee.getId());
-            return ResponseEntity.ok(ApiResponse.success(attendance, "Today's attendance retrieved"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to retrieve attendance: " + e.getMessage()));
-        }
-    }
-
-    @GetMapping("/attendance/history")
-    public ResponseEntity<ApiResponse<List<AttendanceDTO>>> getAttendanceHistory(
-            @RequestParam(required = false) LocalDate startDate,
-            @RequestParam(required = false) LocalDate endDate) {
-        try {
-            var employee = authService.getCurrentEmployee();
-            LocalDate start = startDate != null ? startDate : LocalDate.now().minusMonths(1);
-            LocalDate end = endDate != null ? endDate : LocalDate.now();
-            List<AttendanceDTO> attendances = attendanceService.getEmployeeAttendance(employee.getId(), start, end);
-            return ResponseEntity.ok(ApiResponse.success(attendances, "Attendance history retrieved"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to retrieve attendance: " + e.getMessage()));
-        }
-    }
-
-    @PostMapping("/attendance/adjustment-request")
-    public ResponseEntity<ApiResponse<AttendanceDTO>> requestAdjustment(
-            @RequestParam Long attendanceId, @RequestParam String reason) {
-        try {
-            AttendanceDTO attendance = attendanceService.requestAdjustment(attendanceId, reason);
-            return ResponseEntity.ok(ApiResponse.success(attendance, "Adjustment request submitted"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to request adjustment: " + e.getMessage()));
-        }
-    }
-
-    // ===== LEAVE =====
-
-    @PostMapping("/leaves/apply")
-    public ResponseEntity<ApiResponse<LeaveApplicationDTO>> applyLeave(@RequestBody LeaveApplicationDTO leaveDTO) {
-        try {
-            var employee = authService.getCurrentEmployee();
-            LeaveApplicationDTO leave = leaveService.applyLeave(leaveDTO, employee.getId());
-            return ResponseEntity.ok(ApiResponse.success(leave, "Leave application submitted successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to apply leave: " + e.getMessage()));
-        }
-    }
-
-    @GetMapping("/leaves/my-leaves")
-    public ResponseEntity<ApiResponse<List<LeaveApplicationDTO>>> getMyLeaves() {
-        try {
-            var employee = authService.getCurrentEmployee();
-            List<LeaveApplicationDTO> leaves = leaveService.getEmployeeLeaves(employee.getId());
-            return ResponseEntity.ok(ApiResponse.success(leaves, "Leave applications retrieved"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to retrieve leaves: " + e.getMessage()));
-        }
-    }
-
-    @DeleteMapping("/leaves/{id}/cancel")
-    public ResponseEntity<ApiResponse<Void>> cancelLeave(@PathVariable Long id) {
-        try {
-            var employee = authService.getCurrentEmployee();
-            leaveService.cancelLeave(id, employee.getId());
-            return ResponseEntity.ok(ApiResponse.success(null, "Leave cancelled successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to cancel leave: " + e.getMessage()));
-        }
-    }
-
-    @GetMapping("/leaves/balance")
-    public ResponseEntity<ApiResponse<List<LeaveBalanceDTO>>> getLeaveBalance() {
-        try {
-            var employee = authService.getCurrentEmployee();
-            List<LeaveBalanceDTO> balances = leaveService.getEmployeeLeaveBalances(employee.getId());
-            return ResponseEntity.ok(ApiResponse.success(balances, "Leave balances retrieved"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to retrieve leave balance: " + e.getMessage()));
-        }
-    }
-
-    // ===== PROFILE =====
 
     @GetMapping("/profile")
-    public ResponseEntity<ApiResponse<?>> getProfile() {
-        try {
-            var employee = authService.getCurrentEmployee();
-            return ResponseEntity.ok(ApiResponse.success(employee, "Profile retrieved"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to retrieve profile: " + e.getMessage()));
-        }
+    public ResponseEntity<ApiResponse<EmployeeDTO>> getMyProfile() {
+        Employee employee = authService.getCurrentEmployee();
+        EmployeeDTO dto = employeeService.getEmployeeById(employee.getId());
+        return ResponseEntity.ok(ApiResponse.success(dto));
     }
 
-    @GetMapping("/dashboard/stats")
-    public ResponseEntity<ApiResponse<DashboardStatsDTO>> getDashboardStats() {
-        try {
-            DashboardStatsDTO stats = new DashboardStatsDTO();
-            return ResponseEntity.ok(ApiResponse.success(stats, "Dashboard stats retrieved"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to retrieve stats: " + e.getMessage()));
-        }
+    @PutMapping("/profile")
+    public ResponseEntity<ApiResponse<EmployeeDTO>> updateMyProfile(@Valid @RequestBody EmployeeDTO dto) {
+        Employee employee = authService.getCurrentEmployee();
+        EmployeeDTO updated = employeeService.updateEmployee(employee.getId(), dto);
+        return ResponseEntity.ok(ApiResponse.success(updated, "Profile updated successfully"));
+    }
+
+    // ── Leave Endpoints ───────────────────────────────────────────
+
+    @PostMapping("/leave/apply")
+    public ResponseEntity<ApiResponse<LeaveApplicationDTO>> applyLeave(@Valid @RequestBody LeaveApplicationDTO dto) {
+        Employee employee = authService.getCurrentEmployee();
+        LeaveApplicationDTO result = leaveService.applyLeave(dto, employee.getId());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(result, "Leave application submitted"));
+    }
+
+    @GetMapping("/leave")
+    public ResponseEntity<ApiResponse<List<LeaveApplicationDTO>>> getMyLeaves() {
+        Employee employee = authService.getCurrentEmployee();
+        List<LeaveApplicationDTO> leaves = leaveService.getEmployeeLeaves(employee.getId());
+        return ResponseEntity.ok(ApiResponse.success(leaves));
+    }
+
+    @PostMapping("/leave/{leaveId}/cancel")
+    public ResponseEntity<ApiResponse<Void>> cancelLeave(@PathVariable Long leaveId) {
+        Employee employee = authService.getCurrentEmployee();
+        leaveService.cancelLeave(leaveId, employee.getId());
+        return ResponseEntity.ok(ApiResponse.success(null, "Leave cancelled successfully"));
+    }
+
+    @GetMapping("/leave/balance")
+    public ResponseEntity<ApiResponse<List<LeaveBalanceDTO>>> getMyLeaveBalance() {
+        Employee employee = authService.getCurrentEmployee();
+        List<LeaveBalanceDTO> balances = leaveService.getEmployeeLeaveBalances(employee.getId());
+        return ResponseEntity.ok(ApiResponse.success(balances));
     }
 }

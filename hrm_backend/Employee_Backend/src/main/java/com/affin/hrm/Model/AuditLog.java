@@ -1,22 +1,38 @@
-package com.affin.hrm.Model;
+package com.affin.hrm.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
+/**
+ * AuditLog entity — records system actions for auditing.
+ */
 @Entity
 @Table(name = "audit_logs")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"employee", "company"})
+@EqualsAndHashCode(of = "id")
 public class AuditLog {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false)
+    private String action;
+
+    @Column(nullable = false)
+    private String entity;
+
+    private Long entityId;
+
+    @Column(length = 1000)
+    private String description;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id")
@@ -25,19 +41,6 @@ public class AuditLog {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id")
     private Company company;
-
-    @Column(nullable = false)
-    private String action; // e.g., "CREATE_EMPLOYEE", "APPROVE_LEAVE", "UPDATE_SALARY"
-
-    @Column(nullable = false)
-    private String entity; // e.g., "Employee", "LeaveApplication", "Salary"
-
-    private Long entityId;
-
-    @Column(length = 2000)
-    private String description;
-
-    private String ipAddress;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

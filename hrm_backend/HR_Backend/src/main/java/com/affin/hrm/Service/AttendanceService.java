@@ -1,12 +1,15 @@
-package com.affin.hrm.Service;
+package com.affin.hrm.service;
 
-import com.affin.hrm.DTO.AttendanceDTO;
-import com.affin.hrm.Model.Attendance;
-import com.affin.hrm.Model.Employee;
-import com.affin.hrm.Repo.AttendanceRepo;
-import com.affin.hrm.Repo.EmployeeRepo;
+import com.affin.hrm.dto.AttendanceDTO;
+import com.affin.hrm.exception.BusinessException;
+import com.affin.hrm.exception.ResourceNotFoundException;
+import com.affin.hrm.model.Attendance;
+import com.affin.hrm.model.Employee;
+import com.affin.hrm.repository.AttendanceRepository;
+import com.affin.hrm.repository.EmployeeRepository;
 import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,23 +19,40 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Attendance service — handles clock-in/out, GPS tracking, and adjustment requests.
+ */
 @Service
 @Transactional
 public class AttendanceService {
 
-    @Autowired private AttendanceRepo attendanceRepo;
-    @Autowired private EmployeeRepo employeeRepo;
-    @Autowired private ModelMapper modelMapper;
-    @Autowired private AuditService auditService;
+    private static final Logger log = LoggerFactory.getLogger(AttendanceService.class);
+
+    private final AttendanceRepository attendanceRepository;
+    private final EmployeeRepository employeeRepository;
+    private final ModelMapper modelMapper;
+    private final AuditService auditService;
+
+    public AttendanceService(AttendanceRepository attendanceRepository,
+                             EmployeeRepository employeeRepository,
+                             ModelMapper modelMapper,
+                             AuditService auditService) {
+        this.attendanceRepository = attendanceRepository;
+        this.employeeRepository = employeeRepository;
+        this.modelMapper = modelMapper;
+        this.auditService = auditService;
+    }
 
     public AttendanceDTO clockIn(Long employeeId, LocalTime clockInTime) {
         LocalDate today = LocalDate.now();
-        Optional<Attendance> existing = attendanceRepo.findByEmployeeIdAndDate(employeeId, today);
-        if (existing.isPresent() && existing.get().getClockInTime() != null)
-            throw new RuntimeException("Already clocked in today");
 
-        Employee employee = employeeRepo.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("Employee not found"));
+        Optional<Attendance> existing = attendanceRepository.findByEmployeeIdAndDate(employeeId, today);
+        if (existing.isPresent() && existing.get().getClockInTime() != null) {
+            throw new BusinessException("Already clocked in today");
+        }
+
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
 
         Attendance attendance = existing.orElse(new Attendance());
         attendance.setEmployee(employee);
@@ -41,33 +61,41 @@ public class AttendanceService {
         attendance.setAttendanceType(Attendance.AttendanceType.MANUAL);
         attendance.setStatus(Attendance.AttendanceStatus.PRESENT);
 
-        Attendance saved = attendanceRepo.save(attendance);
+        Attendance saved = attendanceRepository.save(attendance);
         auditService.logAction("CLOCK_IN", "Attendance", saved.getId(),
                 "Employee clocked in", employee.getCompany().getId());
+        log.info("Employee {} clocked in at {}", employeeId, saved.getClockInTime());
         return convertToDTO(saved);
     }
 
     public AttendanceDTO clockOut(Long employeeId, LocalTime clockOutTime) {
-        Attendance attendance = attendanceRepo.findByEmployeeIdAndDate(employeeId, LocalDate.now())
-                .orElseThrow(() -> new RuntimeException("No clock-in record found for today"));
-        if (attendance.getClockOutTime() != null)
-            throw new RuntimeException("Already clocked out today");
+        LocalDate today = LocalDate.now();
+
+        Attendance attendance = attendanceRepository.findByEmployeeIdAndDate(employeeId, today)
+                .orElseThrow(() -> new BusinessException("No clock-in record found for today"));
+
+        if (attendance.getClockOutTime() != null) {
+            throw new BusinessException("Already clocked out today");
+        }
 
         attendance.setClockOutTime(clockOutTime != null ? clockOutTime : LocalTime.now());
-        Attendance saved = attendanceRepo.save(attendance);
+        Attendance saved = attendanceRepository.save(attendance);
         auditService.logAction("CLOCK_OUT", "Attendance", saved.getId(),
                 "Employee clocked out", attendance.getEmployee().getCompany().getId());
+        log.info("Employee {} clocked out at {}", employeeId, saved.getClockOutTime());
         return convertToDTO(saved);
     }
 
     public AttendanceDTO clockInGPS(Long employeeId, String location) {
         LocalDate today = LocalDate.now();
-        Optional<Attendance> existing = attendanceRepo.findByEmployeeIdAndDate(employeeId, today);
-        if (existing.isPresent() && existing.get().getClockInTime() != null)
-            throw new RuntimeException("Already clocked in today");
 
-        Employee employee = employeeRepo.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("Employee not found"));
+        Optional<Attendance> existing = attendanceRepository.findByEmployeeIdAndDate(employeeId, today);
+        if (existing.isPresent() && existing.get().getClockInTime() != null) {
+            throw new BusinessException("Already clocked in today");
+        }
+
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
 
         Attendance attendance = existing.orElse(new Attendance());
         attendance.setEmployee(employee);
@@ -77,69 +105,89 @@ public class AttendanceService {
         attendance.setAttendanceType(Attendance.AttendanceType.GPS);
         attendance.setStatus(Attendance.AttendanceStatus.PRESENT);
 
-        Attendance saved = attendanceRepo.save(attendance);
+        Attendance saved = attendanceRepository.save(attendance);
         auditService.logAction("CLOCK_IN_GPS", "Attendance", saved.getId(),
                 "Employee clocked in via GPS", employee.getCompany().getId());
         return convertToDTO(saved);
     }
 
     public AttendanceDTO clockOutGPS(Long employeeId, String location) {
-        Attendance attendance = attendanceRepo.findByEmployeeIdAndDate(employeeId, LocalDate.now())
-                .orElseThrow(() -> new RuntimeException("No clock-in record found for today"));
-        if (attendance.getClockOutTime() != null)
-            throw new RuntimeException("Already clocked out today");
+        LocalDate today = LocalDate.now();
+
+        Attendance attendance = attendanceRepository.findByEmployeeIdAndDate(employeeId, today)
+                .orElseThrow(() -> new BusinessException("No clock-in record found for today"));
+
+        if (attendance.getClockOutTime() != null) {
+            throw new BusinessException("Already clocked out today");
+        }
 
         attendance.setClockOutTime(LocalTime.now());
         attendance.setClockOutLocation(location);
-        Attendance saved = attendanceRepo.save(attendance);
+        Attendance saved = attendanceRepository.save(attendance);
         auditService.logAction("CLOCK_OUT_GPS", "Attendance", saved.getId(),
                 "Employee clocked out via GPS", attendance.getEmployee().getCompany().getId());
         return convertToDTO(saved);
     }
 
+    @Transactional(readOnly = true)
+    public List<AttendanceDTO> getEmployeeAttendance(Long employeeId, LocalDate startDate, LocalDate endDate) {
+        return attendanceRepository.findByEmployeeIdAndDateBetween(employeeId, startDate, endDate)
+                .stream().map(this::convertToDTO).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<AttendanceDTO> getDailyAttendance(Long companyId, LocalDate date) {
+        return attendanceRepository.findByCompanyIdAndDate(companyId, date)
+                .stream().map(this::convertToDTO).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public AttendanceDTO getTodayAttendance(Long employeeId) {
-        return attendanceRepo.findByEmployeeIdAndDate(employeeId, LocalDate.now())
+        return attendanceRepository.findByEmployeeIdAndDate(employeeId, LocalDate.now())
                 .map(this::convertToDTO).orElse(null);
     }
 
-    public List<AttendanceDTO> getEmployeeAttendance(Long employeeId, LocalDate startDate, LocalDate endDate) {
-        return attendanceRepo.findByEmployeeIdAndDateBetween(employeeId, startDate, endDate).stream()
-                .map(this::convertToDTO).collect(Collectors.toList());
-    }
-
-    public List<AttendanceDTO> getDailyAttendance(Long companyId, LocalDate date) {
-        return attendanceRepo.findByCompanyIdAndDate(companyId, date).stream()
-                .map(this::convertToDTO).collect(Collectors.toList());
-    }
-
     public AttendanceDTO requestAdjustment(Long attendanceId, String reason) {
-        Attendance attendance = attendanceRepo.findById(attendanceId)
-                .orElseThrow(() -> new RuntimeException("Attendance record not found"));
+        Attendance attendance = attendanceRepository.findById(attendanceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Attendance", "id", attendanceId));
+
         attendance.setIsAdjustmentRequested(true);
         attendance.setAdjustmentReason(reason);
         attendance.setAdjustmentStatus(Attendance.AdjustmentStatus.PENDING);
-        return convertToDTO(attendanceRepo.save(attendance));
+
+        Attendance saved = attendanceRepository.save(attendance);
+        auditService.logAction("REQUEST_ATTENDANCE_ADJUSTMENT", "Attendance", saved.getId(),
+                "Requested attendance adjustment", attendance.getEmployee().getCompany().getId());
+        return convertToDTO(saved);
     }
 
     public AttendanceDTO approveAdjustment(Long attendanceId) {
-        Attendance attendance = attendanceRepo.findById(attendanceId)
-                .orElseThrow(() -> new RuntimeException("Attendance record not found"));
+        Attendance attendance = attendanceRepository.findById(attendanceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Attendance", "id", attendanceId));
         attendance.setAdjustmentStatus(Attendance.AdjustmentStatus.APPROVED);
-        return convertToDTO(attendanceRepo.save(attendance));
+        Attendance saved = attendanceRepository.save(attendance);
+        auditService.logAction("APPROVE_ATTENDANCE_ADJUSTMENT", "Attendance", saved.getId(),
+                "Approved attendance adjustment", attendance.getEmployee().getCompany().getId());
+        return convertToDTO(saved);
     }
 
     public AttendanceDTO rejectAdjustment(Long attendanceId) {
-        Attendance attendance = attendanceRepo.findById(attendanceId)
-                .orElseThrow(() -> new RuntimeException("Attendance record not found"));
+        Attendance attendance = attendanceRepository.findById(attendanceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Attendance", "id", attendanceId));
         attendance.setAdjustmentStatus(Attendance.AdjustmentStatus.REJECTED);
-        return convertToDTO(attendanceRepo.save(attendance));
+        Attendance saved = attendanceRepository.save(attendance);
+        auditService.logAction("REJECT_ATTENDANCE_ADJUSTMENT", "Attendance", saved.getId(),
+                "Rejected attendance adjustment", attendance.getEmployee().getCompany().getId());
+        return convertToDTO(saved);
     }
 
+    @Transactional(readOnly = true)
     public List<AttendanceDTO> getPendingAdjustments(Long companyId) {
-        return attendanceRepo.findByIsAdjustmentRequestedAndAdjustmentStatus(
-                true, Attendance.AdjustmentStatus.PENDING).stream()
+        return attendanceRepository.findByIsAdjustmentRequestedAndAdjustmentStatus(true, Attendance.AdjustmentStatus.PENDING)
+                .stream()
                 .filter(a -> a.getEmployee().getCompany().getId().equals(companyId))
-                .map(this::convertToDTO).collect(Collectors.toList());
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 
     private AttendanceDTO convertToDTO(Attendance attendance) {

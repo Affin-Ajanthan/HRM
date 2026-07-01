@@ -1,21 +1,27 @@
-package com.affin.hrm.Model;
+package com.affin.hrm.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/**
+ * Employee entity — the core user of the HRM system.
+ */
 @Entity
 @Table(name = "employees")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"company", "department"})
+@EqualsAndHashCode(of = "id")
 public class Employee {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -29,6 +35,7 @@ public class Employee {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY)
     @Column(nullable = false)
     private String password;
 
@@ -56,12 +63,6 @@ public class Employee {
     private LocalDate joiningDate;
     private LocalDate terminationDate;
 
-    // Free-text department name for when no Department entity is linked
-    private String departmentName;
-
-    @Enumerated(EnumType.STRING)
-    private EmploymentType employmentType;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private EmployeeStatus status = EmployeeStatus.ACTIVE;
@@ -84,9 +85,5 @@ public class Employee {
 
     public enum EmployeeStatus {
         ACTIVE, INACTIVE, TERMINATED
-    }
-
-    public enum EmploymentType {
-        FULL_TIME, PART_TIME, CONTRACT, INTERNSHIP, FREELANCE
     }
 }

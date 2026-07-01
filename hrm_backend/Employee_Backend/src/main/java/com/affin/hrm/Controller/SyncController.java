@@ -1,63 +1,62 @@
-package com.affin.hrm.Controller;
+package com.affin.hrm.controller;
 
-import com.affin.hrm.DTO.ApiResponse;
-import com.affin.hrm.Model.Employee;
-import com.affin.hrm.Service.EmployeeService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.affin.hrm.dto.ApiResponse;
+import com.affin.hrm.model.Company;
+import com.affin.hrm.model.Employee;
+import com.affin.hrm.repository.CompanyRepository;
+import com.affin.hrm.service.EmployeeService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Public Sync Controller - allows inter-microservice communication
- * Used by User_Backend to sync newly registered employees to Employee_Backend
- * No authentication required for sync operations
+ * Sync controller — receives employee and company data pushed from other backends.
+ * This endpoint is intentionally unauthenticated for inter-service communication.
+ * In production, secure this with an API key or service mesh.
  */
 @RestController
 @RequestMapping("/api/sync")
-@CrossOrigin(origins = "*")
-@PreAuthorize("permitAll()")
 public class SyncController {
 
-    @Autowired
-    private EmployeeService employeeService;
+    private static final Logger log = LoggerFactory.getLogger(SyncController.class);
 
-    /**
-     * Sync employee from User_Backend microservice to Employee_Backend
-     * Called when a new user registers or updates their profile
-     *
-     * @param employee Employee data from User_Backend
-     * @return Synchronized employee data
-     */
-    @PostMapping("/employee")
-    public ResponseEntity<ApiResponse<?>> syncEmployee(@RequestBody Employee employee) {
-        try {
-            if (employee == null || employee.getEmail() == null || employee.getEmail().isBlank()) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("Employee email is required for sync"));
-            }
+    private final EmployeeService employeeService;
+    private final CompanyRepository companyRepository;
 
-            System.out.println("[SYNC Controller] Syncing employee from User_Backend: " + employee.getEmail());
-            
-            // Save or update employee in hrm_db_employee
-            Employee savedEmployee = employeeService.saveEmployee(employee);
-            
-            System.out.println("[SYNC Controller] Employee synced successfully: " + employee.getEmail() + " (ID: " + savedEmployee.getId() + ")");
-            return ResponseEntity.ok(ApiResponse.success(savedEmployee, "Employee synced successfully"));
-        } catch (Exception e) {
-            System.err.println("[SYNC ERROR] Failed to sync employee: " + e.getMessage());
-            e.printStackTrace();
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Failed to sync employee: " + e.getMessage()));
-        }
+    public SyncController(EmployeeService employeeService, CompanyRepository companyRepository) {
+        this.employeeService = employeeService;
+        this.companyRepository = companyRepository;
     }
 
-    /**
-     * Health check endpoint for sync service
-     * @return Status message
-     */
-    @GetMapping("/health")
-    public ResponseEntity<ApiResponse<?>> syncHealth() {
-        return ResponseEntity.ok(ApiResponse.success("OK", "Sync service is healthy"));
+    @PostMapping("/employee")
+    public ResponseEntity<ApiResponse<String>> syncEmployee(@RequestBody Employee employee) {
+        log.info("Received sync request for employee: {}", employee.getEmail());
+        Employee saved = employeeService.saveEmployee(employee);
+        log.info("Employee synced successfully: {} (ID: {})", saved.getEmail(), saved.getId());
+        return ResponseEntity.ok(ApiResponse.success("Employee synced: " + saved.getEmail(),
+                "Sync completed successfully"));
+    }
+
+    @PostMapping("/company")
+    public ResponseEntity<ApiResponse<String>> syncCompany(@RequestBody Company company) {
+        log.info("Received sync request for company: {}", company.getCompanyName());
+        Company existing = companyRepository.findByRegistrationNumber(company.getRegistrationNumber()).orElse(null);
+        if (existing != null) {
+            existing.setCompanyName(company.getCompanyName());
+            existing.setEmail(company.getEmail());
+            existing.setPhone(company.getPhone());
+            existing.setAddress(company.getAddress());
+            existing.setWebsite(company.getWebsite());
+            existing.setStatus(company.getStatus());
+            existing.setRejectionReason(company.getRejectionReason());
+            companyRepository.save(existing);
+            log.info("Company updated successfully: {}", company.getCompanyName());
+        } else {
+            companyRepository.save(company);
+            log.info("Company created successfully: {}", company.getCompanyName());
+        }
+        return ResponseEntity.ok(ApiResponse.success("Company synced: " + company.getCompanyName(),
+                "Sync completed successfully"));
     }
 }

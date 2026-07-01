@@ -1,14 +1,17 @@
-package com.affin.hrm.Service;
+package com.affin.hrm.service;
 
-import com.affin.hrm.DTO.EmployeeDTO;
-import com.affin.hrm.Model.Company;
-import com.affin.hrm.Model.Department;
-import com.affin.hrm.Model.Employee;
-import com.affin.hrm.Repo.CompanyRepo;
-import com.affin.hrm.Repo.DepartmentRepo;
-import com.affin.hrm.Repo.EmployeeRepo;
+import com.affin.hrm.dto.EmployeeDTO;
+import com.affin.hrm.exception.BusinessException;
+import com.affin.hrm.exception.ResourceNotFoundException;
+import com.affin.hrm.model.Company;
+import com.affin.hrm.model.Department;
+import com.affin.hrm.model.Employee;
+import com.affin.hrm.repository.CompanyRepository;
+import com.affin.hrm.repository.DepartmentRepository;
+import com.affin.hrm.repository.EmployeeRepository;
 import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,307 +20,240 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Employee service — CRUD operations and sync functionality.
+ */
 @Service
 @Transactional
 public class EmployeeService {
 
-    @Autowired
-    private EmployeeRepo employeeRepo;
+    private static final Logger log = LoggerFactory.getLogger(EmployeeService.class);
 
-    @Autowired
-    private CompanyRepo companyRepo;
+    private final EmployeeRepository employeeRepository;
+    private final CompanyRepository companyRepository;
+    private final DepartmentRepository departmentRepository;
+    private final ModelMapper modelMapper;
+    private final PasswordEncoder passwordEncoder;
+    private final AuditService auditService;
 
-    @Autowired
-    private DepartmentRepo departmentRepo;
+    public EmployeeService(EmployeeRepository employeeRepository,
+                           CompanyRepository companyRepository,
+                           DepartmentRepository departmentRepository,
+                           ModelMapper modelMapper,
+                           PasswordEncoder passwordEncoder,
+                           AuditService auditService) {
+        this.employeeRepository = employeeRepository;
+        this.companyRepository = companyRepository;
+        this.departmentRepository = departmentRepository;
+        this.modelMapper = modelMapper;
+        this.passwordEncoder = passwordEncoder;
+        this.auditService = auditService;
+    }
 
-    @Autowired
-    private ModelMapper modelMapper;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private AuditService auditService;
-
+    @Transactional(readOnly = true)
     public List<EmployeeDTO> getAllEmployeesByCompany(Long companyId) {
-        List<Employee> employees = employeeRepo.findByCompanyId(companyId);
-        return employees.stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
+        return employeeRepository.findByCompanyId(companyId).stream()
+                .map(this::convertToDTO).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<EmployeeDTO> getActiveEmployeesByCompany(Long companyId) {
-        List<Employee> employees = employeeRepo.findByCompanyIdAndStatus(companyId, Employee.EmployeeStatus.ACTIVE);
-        return employees.stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
+        return employeeRepository.findByCompanyIdAndStatus(companyId, Employee.EmployeeStatus.ACTIVE).stream()
+                .map(this::convertToDTO).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public EmployeeDTO getEmployeeById(Long id) {
-        Employee employee = employeeRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", id));
         return convertToDTO(employee);
     }
 
-    public EmployeeDTO createEmployee(EmployeeDTO employeeDTO, Long companyId) {
-        // Check if email already exists
-        String normalizedEmail = employeeDTO.getEmail() == null ? "" : employeeDTO.getEmail().trim().toLowerCase();
-        if (employeeRepo.findByEmailIgnoreCase(normalizedEmail).isPresent()) {
-            throw new RuntimeException("Employee with email " + normalizedEmail + " already exists");
+    public EmployeeDTO createEmployee(EmployeeDTO dto, Long companyId) {
+        String normalizedEmail = dto.getEmail() == null ? "" : dto.getEmail().trim().toLowerCase();
+        if (employeeRepository.findByEmailIgnoreCase(normalizedEmail).isPresent()) {
+            throw new BusinessException("Employee with email " + normalizedEmail + " already exists");
         }
-
-        // Check if employee ID already exists
-        if (employeeRepo.findByEmployeeId(employeeDTO.getEmployeeId()).isPresent()) {
-            throw new RuntimeException("Employee ID " + employeeDTO.getEmployeeId() + " already exists");
+        if (employeeRepository.findByEmployeeId(dto.getEmployeeId()).isPresent()) {
+            throw new BusinessException("Employee ID " + dto.getEmployeeId() + " already exists");
         }
 
         Employee employee = new Employee();
-        employee.setEmployeeId(employeeDTO.getEmployeeId());
-        employee.setFullName(employeeDTO.getFullName());
+        employee.setEmployeeId(dto.getEmployeeId());
+        employee.setFullName(dto.getFullName());
         employee.setEmail(normalizedEmail);
-        employee.setPassword(passwordEncoder.encode(employeeDTO.getPassword()));
-        employee.setNic(employeeDTO.getNic());
-        employee.setDob(employeeDTO.getDob());
-        employee.setAddress(employeeDTO.getAddress());
-        employee.setPhone(employeeDTO.getPhone());
-        
-        if (employeeDTO.getGender() != null) {
-            employee.setGender(Employee.Gender.valueOf(employeeDTO.getGender()));
-        }
-        
-        if (employeeDTO.getRole() != null) {
-            employee.setRole(Employee.Role.valueOf(employeeDTO.getRole()));
-        } else {
-            employee.setRole(Employee.Role.EMPLOYEE);
-        }
+        employee.setPassword(passwordEncoder.encode(dto.getPassword()));
+        employee.setNic(dto.getNic());
+        employee.setDob(dto.getDob());
+        employee.setAddress(dto.getAddress());
+        employee.setPhone(dto.getPhone());
 
-        employee.setDesignation(employeeDTO.getDesignation());
-        employee.setJoiningDate(employeeDTO.getJoiningDate() != null ? employeeDTO.getJoiningDate() : LocalDate.now());
+        if (dto.getGender() != null) {
+            employee.setGender(Employee.Gender.valueOf(dto.getGender()));
+        }
+        employee.setRole(dto.getRole() != null ? Employee.Role.valueOf(dto.getRole()) : Employee.Role.EMPLOYEE);
+        employee.setDesignation(dto.getDesignation());
+        employee.setJoiningDate(dto.getJoiningDate() != null ? dto.getJoiningDate() : LocalDate.now());
         employee.setStatus(Employee.EmployeeStatus.ACTIVE);
 
-        // Set company
-        Company company = companyRepo.findById(companyId)
-                .orElseThrow(() -> new RuntimeException("Company not found with id: " + companyId));
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Company", "id", companyId));
         employee.setCompany(company);
 
-        // Set department if provided
-        if (employeeDTO.getDepartmentId() != null) {
-            Department department = departmentRepo.findById(employeeDTO.getDepartmentId())
-                    .orElseThrow(() -> new RuntimeException("Department not found with id: " + employeeDTO.getDepartmentId()));
+        if (dto.getDepartmentId() != null) {
+            Department department = departmentRepository.findById(dto.getDepartmentId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Department", "id", dto.getDepartmentId()));
             employee.setDepartment(department);
         }
 
-        Employee savedEmployee = employeeRepo.save(employee);
-        
-        // Audit log
-        auditService.logAction("CREATE_EMPLOYEE", "Employee", savedEmployee.getId(), 
-                "Created employee: " + savedEmployee.getFullName(), companyId);
-
-        return convertToDTO(savedEmployee);
+        Employee saved = employeeRepository.save(employee);
+        auditService.logAction("CREATE_EMPLOYEE", "Employee", saved.getId(),
+                "Created employee: " + saved.getFullName(), companyId);
+        log.info("Created employee: {} ({})", saved.getFullName(), saved.getEmail());
+        return convertToDTO(saved);
     }
 
-    public EmployeeDTO updateEmployee(Long id, EmployeeDTO employeeDTO) {
-        Employee employee = employeeRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
+    public EmployeeDTO updateEmployee(Long id, EmployeeDTO dto) {
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", id));
 
-        employee.setFullName(employeeDTO.getFullName());
-        employee.setNic(employeeDTO.getNic());
-        employee.setDob(employeeDTO.getDob());
-        employee.setAddress(employeeDTO.getAddress());
-        employee.setPhone(employeeDTO.getPhone());
-        
-        if (employeeDTO.getGender() != null) {
-            employee.setGender(Employee.Gender.valueOf(employeeDTO.getGender()));
+        employee.setFullName(dto.getFullName());
+        employee.setNic(dto.getNic());
+        employee.setDob(dto.getDob());
+        employee.setAddress(dto.getAddress());
+        employee.setPhone(dto.getPhone());
+        if (dto.getGender() != null) {
+            employee.setGender(Employee.Gender.valueOf(dto.getGender()));
         }
+        employee.setDesignation(dto.getDesignation());
 
-        employee.setDesignation(employeeDTO.getDesignation());
-
-        // Update department if provided
-        if (employeeDTO.getDepartmentId() != null) {
-            Department department = departmentRepo.findById(employeeDTO.getDepartmentId())
-                    .orElseThrow(() -> new RuntimeException("Department not found with id: " + employeeDTO.getDepartmentId()));
+        if (dto.getDepartmentId() != null) {
+            Department department = departmentRepository.findById(dto.getDepartmentId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Department", "id", dto.getDepartmentId()));
             employee.setDepartment(department);
         }
 
-        Employee updatedEmployee = employeeRepo.save(employee);
-        
-        // Audit log
-        auditService.logAction("UPDATE_EMPLOYEE", "Employee", updatedEmployee.getId(), 
-                "Updated employee: " + updatedEmployee.getFullName(), employee.getCompany().getId());
-
-        return convertToDTO(updatedEmployee);
+        Employee updated = employeeRepository.save(employee);
+        auditService.logAction("UPDATE_EMPLOYEE", "Employee", updated.getId(),
+                "Updated employee: " + updated.getFullName(), employee.getCompany().getId());
+        return convertToDTO(updated);
     }
 
     public void deactivateEmployee(Long id) {
-        Employee employee = employeeRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
-
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", id));
         employee.setStatus(Employee.EmployeeStatus.INACTIVE);
-        employeeRepo.save(employee);
-        
-        // Audit log
-        auditService.logAction("DEACTIVATE_EMPLOYEE", "Employee", employee.getId(), 
+        employeeRepository.save(employee);
+        auditService.logAction("DEACTIVATE_EMPLOYEE", "Employee", employee.getId(),
                 "Deactivated employee: " + employee.getFullName(), employee.getCompany().getId());
     }
 
     public void terminateEmployee(Long id, LocalDate terminationDate) {
-        Employee employee = employeeRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
-
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", id));
         employee.setStatus(Employee.EmployeeStatus.TERMINATED);
         employee.setTerminationDate(terminationDate);
-        employeeRepo.save(employee);
-        
-        // Audit log
-        auditService.logAction("TERMINATE_EMPLOYEE", "Employee", employee.getId(), 
+        employeeRepository.save(employee);
+        auditService.logAction("TERMINATE_EMPLOYEE", "Employee", employee.getId(),
                 "Terminated employee: " + employee.getFullName(), employee.getCompany().getId());
     }
 
+    @Transactional(readOnly = true)
     public List<EmployeeDTO> getEmployeesByDepartment(Long departmentId) {
-        List<Employee> employees = employeeRepo.findByDepartmentId(departmentId);
-        return employees.stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    private EmployeeDTO convertToDTO(Employee employee) {
-        EmployeeDTO dto = modelMapper.map(employee, EmployeeDTO.class);
-        dto.setPassword(null); // Never send password in response
-        
-        if (employee.getCompany() != null) {
-            dto.setCompanyId(employee.getCompany().getId());
-            dto.setCompanyName(employee.getCompany().getCompanyName());
-        }
-        
-        if (employee.getDepartment() != null) {
-            dto.setDepartmentId(employee.getDepartment().getId());
-            dto.setDepartmentName(employee.getDepartment().getName());
-        }
-        
-        if (employee.getGender() != null) {
-            dto.setGender(employee.getGender().name());
-        }
-        
-        if (employee.getRole() != null) {
-            dto.setRole(employee.getRole().name());
-        }
-        
-        if (employee.getStatus() != null) {
-            dto.setStatus(employee.getStatus().name());
-        }
-        
-        return dto;
+        return employeeRepository.findByDepartmentId(departmentId).stream()
+                .map(this::convertToDTO).collect(Collectors.toList());
     }
 
     /**
-     * Sync employee from User_Backend microservice
-     * This method creates or updates an employee in hrm_db_employee
+     * Sync employee from another microservice (e.g., User_Backend).
      */
     public Employee saveEmployee(Employee employee) {
-        try {
-            // Check if employee already exists by email
-            String normalizedEmail = employee.getEmail() != null ? employee.getEmail().trim().toLowerCase() : null;
-            
-            if (normalizedEmail == null || normalizedEmail.isBlank()) {
-                throw new RuntimeException("Employee email is required");
+        String normalizedEmail = employee.getEmail() != null ? employee.getEmail().trim().toLowerCase() : null;
+        if (normalizedEmail == null || normalizedEmail.isBlank()) {
+            throw new BusinessException("Employee email is required");
+        }
+
+        Employee existing = employeeRepository.findByEmailIgnoreCase(normalizedEmail).orElse(null);
+        Company company = getOrCreateCompany(employee);
+        Department department = getOrCreateDepartment(employee, company);
+
+        if (existing != null) {
+            existing.setFullName(employee.getFullName());
+            if (employee.getPassword() != null && !employee.getPassword().isBlank()) {
+                existing.setPassword(employee.getPassword());
             }
-            
-            Employee existingEmployee = employeeRepo.findByEmailIgnoreCase(normalizedEmail).orElse(null);
-            
-            // Ensure company exists or create a default one
-            Company companyRecord = getOrCreateCompany(employee);
-            
-            // Ensure department exists or create a default one
-            Department department = getOrCreateDepartment(employee, companyRecord);
-            
-            if (existingEmployee != null) {
-                // Update existing employee
-                existingEmployee.setFullName(employee.getFullName());
-                existingEmployee.setPassword(employee.getPassword());
-                existingEmployee.setEmployeeId(employee.getEmployeeId());
-                existingEmployee.setNic(employee.getNic());
-                existingEmployee.setDob(employee.getDob());
-                existingEmployee.setAddress(employee.getAddress());
-                existingEmployee.setPhone(employee.getPhone());
-                existingEmployee.setGender(employee.getGender());
-                existingEmployee.setRole(employee.getRole());
-                existingEmployee.setStatus(employee.getStatus());
-                existingEmployee.setDesignation(employee.getDesignation());
-                existingEmployee.setJoiningDate(employee.getJoiningDate());
-                existingEmployee.setCompany(companyRecord);
-                existingEmployee.setDepartment(department);
-                
-                Employee saved = employeeRepo.save(existingEmployee);
-                System.out.println("[EMPLOYEE_SERVICE] Updated existing employee: " + normalizedEmail);
-                return saved;
-            } else {
-                // Create new employee
-                employee.setEmail(normalizedEmail);
-                employee.setCompany(companyRecord);
-                employee.setDepartment(department);
-                
-                if (employee.getStatus() == null) {
-                    employee.setStatus(Employee.EmployeeStatus.ACTIVE);
-                }
-                if (employee.getRole() == null) {
-                    employee.setRole(Employee.Role.EMPLOYEE);
-                }
-                
-                Employee saved = employeeRepo.save(employee);
-                System.out.println("[EMPLOYEE_SERVICE] Created new employee: " + normalizedEmail);
-                return saved;
-            }
-        } catch (Exception e) {
-            System.err.println("[EMPLOYEE_SERVICE ERROR] Failed to save employee: " + e.getMessage());
-            e.printStackTrace();
-            throw e;
+            existing.setEmployeeId(employee.getEmployeeId());
+            existing.setNic(employee.getNic());
+            existing.setDob(employee.getDob());
+            existing.setAddress(employee.getAddress());
+            existing.setPhone(employee.getPhone());
+            existing.setGender(employee.getGender());
+            existing.setRole(employee.getRole());
+            existing.setStatus(employee.getStatus());
+            existing.setDesignation(employee.getDesignation());
+            existing.setJoiningDate(employee.getJoiningDate());
+            existing.setCompany(company);
+            existing.setDepartment(department);
+            log.info("Updated existing employee via sync: {}", normalizedEmail);
+            return employeeRepository.save(existing);
+        } else {
+            employee.setEmail(normalizedEmail);
+            employee.setCompany(company);
+            employee.setDepartment(department);
+            if (employee.getStatus() == null) employee.setStatus(Employee.EmployeeStatus.ACTIVE);
+            if (employee.getRole() == null) employee.setRole(Employee.Role.EMPLOYEE);
+            log.info("Created new employee via sync: {}", normalizedEmail);
+            return employeeRepository.save(employee);
         }
     }
 
     private Company getOrCreateCompany(Employee employee) {
-        Company company = null;
         if (employee.getCompany() != null && employee.getCompany().getId() != null) {
-            company = companyRepo.findById(employee.getCompany().getId()).orElse(null);
+            Company found = companyRepository.findById(employee.getCompany().getId()).orElse(null);
+            if (found != null) return found;
         }
-        
-        if (company == null) {
-            company = companyRepo.findByRegistrationNumber("DEFAULT-REG-0001")
-                    .orElseGet(() -> {
-                        Company newCompany = new Company();
-                        newCompany.setCompanyName(employee.getCompany() != null && employee.getCompany().getCompanyName() != null 
+        return companyRepository.findByRegistrationNumber("DEFAULT-REG-0001")
+                .orElseGet(() -> {
+                    Company c = new Company();
+                    c.setCompanyName(employee.getCompany() != null && employee.getCompany().getCompanyName() != null
                             ? employee.getCompany().getCompanyName() : "Default Company");
-                        newCompany.setRegistrationNumber("DEFAULT-REG-0001");
-                        newCompany.setStatus(Company.CompanyStatus.APPROVED);
-                        return companyRepo.save(newCompany);
-                    });
-            System.out.println("[EMPLOYEE_SERVICE] Using/created company: " + company.getCompanyName());
-        }
-        
-        return company;
+                    c.setRegistrationNumber("DEFAULT-REG-0001");
+                    c.setStatus(Company.CompanyStatus.APPROVED);
+                    return companyRepository.save(c);
+                });
     }
 
     private Department getOrCreateDepartment(Employee employee, Company company) {
-        Department department = null;
         if (employee.getDepartment() != null && employee.getDepartment().getId() != null) {
-            department = departmentRepo.findById(employee.getDepartment().getId()).orElse(null);
+            Department found = departmentRepository.findById(employee.getDepartment().getId()).orElse(null);
+            if (found != null) return found;
         }
-        
-        if (department == null) {
-            String deptName = employee.getDepartment() != null && employee.getDepartment().getName() != null
-                    ? employee.getDepartment().getName() : "General";
-            
-            final Company finalCompany = company;
-            department = departmentRepo.findByCompanyIdAndName(company.getId(), deptName)
-                    .orElseGet(() -> {
-                        Department newDept = new Department();
-                        newDept.setName(deptName);
-                        newDept.setDescription(deptName + " Department");
-                        newDept.setCompany(finalCompany);
-                        return departmentRepo.save(newDept);
-                    });
-            System.out.println("[EMPLOYEE_SERVICE] Using/created department: " + department.getName());
+        String deptName = employee.getDepartment() != null && employee.getDepartment().getName() != null
+                ? employee.getDepartment().getName() : "General";
+        return departmentRepository.findByCompanyIdAndName(company.getId(), deptName)
+                .orElseGet(() -> {
+                    Department d = new Department();
+                    d.setName(deptName);
+                    d.setDescription(deptName + " Department");
+                    d.setCompany(company);
+                    return departmentRepository.save(d);
+                });
+    }
+
+    private EmployeeDTO convertToDTO(Employee employee) {
+        EmployeeDTO dto = modelMapper.map(employee, EmployeeDTO.class);
+        dto.setPassword(null);
+        if (employee.getCompany() != null) {
+            dto.setCompanyId(employee.getCompany().getId());
+            dto.setCompanyName(employee.getCompany().getCompanyName());
         }
-        
-        return department;
+        if (employee.getDepartment() != null) {
+            dto.setDepartmentId(employee.getDepartment().getId());
+            dto.setDepartmentName(employee.getDepartment().getName());
+        }
+        if (employee.getGender() != null) dto.setGender(employee.getGender().name());
+        if (employee.getRole() != null) dto.setRole(employee.getRole().name());
+        if (employee.getStatus() != null) dto.setStatus(employee.getStatus().name());
+        return dto;
     }
 }

@@ -1,40 +1,45 @@
-package com.affin.hrm.Model;
+package com.affin.hrm.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
+/**
+ * Notification entity — system notifications for employees.
+ */
 @Entity
 @Table(name = "notifications")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"employee", "company"})
+@EqualsAndHashCode(of = "id")
 public class Notification {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "employee_id")
-    private Employee employee; // null for company-wide notifications
-
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id")
     private Company company;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id")
+    private Employee employee;
 
     @Column(nullable = false)
     private String title;
 
-    @Column(length = 2000, nullable = false)
+    @Column(nullable = false, length = 1000)
     private String message;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private NotificationType type; // LEAVE_APPROVAL, LEAVE_REJECTION, PAYSLIP, ANNOUNCEMENT, ATTENDANCE
+    private NotificationType type;
 
     @Column(nullable = false)
     private Boolean isRead = false;
@@ -44,6 +49,6 @@ public class Notification {
     private LocalDateTime createdAt;
 
     public enum NotificationType {
-        LEAVE_APPROVAL, LEAVE_REJECTION, PAYSLIP, ANNOUNCEMENT, ATTENDANCE, SYSTEM
+        LEAVE_APPROVAL, LEAVE_REJECTION, ATTENDANCE, PAYROLL, GENERAL
     }
 }

@@ -1,4 +1,4 @@
-package com.affin.hrm.DTO;
+package com.affin.hrm.dto;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -7,10 +7,14 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
+/**
+ * Data Transfer Object for Leave Application data.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class LeaveApplicationDTO {
+
     private Long id;
     private Long employeeId;
     private String employeeName;

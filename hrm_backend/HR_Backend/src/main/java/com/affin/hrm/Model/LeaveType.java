@@ -1,20 +1,24 @@
-package com.affin.hrm.Model;
+package com.affin.hrm.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
+/**
+ * LeaveType entity — defines types of leave (Annual, Sick, Casual, etc.).
+ */
 @Entity
 @Table(name = "leave_types")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(of = "id")
 public class LeaveType {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -27,15 +31,15 @@ public class LeaveType {
     @Column(nullable = false)
     private Integer defaultDaysPerYear;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "company_id")
-    private Company company; // null = system-wide
-
-    @Column(nullable = false)
-    private Boolean requiresApproval = true;
+    private Boolean carryForward = false;
+    private Integer maxCarryForwardDays = 0;
 
     @Column(nullable = false)
     private Boolean active = true;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

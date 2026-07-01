@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { MOCK_AUTH } from "../services/api";
 
 const AppleAuthCallback = () => {
   const [searchParams] = useSearchParams();

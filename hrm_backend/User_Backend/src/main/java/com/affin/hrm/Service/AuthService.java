@@ -45,6 +45,9 @@ public class AuthService {
         private DepartmentRepo departmentRepo;
 
     @Autowired
+    private com.affin.hrm.Service.SyncService syncService;
+
+    @Autowired
     private JwtUtil jwtUtil;
 
     @Autowired
@@ -269,36 +272,10 @@ public class AuthService {
                 employee.setStatus(Employee.EmployeeStatus.ACTIVE);
                 Employee savedEmployee = employeeRepo.save(employee);
                 
-                // Sync employee to Employee_Backend (hrm_db_employee)
-                syncEmployeeToEmployeeBackend(savedEmployee);
+                // Sync employee to other backends (Employee_Backend & HR_Backend)
+                syncService.syncToAllBackends(savedEmployee);
                 
                 return savedEmployee;
-        }
-
-        /**
-         * Sync newly registered employee to Employee_Backend microservice
-         * This ensures the employee exists in hrm_db_employee for attendance operations
-         */
-        private void syncEmployeeToEmployeeBackend(Employee employee) {
-                try {
-                        String employeeBackendUrl = "http://localhost:5003/api/sync/employee";
-                        
-                        HttpHeaders headers = new HttpHeaders();
-                        headers.setContentType(MediaType.APPLICATION_JSON);
-                        
-                        // Create a DTO with employee data
-                        ObjectMapper mapper = new ObjectMapper();
-                        String jsonData = mapper.writeValueAsString(employee);
-                        
-                        HttpEntity<String> request = new HttpEntity<>(jsonData, headers);
-                        restTemplate.postForObject(employeeBackendUrl, request, String.class);
-                        
-                        System.out.println("[SYNC] Employee synced to Employee_Backend: " + employee.getEmail());
-                } catch (Exception e) {
-                        System.err.println("[SYNC ERROR] Failed to sync employee to Employee_Backend: " + e.getMessage());
-                        // Log but don't fail the registration if sync fails
-                        e.printStackTrace();
-                }
         }
 
         private boolean isBcryptHash(String value) {
@@ -316,4 +293,16 @@ public class AuthService {
                 String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
                 return userRepo.findByEmailIgnoreCase(normalizedEmail).isPresent();
         }
+
+        public void syncAllEmployees() {
+                System.out.println("[SYNC] Starting manual sync of all employees to other backends...");
+                employeeRepo.findAll().forEach(employee -> {
+                        try {
+                                syncService.syncToAllBackends(employee);
+                        } catch (Exception e) {
+                                System.err.println("[SYNC ERROR] Failed to sync employee: " + employee.getEmail() + " Error: " + e.getMessage());
+                        }
+                });
+        }
 }
+

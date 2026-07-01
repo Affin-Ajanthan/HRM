@@ -1,19 +1,20 @@
-package com.affin.hrm.Model;
+package com.affin.hrm.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.hibernate.annotations.UpdateTimestamp;
+import lombok.*;
 
-import java.time.LocalDateTime;
-
+/**
+ * SystemConfiguration entity — key-value store for system settings.
+ */
 @Entity
 @Table(name = "system_configurations")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(of = "id")
 public class SystemConfiguration {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -21,12 +22,8 @@ public class SystemConfiguration {
     @Column(nullable = false, unique = true)
     private String configKey;
 
-    @Column(nullable = false, length = 2000)
+    @Column(nullable = false)
     private String configValue;
 
     private String description;
-
-    @UpdateTimestamp
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
 }

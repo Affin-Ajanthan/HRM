@@ -1,21 +1,27 @@
-package com.affin.hrm.Model;
+package com.affin.hrm.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Company entity — represents a registered company in the system.
+ */
 @Entity
 @Table(name = "companies")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"departments", "employees"})
+@EqualsAndHashCode(of = "id")
 public class Company {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -33,7 +39,7 @@ public class Company {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private CompanyStatus status = CompanyStatus.PENDING; // PENDING, APPROVED, REJECTED, SUSPENDED
+    private CompanyStatus status = CompanyStatus.PENDING;
 
     private String rejectionReason;
 
@@ -45,10 +51,12 @@ public class Company {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "company", cascade = CascadeType.ALL)
+    @JsonIgnore
+    @OneToMany(mappedBy = "company", fetch = FetchType.LAZY)
     private List<Department> departments;
 
-    @OneToMany(mappedBy = "company", cascade = CascadeType.ALL)
+    @JsonIgnore
+    @OneToMany(mappedBy = "company", fetch = FetchType.LAZY)
     private List<Employee> employees;
 
     public enum CompanyStatus {

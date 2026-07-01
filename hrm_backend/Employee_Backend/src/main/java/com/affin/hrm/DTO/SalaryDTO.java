@@ -1,26 +1,23 @@
-package com.affin.hrm.DTO;
+package com.affin.hrm.dto;
 
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
+/**
+ * Data Transfer Object for Salary data.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class SalaryDTO {
-    private Long id;
 
-    @NotNull(message = "Employee ID is required")
+    private Long id;
     private Long employeeId;
     private String employeeName;
-    private String employeeIdNumber;
-
-    @NotNull(message = "Basic salary is required")
     private BigDecimal basicSalary;
-
     private BigDecimal houseAllowance;
     private BigDecimal transportAllowance;
     private BigDecimal medicalAllowance;

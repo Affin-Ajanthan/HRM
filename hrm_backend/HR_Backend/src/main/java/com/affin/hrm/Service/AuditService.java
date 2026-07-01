@@ -1,61 +1,78 @@
-package com.affin.hrm.Service;
+package com.affin.hrm.service;
 
-import com.affin.hrm.Model.AuditLog;
-import com.affin.hrm.Model.Company;
-import com.affin.hrm.Model.Employee;
-import com.affin.hrm.Repo.AuditLogRepo;
-import com.affin.hrm.Repo.CompanyRepo;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.affin.hrm.model.AuditLog;
+import com.affin.hrm.model.Company;
+import com.affin.hrm.model.Employee;
+import com.affin.hrm.repository.AuditLogRepository;
+import com.affin.hrm.repository.CompanyRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Service for creating audit logs.
+ * Uses SecurityContext directly to avoid circular dependency with AuthService.
+ */
 @Service
 @Transactional
 public class AuditService {
 
-    @Autowired private AuditLogRepo auditLogRepo;
-    @Autowired private CompanyRepo companyRepo;
-    @Autowired private AuthService authService;
+    private static final Logger log = LoggerFactory.getLogger(AuditService.class);
+
+    private final AuditLogRepository auditLogRepository;
+    private final CompanyRepository companyRepository;
+    private final com.affin.hrm.repository.EmployeeRepository employeeRepository;
+
+    public AuditService(AuditLogRepository auditLogRepository,
+                        CompanyRepository companyRepository,
+                        com.affin.hrm.repository.EmployeeRepository employeeRepository) {
+        this.auditLogRepository = auditLogRepository;
+        this.companyRepository = companyRepository;
+        this.employeeRepository = employeeRepository;
+    }
 
     public void logAction(String action, String entity, Long entityId, String description, Long companyId) {
         try {
-            AuditLog log = new AuditLog();
-            log.setAction(action);
-            log.setEntity(entity);
-            log.setEntityId(entityId);
-            log.setDescription(description);
+            AuditLog auditLog = new AuditLog();
+            auditLog.setAction(action);
+            auditLog.setEntity(entity);
+            auditLog.setEntityId(entityId);
+            auditLog.setDescription(description);
 
+            // Get current user from SecurityContext directly to avoid circular dependency
             try {
-                Employee current = authService.getCurrentEmployee();
-                log.setEmployee(current);
-            } catch (Exception ignored) {}
-
-            if (companyId != null) {
-                companyRepo.findById(companyId).ifPresent(log::setCompany);
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                if (auth != null && auth.getName() != null) {
+                    employeeRepository.findByEmailIgnoreCase(auth.getName().trim().toLowerCase())
+                            .ifPresent(auditLog::setEmployee);
+                }
+            } catch (Exception e) {
+                log.debug("No authenticated user for audit log — system action");
             }
 
-            auditLogRepo.save(log);
+            if (companyId != null) {
+                companyRepository.findById(companyId).ifPresent(auditLog::setCompany);
+            }
+
+            auditLogRepository.save(auditLog);
         } catch (Exception e) {
-            System.err.println("Failed to create audit log: " + e.getMessage());
+            log.error("Failed to create audit log: {}", e.getMessage());
         }
     }
 
+    @Transactional(readOnly = true)
     public List<AuditLog> getCompanyAuditLogs(Long companyId) {
-        return auditLogRepo.findByCompanyIdOrderByCreatedAtDesc(companyId);
+        return auditLogRepository.findByCompanyIdOrderByCreatedAtDesc(companyId);
     }
 
-    public List<AuditLog> getAllAuditLogs() {
-        return auditLogRepo.findAll();
-    }
-
+    @Transactional(readOnly = true)
     public List<AuditLog> getAuditLogsByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
-        return auditLogRepo.findByDateRange(startDate, endDate);
-    }
-
-    public List<AuditLog> getAuditLogsByAction(String action) {
-        return auditLogRepo.findByActionOrderByCreatedAtDesc(action);
+        return auditLogRepository.findByDateRange(startDate, endDate);
     }
 }

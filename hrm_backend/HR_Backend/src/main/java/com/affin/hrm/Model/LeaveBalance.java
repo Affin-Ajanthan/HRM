@@ -1,21 +1,21 @@
-package com.affin.hrm.Model;
+package com.affin.hrm.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.hibernate.annotations.UpdateTimestamp;
+import lombok.*;
 
-import java.time.LocalDateTime;
-
+/**
+ * LeaveBalance entity — tracks leave balance per employee per type per year.
+ */
 @Entity
-@Table(name = "leave_balances", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"employee_id", "leave_type_id", "year"})
-})
-@Data
+@Table(name = "leave_balances")
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"employee", "leaveType"})
+@EqualsAndHashCode(of = "id")
 public class LeaveBalance {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -39,8 +39,4 @@ public class LeaveBalance {
 
     @Column(nullable = false)
     private Integer remainingDays;
-
-    @UpdateTimestamp
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
 }

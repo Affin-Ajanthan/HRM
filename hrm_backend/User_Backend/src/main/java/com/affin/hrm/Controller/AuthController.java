@@ -83,4 +83,14 @@ public class AuthController {
             return ResponseEntity.badRequest().body(ApiResponse.error("Debug failed: " + e.getMessage()));
         }
     }
+
+    @PostMapping("/sync-all")
+    public ResponseEntity<ApiResponse<String>> syncAll() {
+        try {
+            authService.syncAllEmployees();
+            return ResponseEntity.ok(ApiResponse.success("Triggered sync for all employees successfully", "Sync completed"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Sync failed: " + e.getMessage()));
+        }
+    }
 }

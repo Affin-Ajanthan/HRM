@@ -1,13 +1,17 @@
-package com.affin.hrm.DTO;
+package com.affin.hrm.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Data Transfer Object for Leave Balance data.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class LeaveBalanceDTO {
+
     private Long id;
     private Long employeeId;
     private String employeeName;

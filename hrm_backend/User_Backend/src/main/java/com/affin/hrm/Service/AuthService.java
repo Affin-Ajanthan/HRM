@@ -8,10 +8,12 @@ import com.affin.hrm.Model.Employee;
 import com.affin.hrm.Model.User;
 import com.affin.hrm.Model.Company;
 import com.affin.hrm.Model.Department;
+import com.affin.hrm.Model.SessionLog;
 import com.affin.hrm.Repo.CompanyRepo;
 import com.affin.hrm.Repo.DepartmentRepo;
 import com.affin.hrm.Repo.EmployeeRepo;
 import com.affin.hrm.Repo.UserRepo;
+import com.affin.hrm.Repo.SessionLogRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -25,6 +27,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 public class AuthService {
@@ -43,6 +47,9 @@ public class AuthService {
 
         @Autowired
         private DepartmentRepo departmentRepo;
+
+        @Autowired
+        private SessionLogRepo sessionLogRepo;
 
     @Autowired
     private com.affin.hrm.Service.SyncService syncService;
@@ -98,6 +105,17 @@ public class AuthService {
 
         Employee employee = employeeRepo.findByEmailIgnoreCase(normalizedEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        try {
+            SessionLog session = new SessionLog();
+            session.setUserId(employee.getId());
+            session.setLoginTime(LocalDateTime.now());
+            session.setDeviceType("React Web / Flutter Mobile");
+            session.setStatus(true);
+            sessionLogRepo.save(session);
+        } catch (Exception e) {
+            System.err.println("[SESSION LOG ERROR] " + e.getMessage());
+        }
 
         return new AuthResponse(
                 jwt,
@@ -295,14 +313,66 @@ public class AuthService {
         }
 
         public void syncAllEmployees() {
-                System.out.println("[SYNC] Starting manual sync of all employees to other backends...");
-                employeeRepo.findAll().forEach(employee -> {
-                        try {
-                                syncService.syncToAllBackends(employee);
-                        } catch (Exception e) {
-                                System.err.println("[SYNC ERROR] Failed to sync employee: " + employee.getEmail() + " Error: " + e.getMessage());
-                        }
-                });
-        }
-}
+                 System.out.println("[SYNC] Starting manual sync of all employees to other backends...");
+                 employeeRepo.findAll().forEach(employee -> {
+                         try {
+                                 syncService.syncToAllBackends(employee);
+                         } catch (Exception e) {
+                                 System.err.println("[SYNC ERROR] Failed to sync employee: " + employee.getEmail() + " Error: " + e.getMessage());
+                         }
+                 });
+         }
 
+         public String forgotPassword(String email) {
+                 String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
+                 Employee employee = employeeRepo.findByEmailIgnoreCase(normalizedEmail)
+                         .orElseThrow(() -> new RuntimeException("Employee not found with email: " + email));
+                 String token = UUID.randomUUID().toString();
+                 employee.setResetPasswordToken(token);
+                 employee.setResetPasswordTokenExpiry(LocalDateTime.now().plusHours(1)); // 1 hour expiry
+                 employeeRepo.save(employee);
+                 
+                 // Mock Link logged to console
+                 String resetLink = "http://localhost:5173/reset-password?token=" + token;
+                 System.out.println("[FORGOT_PASSWORD] Generated password reset link: " + resetLink);
+                 return token;
+         }
+
+         public void resetPassword(String token, String newPassword) {
+                 Employee employee = employeeRepo.findByResetPasswordToken(token)
+                         .orElseThrow(() -> new RuntimeException("Invalid or expired reset token"));
+                 
+                 if (employee.getResetPasswordTokenExpiry().isBefore(LocalDateTime.now())) {
+                         throw new RuntimeException("Reset token has expired");
+                 }
+                 
+                 employee.setPassword(passwordEncoder.encode(newPassword));
+                 employee.setResetPasswordToken(null);
+                 employee.setResetPasswordTokenExpiry(null);
+                 Employee saved = employeeRepo.save(employee);
+                 
+                 // Also update in User table if legacy user exists
+                 userRepo.findByEmailIgnoreCase(saved.getEmail()).ifPresent(user -> {
+                         user.setPassword(passwordEncoder.encode(newPassword));
+                         userRepo.save(user);
+                 });
+                 
+                 // Sync updated password across services
+                 syncService.syncToAllBackends(saved);
+         }
+
+         public void logout(Long userId) {
+                 sessionLogRepo.findFirstByUserIdAndStatusTrueOrderByIdDesc(userId).ifPresent(session -> {
+                         session.setLogoutTime(LocalDateTime.now());
+                         session.setStatus(false);
+                         sessionLogRepo.save(session);
+                         System.out.println("[LOGOUT] Session closed for user ID: " + userId);
+                 });
+         }
+
+         public boolean validateSession(Long userId) {
+                 return sessionLogRepo.findFirstByUserIdAndStatusTrueOrderByIdDesc(userId)
+                         .map(SessionLog::getStatus)
+                         .orElse(false);
+         }
+}

@@ -29,6 +29,9 @@ public class User {
     private String department;
     private String role;
     private String employeeId;
+    
+    private String resetPasswordToken;
+    private LocalDateTime resetPasswordTokenExpiry;
 
     // --- THIS IS THE FIX ---
 

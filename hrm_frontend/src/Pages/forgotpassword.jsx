@@ -4,6 +4,8 @@ import logo from "../assets/logo.jpg";
 import sideImage from "../assets/002.jpg";
 
 
+import { authApi } from "../services/api";
+
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -18,11 +20,19 @@ const ForgotPassword = () => {
     setIsLoading(true);
 
     try {
-      // ⚠️ Backend not connected yet — simulating success
-      await new Promise(r => setTimeout(r, 800));
-      setSuccessMessage("Backend not connected yet. When reconnected, a reset link will be sent to your email.");
+      const response = await authApi.forgotPassword(email);
+      const token = response.data;
+      const resetLink = `/reset-password?token=${token}`;
+      setSuccessMessage(
+        <span>
+          A password reset token was generated. Click here to reset your password:{" "}
+          <Link to={resetLink} className="underline font-bold text-green-800 hover:text-green-950">
+            Reset Password Link
+          </Link>
+        </span>
+      );
       setEmail("");
-      setTimeout(() => navigate("/login"), 4000);
+      setIsLoading(false);
     } catch (error) {
       console.error("Forgot password error:", error);
       setIsLoading(false);

@@ -6,6 +6,8 @@ import Services from "./Pages/services.jsx";
 import Blog from "./Pages/blog.jsx";
 import Contact from "./Pages/contact.jsx";
 import CreateAccount from "./Pages/createaccount.jsx";
+import ForgotPassword from "./Pages/forgotpassword.jsx";
+import ResetPassword from "./Pages/resetpassword.jsx";
 import EmployeeDashboard from "./Pages/employee/Dashboard.jsx";
 import HRDashboard from "./Pages/hr/Dashboard.jsx";
 import AdminDashboard from "./Pages/admin/Dashboard.jsx";
@@ -35,6 +37,8 @@ function App() {
       <Route path="/contact" element={<Contact />} />
       <Route path="/login" element={<Login />} />
       <Route path="/createaccount" element={<CreateAccount />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
       <Route path="/employee/attendance" element={<Attendance />} />
       <Route path="/employee/leave" element={<Leave />} />

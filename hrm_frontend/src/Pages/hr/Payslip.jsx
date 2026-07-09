@@ -2,48 +2,170 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Download, Eye, Send, Calendar, Users, TrendingUp, CreditCard, X, DollarSign } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
+import { hrApi } from "../../services/api";
 
 const HRPayslip = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterMonth, setFilterMonth] = useState("2026-01");
+  const [filterMonth, setFilterMonth] = useState("2026-07");
   const [viewingPayslip, setViewingPayslip] = useState(null);
+
+  const [employees, setEmployees] = useState([]);
+  const [salaries, setSalaries] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [setupSalaryEmp, setSetupSalaryEmp] = useState(null);
+  const [salaryForm, setSalaryForm] = useState({
+    basicSalary: "50000",
+    houseAllowance: "5000",
+    transportAllowance: "3000",
+    medicalAllowance: "2000",
+    otherAllowances: "0",
+    tax: "1000",
+    providentFund: "2000"
+  });
 
   useEffect(() => {
     const s = localStorage.getItem("user");
-    if (s) { const u = JSON.parse(s); if (u.role !== "HR_MANAGER" && u.role !== "ADMIN") { navigate("/unauthorized"); return; } setUser(u); }
-    else navigate("/login");
+    if (s) { 
+      const u = JSON.parse(s); 
+      if (u.role !== "HR_MANAGER" && u.role !== "ADMIN") { 
+        navigate("/unauthorized"); 
+        return; 
+      } 
+      setUser(u); 
+    } else navigate("/login");
   }, [navigate]);
 
-  const payrollData = [
-    { id:1, empId:"EMP001", name:"John Doe",       department:"IT",       designation:"Senior Developer",    month:"January 2026", basicSalary:50000, allowances:10000, deductions:5000,  netSalary:55000, status:"Processed" },
-    { id:2, empId:"EMP002", name:"Jane Smith",     department:"HR",       designation:"HR Executive",         month:"January 2026", basicSalary:45000, allowances:8000,  deductions:4000,  netSalary:49000, status:"Processed" },
-    { id:3, empId:"EMP003", name:"Mike Johnson",   department:"Finance",  designation:"Accountant",           month:"January 2026", basicSalary:48000, allowances:9000,  deductions:4500,  netSalary:52500, status:"Pending"   },
-    { id:4, empId:"EMP004", name:"Sarah Williams", department:"IT",       designation:"Developer",            month:"January 2026", basicSalary:42000, allowances:7000,  deductions:3800,  netSalary:45200, status:"Processed" },
-    { id:5, empId:"EMP005", name:"David Brown",    department:"Marketing",designation:"Marketing Manager",    month:"January 2026", basicSalary:55000, allowances:12000, deductions:6000,  netSalary:61000, status:"Pending"   },
-  ];
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const empRes = await hrApi.getEmployees();
+      setEmployees(empRes.data || []);
+      const salRes = await hrApi.getSalaries();
+      setSalaries(salRes.data || []);
+    } catch (e) {
+      console.error("Failed to load payroll data", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      loadData();
+    }
+  }, [user]);
+
+  const handleGenerateAll = async () => {
+    try {
+      const parts = filterMonth.split("-");
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      await hrApi.generatePayroll(month, year);
+      alert(`Payroll processed and payslips generated for ${filterMonth} successfully!`);
+      loadData();
+    } catch (e) {
+      alert("Failed to generate payroll: " + e.message);
+    }
+  };
+
+  const openSetupSalary = (emp) => {
+    const existing = salaries.find(s => s.employee && s.employee.id === emp.id);
+    if (existing) {
+      setSalaryForm({
+        basicSalary: String(existing.basicSalary || 50000),
+        houseAllowance: String(existing.houseAllowance || 5000),
+        transportAllowance: String(existing.transportAllowance || 3000),
+        medicalAllowance: String(existing.medicalAllowance || 2000),
+        otherAllowances: String(existing.otherAllowances || 0),
+        tax: String(existing.tax || 1000),
+        providentFund: String(existing.providentFund || 2000)
+      });
+    } else {
+      setSalaryForm({
+        basicSalary: "50000",
+        houseAllowance: "5000",
+        transportAllowance: "3000",
+        medicalAllowance: "2000",
+        otherAllowances: "0",
+        tax: "1000",
+        providentFund: "2000"
+      });
+    }
+    setSetupSalaryEmp(emp);
+  };
+
+  const handleSaveSalary = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        employee: { id: setupSalaryEmp.id },
+        basicSalary: Number(salaryForm.basicSalary),
+        houseAllowance: Number(salaryForm.houseAllowance),
+        transportAllowance: Number(salaryForm.transportAllowance),
+        medicalAllowance: Number(salaryForm.medicalAllowance),
+        otherAllowances: Number(salaryForm.otherAllowances),
+        tax: Number(salaryForm.tax),
+        providentFund: Number(salaryForm.providentFund)
+      };
+      await hrApi.saveSalary(payload);
+      setSetupSalaryEmp(null);
+      alert("Salary structure updated successfully!");
+      loadData();
+    } catch (error) {
+      alert("Failed to save salary structure: " + error.message);
+    }
+  };
+
+  const payrollData = employees.map(emp => {
+    const sal = salaries.find(s => s.employee && s.employee.id === emp.id);
+    const basic = sal ? sal.basicSalary : 50000;
+    const allowances = sal ? (sal.houseAllowance + sal.transportAllowance + sal.medicalAllowance + sal.otherAllowances) : 10000;
+    const deductions = sal ? (sal.tax + sal.providentFund) : 3000;
+    const net = sal ? sal.netSalary : 57000;
+    
+    return {
+      id: emp.id,
+      empId: emp.employeeId || `EMP${emp.id}`,
+      name: emp.fullName,
+      department: emp.departmentName || "General",
+      designation: emp.designation || "Employee",
+      month: filterMonth,
+      basicSalary: basic,
+      allowances: allowances,
+      deductions: deductions,
+      netSalary: net,
+      status: sal ? "Configured" : "Default Stats",
+      rawEmployee: emp
+    };
+  });
+
   const stats = {
     total:    payrollData.length,
     payroll:  payrollData.reduce((s,p) => s+p.netSalary, 0),
-    processed:payrollData.filter(p => p.status==="Processed").length,
-    pending:  payrollData.filter(p => p.status==="Pending").length,
+    configured: salaries.length,
+    pending:  payrollData.length - salaries.length,
   };
-  const filtered = payrollData.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.empId.toLowerCase().includes(searchTerm.toLowerCase()) || p.department.toLowerCase().includes(searchTerm.toLowerCase()));
-  const statusBadge = (s) => ({ Processed:"bg-emerald-100 text-emerald-700", Pending:"bg-amber-100 text-amber-700" }[s] || "bg-gray-100 text-gray-600");
 
-  if (!user) return null;
+  const filtered = payrollData.filter(p => 
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    p.empId.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    p.department.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  const statusBadge = (s) => s === "Configured" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700";
   return (
     <PageLayout role="hr" activePage="Payroll" title="Payroll Management" subtitle="Manage employee salaries and payslips"
-      actions={<button onClick={() => alert("Generating all payslips…")} className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"><Send size={15} /> Generate All</button>}
+      actions={<button onClick={handleGenerateAll} className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"><Send size={15} /> Generate All</button>}
     >
       <div className="space-y-6">
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-5">
           {[
             { label:"Employees",  value:stats.total,   gradient:"from-teal-400 to-emerald-500",  icon:"👥" },
             { label:"Total Pay",  value:`Rs.${(stats.payroll/1000).toFixed(0)}K`, gradient:"from-emerald-400 to-green-500", icon:"💰" },
-            { label:"Processed",  value:stats.processed, gradient:"from-violet-400 to-purple-500", icon:"✅" },
-            { label:"Pending",    value:stats.pending,   gradient:"from-amber-400 to-orange-500",  icon:"⏳" },
+            { label:"Configured",  value:stats.configured, gradient:"from-violet-400 to-purple-500", icon:"✅" },
+            { label:"Pending Setup",    value:stats.pending,   gradient:"from-amber-400 to-orange-500",  icon:"⏳" },
           ].map(s => (
             <div key={s.label} className={`bg-gradient-to-br ${s.gradient} p-6 rounded-2xl text-white hover:-translate-y-1 transition-all duration-300`}>
               <div className="flex items-center justify-between mb-1"><p className="text-white/80 text-sm">{s.label}</p><span className="text-xl">{s.icon}</span></div>
@@ -92,8 +214,8 @@ const HRPayslip = () => {
                     <td className="px-5 py-3.5"><span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge(p.status)}`}>{p.status}</span></td>
                     <td className="px-5 py-3.5">
                       <div className="flex gap-1">
-                        <button onClick={() => setViewingPayslip(p)} className="p-1.5 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"><Eye size={14} /></button>
-                        <button onClick={() => alert(`Payslip sent to ${p.name}`)} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Send size={14} /></button>
+                        <button onClick={() => setViewingPayslip(p)} title="View Payslip" className="p-1.5 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"><Eye size={14} /></button>
+                        <button onClick={() => openSetupSalary(p.rawEmployee)} title="Configure Salary Structure" className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><DollarSign size={14} /></button>
                       </div>
                     </td>
                   </tr>
@@ -144,6 +266,49 @@ const HRPayslip = () => {
                 <button onClick={() => setViewingPayslip(null)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold text-sm transition-colors">Close</button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Setup Salary Modal */}
+      {setupSalaryEmp && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between p-6 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-2xl">
+              <div>
+                <h3 className="text-xl font-bold">Setup Salary Structure</h3>
+                <p className="text-blue-100 text-sm">{setupSalaryEmp.fullName}</p>
+              </div>
+              <button onClick={() => setSetupSalaryEmp(null)} className="p-1.5 hover:bg-white/20 rounded-xl"><X size={18} /></button>
+            </div>
+            <form onSubmit={handleSaveSalary} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  ["Basic Salary", "basicSalary"],
+                  ["House Rent Allowance", "houseAllowance"],
+                  ["Transport Allowance", "transportAllowance"],
+                  ["Medical Allowance", "medicalAllowance"],
+                  ["Other Allowances", "otherAllowances"],
+                  ["Tax Deduction", "tax"],
+                  ["Provident Fund", "providentFund"]
+                ].map(([label, key]) => (
+                  <div key={key}>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{label} *</label>
+                    <input
+                      type="number"
+                      value={salaryForm[key]}
+                      required
+                      onChange={e => setSalaryForm({...salaryForm, [key]: e.target.value})}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="submit" className="flex-grow bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-sm transition-colors">Save Structure</button>
+                <button type="button" onClick={() => setSetupSalaryEmp(null)} className="flex-grow bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold text-sm transition-colors">Cancel</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

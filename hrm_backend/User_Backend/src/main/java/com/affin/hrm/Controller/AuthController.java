@@ -5,6 +5,7 @@ import com.affin.hrm.DTO.AuthRequest;
 import com.affin.hrm.DTO.AuthResponse;
 import com.affin.hrm.DTO.RegisterRequest;
 import com.affin.hrm.Service.AuthService;
+import com.affin.hrm.Config.JwtUtil;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +21,9 @@ public class AuthController {
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody AuthRequest request) {
@@ -91,6 +95,68 @@ public class AuthController {
             return ResponseEntity.ok(ApiResponse.success("Triggered sync for all employees successfully", "Sync completed"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Sync failed: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<String>> forgotPassword(@RequestBody Map<String, String> body) {
+        try {
+            String email = body.get("email");
+            String token = authService.forgotPassword(email);
+            return ResponseEntity.ok(ApiResponse.success(token, "Password reset link sent successfully."));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<String>> resetPassword(@RequestBody Map<String, String> body) {
+        try {
+            String token = body.get("token");
+            String password = body.get("password");
+            authService.resetPassword(token, password);
+            return ResponseEntity.ok(ApiResponse.success(null, "Password reset successfully."));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/refresh-token")
+    public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(@RequestBody Map<String, String> body) {
+        try {
+            String token = body.get("token");
+            String email = jwtUtil.getEmailFromToken(token);
+            boolean isValid = jwtUtil.validateToken(token);
+            if (!isValid) {
+                return ResponseEntity.status(401).body(ApiResponse.error("Invalid token"));
+            }
+            String newToken = jwtUtil.generateTokenFromEmail(email);
+            AuthResponse response = new AuthResponse();
+            response.setToken(newToken);
+            response.setEmail(email);
+            return ResponseEntity.ok(ApiResponse.success(response, "Token refreshed successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to refresh token: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<String>> logout(@RequestParam Long userId) {
+        try {
+            authService.logout(userId);
+            return ResponseEntity.ok(ApiResponse.success(null, "Logout successful"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/session")
+    public ResponseEntity<ApiResponse<Boolean>> validateSession(@RequestParam Long userId) {
+        try {
+            boolean active = authService.validateSession(userId);
+            return ResponseEntity.ok(ApiResponse.success(active, active ? "Session active" : "No active session"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
     }
 }

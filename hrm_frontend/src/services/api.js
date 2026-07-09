@@ -76,6 +76,26 @@ export const authApi = {
   me: async () => {
     return request("GET", `${EMPLOYEE_URL}/auth/me`);
   },
+
+  /** Forgot password — requests a reset link */
+  forgotPassword: async (email) => {
+    return request("POST", `${AUTH_URL}/auth/forgot-password`, { email });
+  },
+
+  /** Reset password — sets a new password using token */
+  resetPassword: async (token, password) => {
+    return request("POST", `${AUTH_URL}/auth/reset-password`, { token, password });
+  },
+
+  /** Validate session */
+  validateSession: async (userId) => {
+    return request("GET", `${AUTH_URL}/auth/session?userId=${userId}`);
+  },
+
+  /** Logout */
+  logout: async (userId) => {
+    return request("POST", `${AUTH_URL}/auth/logout?userId=${userId}`);
+  },
 };
 
 // ─── EMPLOYEE DATA ────────────────────────────────────────────
@@ -104,6 +124,14 @@ export const employeeApi = {
   getLeaves:        () => request("GET", `${EMPLOYEE_URL}/employee/leave`),
   cancelLeave:      (leaveId) => request("POST", `${EMPLOYEE_URL}/employee/leave/${leaveId}/cancel`),
   getLeaveBalance:  () => request("GET", `${EMPLOYEE_URL}/employee/leave/balance`),
+
+  // Payslips
+  getPayslips:        () => request("GET", `${EMPLOYEE_URL}/employee/payslips`),
+  getPayslipDetails:  (id) => request("GET", `${EMPLOYEE_URL}/employee/payslips/${id}`),
+
+  // Notifications
+  getNotifications:   () => request("GET", `${EMPLOYEE_URL}/employee/notifications`),
+  markNotificationAsRead: (id) => request("PUT", `${EMPLOYEE_URL}/employee/notifications/${id}/read`),
 };
 
 // ─── HR DATA ─────────────────────────────────────────────────
@@ -126,8 +154,25 @@ export const hrApi = {
   approveLeave:     (leaveId) => request("POST", `${BASE_URL}/hr/leave/${leaveId}/approve`),
   rejectLeave:      (leaveId, reason) => request("POST", `${BASE_URL}/hr/leave/${leaveId}/reject?reason=${encodeURIComponent(reason)}`),
 
-  // Dashboard
-  getDashboardStats:() => request("GET", `${BASE_URL}/hr/dashboard/stats`),
+  // Departments
+  getDepartments:     () => request("GET", `${BASE_URL}/hr/departments`),
+  createDepartment:   (data) => request("POST", `${BASE_URL}/hr/departments`, data),
+  updateDepartment:   (id, data) => request("PUT", `${BASE_URL}/hr/departments/${id}`, data),
+  deleteDepartment:   (id) => request("DELETE", `${BASE_URL}/hr/departments/${id}`),
+  assignDeptManager:  (id, managerId) => request("PUT", `${BASE_URL}/hr/departments/${id}/manager?managerId=${managerId}`),
+
+  // Payroll / Salaries
+  getSalaries:        () => request("GET", `${BASE_URL}/hr/salaries`),
+  getEmployeeSalary:  (id) => request("GET", `${BASE_URL}/hr/salaries/employee/${id}`),
+  saveSalary:         (data) => request("POST", `${BASE_URL}/hr/salaries`, data),
+  generatePayroll:    (month, year) => request("POST", `${BASE_URL}/hr/payroll/generate?month=${month}&year=${year}`),
+
+  // Reports & Analytics
+  getHRDashboardStats:() => request("GET", `${BASE_URL}/hr/dashboard/stats`),
+  getWorkforceReport: () => request("GET", `${BASE_URL}/hr/reports/workforce`),
+  getAttendanceReport:() => request("GET", `${BASE_URL}/hr/reports/attendance-summary`),
+  getLeaveReport:     () => request("GET", `${BASE_URL}/hr/reports/leave-summary`),
+  getPayrollReport:   () => request("GET", `${BASE_URL}/hr/reports/payroll-summary`),
 };
 
 // ─── ADMIN DATA ───────────────────────────────────────────────

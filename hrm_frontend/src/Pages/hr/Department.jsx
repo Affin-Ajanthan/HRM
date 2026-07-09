@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Building2, Plus, Edit, Trash2, Search, X } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import NotificationPopup from "../../components/NotificationPopup.jsx";
+import { hrApi } from "../../services/api";
 
 const Department = () => {
   const navigate = useNavigate();
@@ -12,28 +13,64 @@ const Department = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [formData, setFormData] = useState({ name: "", shortCode: "", manager: "", description: "" });
 
-  const [departments, setDepartments] = useState([
-    { id:1, name:"Human Resources",     shortCode:"HR",  manager:"John Smith",    totalEmployees:12, status:"Active", description:"Manages recruitment, payroll, and employee relations" },
-    { id:2, name:"Information Technology",shortCode:"IT", manager:"Sarah Johnson", totalEmployees:28, status:"Active", description:"Handles all IT infrastructure and software development" },
-    { id:3, name:"Finance",              shortCode:"FIN", manager:"Mike Wilson",   totalEmployees:15, status:"Active", description:"Manages accounting, budgeting, and financial planning" },
-    { id:4, name:"Marketing",            shortCode:"MKT", manager:"Emily Davis",   totalEmployees:10, status:"Active", description:"Handles marketing campaigns and brand management" },
-    { id:5, name:"Operations",           shortCode:"OPS", manager:"Robert Brown",  totalEmployees:20, status:"Active", description:"Manages daily operations and logistics" },
-  ]);
+  const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
     const s = localStorage.getItem("user");
-    if (s) { const u = JSON.parse(s); if (u.role !== "HR_MANAGER" && u.role !== "ADMIN") { navigate("/unauthorized"); return; } setUser(u); }
-    else navigate("/login");
+    if (s) { 
+      const u = JSON.parse(s); 
+      if (u.role !== "HR_MANAGER" && u.role !== "ADMIN") { 
+        navigate("/unauthorized"); 
+        return; 
+      } 
+      setUser(u); 
+    } else navigate("/login");
   }, [navigate]);
 
-  const handleAddDepartment = (e) => {
+  useEffect(() => {
+    if (user) {
+      const fetchDepts = async () => {
+        try {
+          const response = await hrApi.getDepartments();
+          setDepartments(response.data || []);
+        } catch (e) {
+          console.error("Failed to load departments:", e);
+        }
+      };
+      fetchDepts();
+    }
+  }, [user]);
+
+  const handleAddDepartment = async (e) => {
     e.preventDefault();
-    setDepartments(prev => [...prev, { id: prev.length + 1, ...formData, totalEmployees: 0, status: "Active" }]);
-    setFormData({ name: "", shortCode: "", manager: "", description: "" });
-    setShowAddForm(false);
+    try {
+      const payload = {
+        name: formData.name,
+        description: formData.description,
+        active: true
+      };
+      const response = await hrApi.createDepartment(payload);
+      setDepartments(prev => [...prev, response.data]);
+      setFormData({ name: "", shortCode: "", manager: "", description: "" });
+      setShowAddForm(false);
+    } catch (error) {
+      console.error("Failed to create department:", error);
+    }
   };
-  const handleDelete = (id) => setDepartments(prev => prev.filter(d => d.id !== id));
-  const filtered = departments.filter(d => d.name.toLowerCase().includes(searchTerm.toLowerCase()) || d.shortCode.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  const handleDelete = async (id) => {
+    try {
+      await hrApi.deleteDepartment(id);
+      setDepartments(prev => prev.map(d => d.id === id ? { ...d, active: false } : d));
+    } catch (error) {
+      console.error("Failed to delete department:", error);
+    }
+  };
+
+  const filtered = departments.filter(d => 
+    (d.name && d.name.toLowerCase().includes(searchTerm.toLowerCase())) || 
+    (d.description && d.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   if (!user) return null;
   return (
@@ -62,18 +99,14 @@ const Department = () => {
               <button onClick={() => setShowAddForm(false)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X size={16} /></button>
             </div>
             <form onSubmit={handleAddDepartment} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[["Department Name","name","text"],["Short Code","shortCode","text"],["Manager","manager","text"]].map(([label,key,type]) => (
-                  <div key={key}>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{label} *</label>
-                    <input type={type} value={formData[key]} required onChange={e => setFormData({...formData,[key]:key==="shortCode"?e.target.value.toUpperCase():e.target.value})}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50" />
-                  </div>
-                ))}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Department Name *</label>
+                <input type="text" value={formData.name} required onChange={e => setFormData({...formData, name: e.target.value})}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Description</label>
-                <textarea value={formData.description} onChange={e => setFormData({...formData,description:e.target.value})} rows="2"
+                <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} rows="2"
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 resize-none" />
               </div>
               <div className="flex gap-3">
@@ -92,21 +125,22 @@ const Department = () => {
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="text-lg font-bold">{dept.name}</h3>
-                    <p className="text-teal-100 text-sm mt-0.5">Code: {dept.shortCode}</p>
+                    <p className="text-teal-100 text-sm mt-0.5">ID: DEPT-{dept.id}</p>
                   </div>
-                  <span className="bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full">{dept.status}</span>
+                  <span className="bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full">
+                    {dept.active ? "Active" : "Inactive"}
+                  </span>
                 </div>
               </div>
               <div className="p-5 space-y-3">
-                <div><p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Manager</p><p className="font-semibold text-gray-800 text-sm">{dept.manager}</p></div>
-                <div><p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Description</p><p className="text-sm text-gray-600">{dept.description}</p></div>
+                <div><p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Manager</p><p className="font-semibold text-gray-800 text-sm">{dept.managerName || "Not Assigned"}</p></div>
+                <div><p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Description</p><p className="text-sm text-gray-600">{dept.description || "No description provided"}</p></div>
                 <div className="bg-teal-50 rounded-xl p-3 border border-teal-100">
                   <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Total Employees</p>
-                  <p className="text-2xl font-bold text-teal-600">{dept.totalEmployees}</p>
+                  <p className="text-2xl font-bold text-teal-600">{dept.employeeCount || 0}</p>
                 </div>
                 <div className="flex gap-2 pt-1">
-                  <button className="flex-1 flex items-center justify-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-xl text-xs font-semibold transition-colors"><Edit size={13} /> Edit</button>
-                  <button onClick={() => handleDelete(dept.id)} className="flex-1 flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-xl text-xs font-semibold transition-colors"><Trash2 size={13} /> Delete</button>
+                  <button onClick={() => handleDelete(dept.id)} className="flex-grow flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 py-2.5 rounded-xl text-xs font-semibold transition-colors"><Trash2 size={13} /> Deactivate</button>
                 </div>
               </div>
             </div>

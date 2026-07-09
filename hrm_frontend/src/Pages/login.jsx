@@ -300,7 +300,7 @@ const Login = () => {
                     </div>
                     <span className="text-sm text-slate-600">Remember me</span>
                   </label>
-                  <a href="#" className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">Forgot password?</a>
+                  <Link to="/forgot-password" className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">Forgot password?</Link>
                 </div>
 
                 {/* Sign In button */}

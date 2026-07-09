@@ -5,12 +5,14 @@ import com.affin.hrm.exception.ResourceNotFoundException;
 import com.affin.hrm.model.*;
 import com.affin.hrm.repository.*;
 import com.affin.hrm.service.EmployeeService;
+import com.affin.hrm.service.PayrollService;
 import org.modelmapper.ModelMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
@@ -34,6 +36,8 @@ public class InternalController {
     private final AttendanceRepository attendanceRepository;
     private final LeaveApplicationRepository leaveApplicationRepository;
     private final EmployeeService employeeService;
+    private final PayrollService payrollService;
+    private final SalaryRepository salaryRepository;
     private final ModelMapper modelMapper;
 
     public InternalController(EmployeeRepository employeeRepository,
@@ -42,6 +46,8 @@ public class InternalController {
                               AttendanceRepository attendanceRepository,
                               LeaveApplicationRepository leaveApplicationRepository,
                               EmployeeService employeeService,
+                              PayrollService payrollService,
+                              SalaryRepository salaryRepository,
                               ModelMapper modelMapper) {
         this.employeeRepository = employeeRepository;
         this.companyRepository = companyRepository;
@@ -49,6 +55,8 @@ public class InternalController {
         this.attendanceRepository = attendanceRepository;
         this.leaveApplicationRepository = leaveApplicationRepository;
         this.employeeService = employeeService;
+        this.payrollService = payrollService;
+        this.salaryRepository = salaryRepository;
         this.modelMapper = modelMapper;
     }
 
@@ -254,5 +262,64 @@ public class InternalController {
         if (employee.getRole() != null) dto.setRole(employee.getRole().name());
         if (employee.getStatus() != null) dto.setStatus(employee.getStatus().name());
         return dto;
+    }
+
+    // ── Internal Payroll & Salary Endpoints ────────────────────────
+
+    @PostMapping("/payroll/generate")
+    public ResponseEntity<List<Payslip>> generateBulkPayroll(@RequestParam Long companyId,
+                                                             @RequestParam Integer month,
+                                                             @RequestParam Integer year) {
+        log.info("Internal: Bulk payroll generation requested for company: {}, month: {}, year: {}", companyId, month, year);
+        List<Payslip> generated = payrollService.generateBulkPayroll(companyId, month, year);
+        return ResponseEntity.ok(generated);
+    }
+
+    @GetMapping("/salaries")
+    public ResponseEntity<List<Salary>> getAllSalaries() {
+        return ResponseEntity.ok(salaryRepository.findAll());
+    }
+
+    @GetMapping("/salaries/employee/{id}")
+    public ResponseEntity<Salary> getSalaryByEmployeeId(@PathVariable Long id) {
+        Salary salary = salaryRepository.findByEmployeeId(id).orElse(null);
+        return ResponseEntity.ok(salary);
+    }
+
+    @PostMapping("/salaries")
+    public ResponseEntity<Salary> saveSalary(@RequestBody Salary salary) {
+        if (salary.getEmployee() != null && salary.getEmployee().getId() != null) {
+            Employee emp = employeeRepository.findById(salary.getEmployee().getId()).orElse(null);
+            if (emp != null) {
+                salary.setEmployee(emp);
+                BigDecimal basic = salary.getBasicSalary() != null ? salary.getBasicSalary() : BigDecimal.ZERO;
+                BigDecimal house = salary.getHouseAllowance() != null ? salary.getHouseAllowance() : BigDecimal.ZERO;
+                BigDecimal transport = salary.getTransportAllowance() != null ? salary.getTransportAllowance() : BigDecimal.ZERO;
+                BigDecimal medical = salary.getMedicalAllowance() != null ? salary.getMedicalAllowance() : BigDecimal.ZERO;
+                BigDecimal other = salary.getOtherAllowances() != null ? salary.getOtherAllowances() : BigDecimal.ZERO;
+                BigDecimal tax = salary.getTax() != null ? salary.getTax() : BigDecimal.ZERO;
+                BigDecimal pf = salary.getProvidentFund() != null ? salary.getProvidentFund() : BigDecimal.ZERO;
+                
+                salary.setGrossSalary(basic.add(house).add(transport).add(medical).add(other));
+                salary.setNetSalary(salary.getGrossSalary().subtract(tax).subtract(pf));
+
+                // If already exists, update existing
+                Salary existing = salaryRepository.findByEmployeeId(emp.getId()).orElse(null);
+                if (existing != null) {
+                    existing.setBasicSalary(basic);
+                    existing.setHouseAllowance(house);
+                    existing.setTransportAllowance(transport);
+                    existing.setMedicalAllowance(medical);
+                    existing.setOtherAllowances(other);
+                    existing.setTax(tax);
+                    existing.setProvidentFund(pf);
+                    existing.setGrossSalary(salary.getGrossSalary());
+                    existing.setNetSalary(salary.getNetSalary());
+                    return ResponseEntity.ok(salaryRepository.save(existing));
+                }
+                return ResponseEntity.ok(salaryRepository.save(salary));
+            }
+        }
+        return ResponseEntity.badRequest().build();
     }
 }

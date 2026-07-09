@@ -60,6 +60,9 @@ public class Employee {
     @Column(nullable = false)
     private EmployeeStatus status = EmployeeStatus.ACTIVE; // ACTIVE, INACTIVE, TERMINATED
 
+    private String resetPasswordToken;
+    private LocalDateTime resetPasswordTokenExpiry;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

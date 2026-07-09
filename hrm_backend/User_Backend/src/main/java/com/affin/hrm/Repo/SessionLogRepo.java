@@ -1,0 +1,14 @@
+package com.affin.hrm.Repo;
+
+import com.affin.hrm.Model.SessionLog;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface SessionLogRepo extends JpaRepository<SessionLog, Long> {
+    List<SessionLog> findByUserId(Long userId);
+    Optional<SessionLog> findFirstByUserIdAndStatusTrueOrderByIdDesc(Long userId);
+}

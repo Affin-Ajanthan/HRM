@@ -1,4 +1,4 @@
-package com.affin.hrm.Service;
+package com.affin.hrm.service;
 
 import com.affin.hrm.DTO.AttendanceDTO;
 import com.affin.hrm.Model.Attendance;

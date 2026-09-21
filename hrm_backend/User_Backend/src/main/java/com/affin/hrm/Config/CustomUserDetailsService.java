@@ -1,4 +1,4 @@
-package com.affin.hrm.Config;
+package com.affin.hrm.config;
 
 import com.affin.hrm.Model.Employee;
 import com.affin.hrm.Repo.EmployeeRepo;

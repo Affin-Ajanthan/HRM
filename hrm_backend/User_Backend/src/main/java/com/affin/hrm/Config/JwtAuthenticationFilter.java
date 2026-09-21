@@ -1,4 +1,4 @@
-package com.affin.hrm.Config;
+package com.affin.hrm.config;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

@@ -1,6 +1,6 @@
-package com.affin.hrm.Service;
+package com.affin.hrm.service;
 
-import com.affin.hrm.Config.JwtUtil;
+import com.affin.hrm.config.JwtUtil;
 import com.affin.hrm.DTO.AuthRequest;
 import com.affin.hrm.DTO.AuthResponse;
 import com.affin.hrm.DTO.RegisterRequest;
@@ -52,7 +52,7 @@ public class AuthService {
         private SessionLogRepo sessionLogRepo;
 
     @Autowired
-    private com.affin.hrm.Service.SyncService syncService;
+        private com.affin.hrm.service.SyncService syncService;
 
     @Autowired
     private JwtUtil jwtUtil;

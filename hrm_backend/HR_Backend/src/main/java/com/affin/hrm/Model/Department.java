@@ -7,6 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -18,7 +19,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = {"company", "manager", "employees"})
+@ToString(exclude = {"company", "manager", "employees", "jobRoles"})
 @EqualsAndHashCode(of = "id")
 public class Department {
 
@@ -28,6 +29,9 @@ public class Department {
 
     @Column(nullable = false)
     private String name;
+
+    @Column(length = 20)
+    private String shortCode;
 
     private String description;
 
@@ -53,4 +57,22 @@ public class Department {
     @JsonIgnore
     @OneToMany(mappedBy = "department", fetch = FetchType.LAZY)
     private List<Employee> employees;
+
+    @OneToMany(mappedBy = "department", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<JobRole> jobRoles = new ArrayList<>();
+
+    public void addJobRole(JobRole role) {
+        if (jobRoles == null) {
+            jobRoles = new ArrayList<>();
+        }
+        jobRoles.add(role);
+        role.setDepartment(this);
+    }
+
+    public void removeJobRole(JobRole role) {
+        if (jobRoles != null) {
+            jobRoles.remove(role);
+            role.setDepartment(null);
+        }
+    }
 }

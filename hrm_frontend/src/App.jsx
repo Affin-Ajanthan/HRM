@@ -19,6 +19,10 @@ import HRAttendance from "./Pages/hr/Attendance.jsx";
 import HRLeave from "./Pages/hr/Leave.jsx";
 import HRPayslip from "./Pages/hr/Payslip.jsx";
 import HRProfile from "./Pages/hr/Profile.jsx";
+import HRDepartment from "./Pages/hr/Department.jsx";
+import HREmployee from "./Pages/hr/Employee.jsx";
+import HRReport from "./Pages/hr/Report.jsx";
+import HRNotifications from "./Pages/hr/Notifications.jsx";
 import AdminAttendance from "./Pages/admin/Attendance.jsx";
 import AdminLeave from "./Pages/admin/Leave.jsx";
 import AdminPayslip from "./Pages/admin/Payslip.jsx";
@@ -45,9 +49,16 @@ function App() {
       <Route path="/employee/payslip" element={<Payslip />} />
       <Route path="/employee/profile" element={<Profile />} />
       <Route path="/hr/dashboard" element={<HRDashboard />} />
+      <Route path="/hr/departments" element={<HRDepartment />} />
+      <Route path="/hr/department" element={<HRDepartment />} />
+      <Route path="/hr/employees" element={<HREmployee />} />
+      <Route path="/hr/employee" element={<HREmployee />} />
       <Route path="/hr/attendance" element={<HRAttendance />} />
       <Route path="/hr/leave" element={<HRLeave />} />
       <Route path="/hr/payslip" element={<HRPayslip />} />
+      <Route path="/hr/report" element={<HRReport />} />
+      <Route path="/hr/reports" element={<HRReport />} />
+      <Route path="/hr/notifications" element={<HRNotifications />} />
       <Route path="/hr/profile" element={<HRProfile />} />
       <Route path="/admin/dashboard" element={<AdminDashboard />} />
       <Route path="/admin/attendance" element={<AdminAttendance />} />

@@ -9,10 +9,10 @@
  */
 
 // ─── Base URLs from environment variables ─────────────────────
-export const BASE_URL     = import.meta.env.VITE_API_BASE_URL     || "http://localhost:5004/api";
-export const AUTH_URL     = import.meta.env.VITE_AUTH_URL          || "http://localhost:5002/api";
-export const EMPLOYEE_URL = import.meta.env.VITE_EMPLOYEE_URL     || "http://localhost:5003/api";
-export const ADMIN_URL    = import.meta.env.VITE_ADMIN_URL         || "http://localhost:5001/api";
+export const BASE_URL     = import.meta.env.VITE_API_BASE_URL     || "http://localhost:5005/api";
+export const AUTH_URL     = import.meta.env.VITE_AUTH_URL          || "http://localhost:5004/api";
+export const EMPLOYEE_URL = import.meta.env.VITE_EMPLOYEE_URL     || "http://localhost:5006/api";
+export const ADMIN_URL    = import.meta.env.VITE_ADMIN_URL         || "http://localhost:5007/api";
 
 // ─── Shared fetch helper ──────────────────────────────────────
 async function request(method, url, body = null) {
@@ -142,6 +142,7 @@ export const hrApi = {
   createEmployee:   (data) => request("POST", `${BASE_URL}/hr/employees`, data),
   updateEmployee:   (id, data) => request("PUT", `${BASE_URL}/hr/employees/${id}`, data),
   deactivateEmployee: (id) => request("POST", `${BASE_URL}/hr/employees/${id}/deactivate`),
+  deleteEmployee:   (id) => request("DELETE", `${BASE_URL}/hr/employees/${id}`).catch(() => request("POST", `${BASE_URL}/hr/employees/${id}/deactivate`)),
 
   // Attendance
   getDailyAttendance: (date) => request("GET", `${BASE_URL}/hr/attendance/daily${date ? '?date=' + date : ''}`),

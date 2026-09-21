@@ -73,10 +73,29 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("Validation error: " + ex.getMessage()));
     }
 
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(org.springframework.dao.DataIntegrityViolationException ex) {
+        log.error("Database constraint violation", ex);
+        String root = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("Could not save — this conflicts with existing data (" + root + ")"));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
+        log.warn("Illegal argument: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Invalid value provided: " + ex.getMessage()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
         log.error("Unexpected error occurred", ex);
+        // Include the real exception so it's visible in the UI too — without
+        // this, every failure looks identical and is impossible to diagnose
+        // without direct access to the server console.
+        String detail = ex.getClass().getSimpleName() + (ex.getMessage() != null ? ": " + ex.getMessage() : "");
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("An unexpected error occurred. Please try again later."));
+                .body(ApiResponse.error("An unexpected error occurred (" + detail + "). Please try again later."));
     }
 }

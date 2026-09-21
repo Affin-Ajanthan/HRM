@@ -74,15 +74,18 @@ public class EmployeeService {
         if (employeeRepository.findByEmailIgnoreCase(normalizedEmail).isPresent()) {
             throw new BusinessException("Employee with email " + normalizedEmail + " already exists");
         }
-        if (employeeRepository.findByEmployeeId(dto.getEmployeeId()).isPresent()) {
-            throw new BusinessException("Employee ID " + dto.getEmployeeId() + " already exists");
+        if (dto.getEmployeeId() != null && employeeRepository.findByEmployeeId(dto.getEmployeeId().trim().toUpperCase()).isPresent()) {
+            throw new BusinessException("Employee ID " + dto.getEmployeeId() + " already exists — please use a different number.");
         }
 
         Employee employee = new Employee();
         employee.setEmployeeId(dto.getEmployeeId());
         employee.setFullName(dto.getFullName());
         employee.setEmail(normalizedEmail);
-        employee.setPassword(passwordEncoder.encode(dto.getPassword()));
+        String rawPassword = (dto.getPassword() != null && !dto.getPassword().isBlank())
+                ? dto.getPassword()
+                : "Welcome@123";
+        employee.setPassword(passwordEncoder.encode(rawPassword));
         employee.setNic(dto.getNic());
         employee.setDob(dto.getDob());
         employee.setAddress(dto.getAddress());
@@ -101,10 +104,20 @@ public class EmployeeService {
         employee.setCompany(company);
 
         if (dto.getDepartmentId() != null) {
-            Department department = departmentRepository.findById(dto.getDepartmentId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Department", "id", dto.getDepartmentId()));
-            employee.setDepartment(department);
+            departmentRepository.findById(dto.getDepartmentId()).ifPresent(employee::setDepartment);
+        } else if (dto.getDepartmentName() != null && !dto.getDepartmentName().isBlank()) {
+            departmentRepository.findByCompanyIdAndName(companyId, dto.getDepartmentName().trim())
+                    .ifPresent(employee::setDepartment);
         }
+
+        // Save department_name directly on the employee row too: prefer the
+        // resolved department's real name, otherwise fall back to whatever
+        // name the caller sent.
+        employee.setDepartmentName(
+                employee.getDepartment() != null
+                        ? employee.getDepartment().getName()
+                        : (dto.getDepartmentName() != null ? dto.getDepartmentName().trim() : null)
+        );
 
         Employee saved = employeeRepository.save(employee);
         auditService.logAction("CREATE_EMPLOYEE", "Employee", saved.getId(),
@@ -128,15 +141,39 @@ public class EmployeeService {
         employee.setDesignation(dto.getDesignation());
 
         if (dto.getDepartmentId() != null) {
-            Department department = departmentRepository.findById(dto.getDepartmentId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Department", "id", dto.getDepartmentId()));
-            employee.setDepartment(department);
+            departmentRepository.findById(dto.getDepartmentId()).ifPresent(employee::setDepartment);
+        } else if (dto.getDepartmentName() != null && !dto.getDepartmentName().isBlank()) {
+            departmentRepository.findByCompanyIdAndName(employee.getCompany().getId(), dto.getDepartmentName().trim())
+                    .ifPresent(employee::setDepartment);
         }
+
+        employee.setDepartmentName(
+                employee.getDepartment() != null
+                        ? employee.getDepartment().getName()
+                        : (dto.getDepartmentName() != null ? dto.getDepartmentName().trim() : employee.getDepartmentName())
+        );
 
         Employee updated = employeeRepository.save(employee);
         auditService.logAction("UPDATE_EMPLOYEE", "Employee", updated.getId(),
                 "Updated employee: " + updated.getFullName(), employee.getCompany().getId());
         return convertToDTO(updated);
+    }
+
+    public void deleteEmployee(Long id) {
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", id));
+        try {
+            employeeRepository.delete(employee);
+            auditService.logAction("DELETE_EMPLOYEE", "Employee", id,
+                    "Deleted employee: " + employee.getFullName(), employee.getCompany().getId());
+            log.info("Deleted employee: {} (id: {})", employee.getFullName(), id);
+        } catch (Exception e) {
+            log.warn("Cannot hard delete employee {}, deactivating instead: {}", id, e.getMessage());
+            employee.setStatus(Employee.EmployeeStatus.INACTIVE);
+            employeeRepository.save(employee);
+            auditService.logAction("DEACTIVATE_EMPLOYEE", "Employee", id,
+                    "Deactivated employee due to FK constraint: " + employee.getFullName(), employee.getCompany().getId());
+        }
     }
 
     public void deactivateEmployee(Long id) {
@@ -194,12 +231,14 @@ public class EmployeeService {
             existing.setJoiningDate(employee.getJoiningDate());
             existing.setCompany(company);
             existing.setDepartment(department);
+            existing.setDepartmentName(department != null ? department.getName() : employee.getDepartmentName());
             log.info("Updated existing employee via sync: {}", normalizedEmail);
             return employeeRepository.save(existing);
         } else {
             employee.setEmail(normalizedEmail);
             employee.setCompany(company);
             employee.setDepartment(department);
+            employee.setDepartmentName(department != null ? department.getName() : employee.getDepartmentName());
             if (employee.getStatus() == null) employee.setStatus(Employee.EmployeeStatus.ACTIVE);
             if (employee.getRole() == null) employee.setRole(Employee.Role.EMPLOYEE);
             log.info("Created new employee via sync: {}", normalizedEmail);

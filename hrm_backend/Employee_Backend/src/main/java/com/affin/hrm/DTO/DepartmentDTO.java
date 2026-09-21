@@ -18,6 +18,7 @@ public class DepartmentDTO {
     @NotBlank(message = "Department name is required")
     private String name;
 
+    private String shortCode;
     private String description;
     private Long companyId;
     private Long managerId;

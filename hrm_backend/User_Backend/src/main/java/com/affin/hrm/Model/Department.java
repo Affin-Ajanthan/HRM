@@ -23,6 +23,9 @@ public class Department {
     @Column(nullable = false)
     private String name;
 
+    @Column(length = 20)
+    private String shortCode;
+
     private String description;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -44,6 +47,7 @@ public class Department {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @OneToMany(mappedBy = "department")
     private List<Employee> employees;
 }

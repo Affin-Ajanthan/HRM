@@ -1306,14 +1306,20 @@ const HRDashboard = () => {
   };
   const handleLogout = () => { localStorage.removeItem("user"); localStorage.removeItem("token"); navigate("/login"); };
 
+  useEffect(() => {
+    if (activeMenu === "Departments") {
+      navigate("/hr/departments");
+    }
+  }, [activeMenu, navigate]);
+
   const menuItems = [
-    { name: "Overview",         icon: LayoutDashboard },
-    { name: "Employees",        icon: Users           },
-    { name: "Departments",      icon: Building2       },
-    { name: "Attendance",       icon: CalendarCheck   },
-    { name: "Leave Management", icon: FileText        },
-    { name: "Payroll",          icon: DollarSign      },
-    { name: "Reports",          icon: BarChart3       },
+    { name: "Overview",         icon: LayoutDashboard, path: null },
+    { name: "Employees",        icon: Users,           path: "/hr/employees" },
+    { name: "Departments",      icon: Building2,       path: "/hr/departments" },
+    { name: "Attendance",       icon: CalendarCheck,   path: "/hr/attendance" },
+    { name: "Leave Management", icon: FileText,        path: "/hr/leave" },
+    { name: "Payroll",          icon: DollarSign,      path: "/hr/payslip" },
+    { name: "Reports",          icon: BarChart3,       path: "/hr/report" },
   ];
 
   if (!user) return (
@@ -1356,7 +1362,13 @@ const HRDashboard = () => {
             return (
               <li key={item.name}>
                 <button
-                  onClick={() => setActiveMenu(item.name)}
+                  onClick={() => {
+                    if (item.path) {
+                      navigate(item.path);
+                    } else {
+                      setActiveMenu(item.name);
+                    }
+                  }}
                   className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
                     ${isActive ? 'text-white' : 'text-gray-400 hover:text-white hover:bg-white/10'}
                     ${!isSidebarOpen ? 'justify-center px-0' : ''}`}
@@ -1470,8 +1482,8 @@ const HRDashboard = () => {
                   <div className="space-y-3">
                     <button onClick={() => setShowAddEmployee(true)} className="w-full bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-600 transition flex items-center justify-center gap-2 font-medium"><UserPlus size={20} /> Add New Employee</button>
                     <button onClick={() => navigate("/hr/payslip")} className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition flex items-center justify-center gap-2 font-medium"><DollarSign size={20} /> Generate Payslips</button>
-                    <button onClick={() => setActiveMenu("Reports")} className="w-full bg-purple-500 text-white py-3 px-4 rounded-lg hover:bg-purple-600 transition flex items-center justify-center gap-2 font-medium"><BarChart3 size={20} /> Export Report</button>
-                    <button onClick={() => setActiveMenu("Departments")} className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition flex items-center justify-center gap-2 font-medium"><Building2 size={20} /> Manage Departments</button>
+                    <button onClick={() => navigate("/hr/report")} className="w-full bg-purple-500 text-white py-3 px-4 rounded-lg hover:bg-purple-600 transition flex items-center justify-center gap-2 font-medium"><BarChart3 size={20} /> Export Report</button>
+                    <button onClick={() => navigate("/hr/departments")} className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition flex items-center justify-center gap-2 font-medium"><Building2 size={20} /> Manage Departments</button>
                   </div>
                 </div>
               </div>
@@ -1507,9 +1519,12 @@ const HRDashboard = () => {
             <EmployeeSection toast={toast} onAddClick={() => setShowAddEmployee(true)} refreshKey={empRefresh} />
           )}
 
-          {/* ── DEPARTMENTS ── full management with professional form ── */}
+          {/* ── DEPARTMENTS ── */}
           {activeMenu === "Departments" && (
-            <DepartmentSection employees={allEmployees} addToast={toast.addToast} />
+            <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
+              <p className="text-gray-600 mb-4 font-medium">Redirecting to Department Management…</p>
+              <button onClick={() => navigate("/hr/departments")} className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold shadow hover:bg-blue-700 transition">Open Departments</button>
+            </div>
           )}
 
           {activeMenu === "Attendance" && <AttendanceSection />}

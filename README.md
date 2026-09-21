@@ -13,10 +13,10 @@ graph TB
     end
 
     subgraph Backend Microservices
-        AS[Admin Service<br/>Port 5001]
-        ES[Employee Service<br/>Port 5003]
-        HS[HR Service<br/>Port 5004]
-        US[User Service - Legacy<br/>Port 5002]
+        AS[Admin Service<br/>Port 5007]
+        ES[Employee Service<br/>Port 5006]
+        HS[HR Service<br/>Port 5005]
+        US[User Service<br/>Port 5004]
     end
 
     subgraph Database
@@ -91,19 +91,19 @@ CREATE DATABASE hrm_db_user;
 ### 3. Start Backend Services
 
 ```bash
-# Admin Service (Port 5001)
+# Admin Service (Port 5007)
 cd hrm_backend/Admin_Backend
 ./gradlew bootRun
 
-# Employee Service (Port 5003) — in another terminal
+# Employee Service (Port 5006) — in another terminal
 cd hrm_backend/Employee_Backend
 ./gradlew bootRun
 
-# HR Service (Port 5004) — in another terminal
+# HR Service (Port 5005) — in another terminal
 cd hrm_backend/HR_Backend
 ./gradlew bootRun
 
-# User Service (Port 5002) — in another terminal
+# User Service (Port 5004) — in another terminal
 cd hrm_backend/User_Backend
 ./gradlew bootRun
 ```

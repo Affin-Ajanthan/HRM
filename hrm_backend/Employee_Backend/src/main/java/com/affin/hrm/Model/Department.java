@@ -29,6 +29,9 @@ public class Department {
     @Column(nullable = false)
     private String name;
 
+    @Column(length = 20)
+    private String shortCode;
+
     private String description;
 
     @ManyToOne(fetch = FetchType.LAZY)

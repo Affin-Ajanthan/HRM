@@ -61,6 +61,14 @@
   .badge-danger  { @apply bg-red-100 text-red-700; }
   .badge-primary { @apply bg-indigo-100 text-indigo-700; }
   .badge-info    { @apply bg-sky-100 text-sky-700; }
+
+  /* ─── Form Elements ─── */
+  .form-label {
+    @apply block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5;
+  }
+  .form-input {
+    @apply w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all;
+  }
 }
 
 @layer utilities {

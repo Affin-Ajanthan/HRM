@@ -65,6 +65,12 @@ public class HRController {
         return ResponseEntity.ok(ApiResponse.success(updated, "Employee updated successfully"));
     }
 
+    @DeleteMapping("/employees/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteEmployee(@PathVariable Long id) {
+        employeeService.deleteEmployee(id);
+        return ResponseEntity.ok(ApiResponse.success(null, "Employee deleted successfully"));
+    }
+
     @PostMapping("/employees/{id}/deactivate")
     public ResponseEntity<ApiResponse<Void>> deactivateEmployee(@PathVariable Long id) {
         employeeService.deactivateEmployee(id);

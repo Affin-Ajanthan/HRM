@@ -55,6 +55,15 @@ public class Employee {
     @JoinColumn(name = "department_id")
     private Department department;
 
+    /**
+     * Denormalized copy of the department's name at the time this employee
+     * was saved, stored directly on the employee row (in addition to the
+     * department_id relation above) so it's always available in the
+     * "employees" table itself.
+     */
+    @Column(name = "department_name")
+    private String departmentName;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role = Role.EMPLOYEE;

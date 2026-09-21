@@ -1,4 +1,4 @@
-package com.affin.hrm.Service;
+package com.affin.hrm.service;
 
 import com.affin.hrm.DTO.LeaveApplicationDTO;
 import com.affin.hrm.DTO.LeaveBalanceDTO;

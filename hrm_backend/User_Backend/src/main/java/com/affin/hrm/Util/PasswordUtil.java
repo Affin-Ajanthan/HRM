@@ -1,4 +1,4 @@
-package com.affin.hrm.Util;
+package com.affin.hrm.util;
 
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 

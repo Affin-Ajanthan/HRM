@@ -1,4 +1,4 @@
-package com.affin.hrm.Config;
+package com.affin.hrm.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;

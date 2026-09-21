@@ -3,7 +3,7 @@ package com.affin.hrm.Controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.affin.hrm.Service.UserService;
+import com.affin.hrm.service.UserService;
 import com.affin.hrm.DTO.UserDTO;
 import com.affin.hrm.DTO.LoginDTO;
 import java.util.List;

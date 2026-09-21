@@ -1,4 +1,4 @@
-package com.affin.hrm.Service;
+package com.affin.hrm.service;
 
 import com.affin.hrm.Model.AuditLog;
 import com.affin.hrm.Model.Company;

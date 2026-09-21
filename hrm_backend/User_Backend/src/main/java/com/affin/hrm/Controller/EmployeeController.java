@@ -1,9 +1,9 @@
 package com.affin.hrm.Controller;
 
 import com.affin.hrm.DTO.*;
-import com.affin.hrm.Service.AttendanceService;
-import com.affin.hrm.Service.AuthService;
-import com.affin.hrm.Service.LeaveService;
+import com.affin.hrm.service.AttendanceService;
+import com.affin.hrm.service.AuthService;
+import com.affin.hrm.service.LeaveService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;

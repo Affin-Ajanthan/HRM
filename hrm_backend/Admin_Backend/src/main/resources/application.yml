@@ -15,7 +15,7 @@ spring:
     driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${ADMIN_DB_NAME:hrm_db_admin}
     username: ${ADMIN_DB_USERNAME:postgres}
-    password: ${ADMIN_DB_PASSWORD:123}
+    password: ${ADMIN_DB_PASSWORD:newpassword123}
     hikari:
       connection-timeout: 20000
       maximum-pool-size: 10

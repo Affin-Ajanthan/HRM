@@ -125,6 +125,7 @@ public class AuthService {
         employee.setJoiningDate(request.getJoiningDate() != null ? request.getJoiningDate() : LocalDate.now());
         employee.setCompany(company);
         employee.setDepartment(department);
+        employee.setDepartmentName(department != null ? department.getName() : deptName);
         employee.setGender(parseGender(request.getGender()));
         employee.setRole(parseRole(request.getRole()));
         employee.setStatus(Employee.EmployeeStatus.ACTIVE);

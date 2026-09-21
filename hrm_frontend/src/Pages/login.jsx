@@ -66,7 +66,7 @@ const Login = () => {
       setIsLoading(false);
       if      (err.response) setError(err.response.data?.message || "Invalid email or password.");
       else if (err.request)  setError("Cannot connect to server. Please ensure the backend is running.");
-      else                   setError("An unexpected error occurred.");
+      else                   setError(err.message || "An unexpected error occurred.");
     }
   };
 

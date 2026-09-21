@@ -5,6 +5,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Data Transfer Object for Department data.
  */
@@ -18,10 +21,13 @@ public class DepartmentDTO {
     @NotBlank(message = "Department name is required")
     private String name;
 
+    private String shortCode;
     private String description;
     private Long companyId;
     private Long managerId;
     private String managerName;
     private Boolean active;
     private Integer employeeCount;
+    private Integer jobRoleCount;
+    private List<JobRoleDTO> jobRoles = new ArrayList<>();
 }

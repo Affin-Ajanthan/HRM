@@ -8,10 +8,16 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { authApi } from "../services/api";
 
+// Employee ID prefix is fixed by role — only the number is editable.
+// Each role keeps its own separate numbering sequence (EMP-001, HR-001, SA-001 are distinct).
+const ROLE_EMPLOYEE_ID_PREFIX = { employee: "EMP", hr: "HR", admin: "SA" };
+const ROLE_TO_BACKEND = { employee: "EMPLOYEE", hr: "HR_MANAGER", admin: "ADMIN" };
 
 const CreateAccount = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
+  const [employeeIdNumber, setEmployeeIdNumber] = useState(""); // editable part only, e.g. "004"
+  const [employeeIdLoading, setEmployeeIdLoading] = useState(false);
   const [formData, setFormData] = useState({
     // Personal Information
     firstName: "",
@@ -184,14 +190,7 @@ const CreateAccount = () => {
   if (validateStep(currentStep)) {
     setIsSubmitting(true);
     try {
-      // Map frontend role values to backend role values
-      const roleMapping = {
-        "employee": "EMPLOYEE",
-        "hr": "HR_MANAGER",
-        "admin": "ADMIN"
-      };
-      
-      const normalizedRole = roleMapping[formData.userRole?.toLowerCase()] || "EMPLOYEE";
+      const normalizedRole = ROLE_TO_BACKEND[formData.userRole?.toLowerCase()] || "EMPLOYEE";
 
       const userPayload = {
         fullName: `${formData.firstName} ${formData.lastName}`,
@@ -212,11 +211,11 @@ const CreateAccount = () => {
       const response = await authApi.register(userPayload);
 
       console.log("✅ User created successfully:", response);
-      alert("Account created successfully! Please login with your credentials.");
+      alert("Account created successfully!");
 
-      // Navigate to login page after successful registration
-      navigate("/login");
-      
+      // Return to the HR dashboard after successful registration
+      navigate("/hr/dashboard");
+
       setFormData({ ...formData, password: "", confirmPassword: "" });
     } catch (error) {
       const message =
@@ -250,7 +249,9 @@ const CreateAccount = () => {
   };
 
   // Handle role selection with additional logic
-  const handleRoleChange = (roleValue) => {
+  const handleRoleChange = async (roleValue) => {
+    const prefix = ROLE_EMPLOYEE_ID_PREFIX[roleValue] || "EMP";
+
     setFormData(prev => ({
       ...prev,
       userRole: roleValue
@@ -272,6 +273,47 @@ const CreateAccount = () => {
         userRole: ""
       }));
     }
+
+    // Fetch the next available number for this role's Employee ID sequence
+    // (EMP/HR/SA each keep their own separate count).
+    setEmployeeIdLoading(true);
+    try {
+      const backendRole = ROLE_TO_BACKEND[roleValue] || "EMPLOYEE";
+      const resp = await authApi.nextEmployeeId(backendRole);
+      const formattedNumber = resp?.data?.formattedNumber || "001";
+      setEmployeeIdNumber(formattedNumber);
+      setFormData(prev => ({ ...prev, employeeId: `${prefix}-${formattedNumber}` }));
+    } catch (err) {
+      console.error("Failed to fetch next Employee ID:", err);
+      setEmployeeIdNumber("001");
+      setFormData(prev => ({ ...prev, employeeId: `${prefix}-001` }));
+    } finally {
+      setEmployeeIdLoading(false);
+    }
+  };
+
+  // Only the number portion of the Employee ID can be edited by hand — the
+  // prefix stays locked to whatever role is selected.
+  const handleEmployeeNumberChange = (e) => {
+    const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 4);
+    const prefix = ROLE_EMPLOYEE_ID_PREFIX[formData.userRole] || "EMP";
+    setEmployeeIdNumber(digitsOnly);
+    setFormData(prev => ({
+      ...prev,
+      employeeId: digitsOnly ? `${prefix}-${digitsOnly}` : ""
+    }));
+    if (errors.employeeId) {
+      setErrors(prev => ({ ...prev, employeeId: "" }));
+    }
+  };
+
+  // Zero-pad the number to 3 digits once the user is done editing.
+  const handleEmployeeNumberBlur = () => {
+    if (!employeeIdNumber) return;
+    const padded = employeeIdNumber.padStart(3, "0");
+    const prefix = ROLE_EMPLOYEE_ID_PREFIX[formData.userRole] || "EMP";
+    setEmployeeIdNumber(padded);
+    setFormData(prev => ({ ...prev, employeeId: `${prefix}-${padded}` }));
   };
 
   const getPasswordStrength = (password) => {
@@ -507,19 +549,36 @@ const CreateAccount = () => {
               <label className="block text-sm font-semibold text-gray-700">
                 Employee ID *
               </label>
-              <div className="relative">
-                <IdCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  name="employeeId"
-                  value={formData.employeeId}
-                  onChange={handleChange}
-                  placeholder="EMP-001"
-                  className={`w-full pl-10 pr-4 py-3 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white/80 ${
-                    errors.employeeId ? "border-red-500" : "border-gray-300"
-                  }`}
-                />
-              </div>
+              {formData.userRole ? (
+                <div className={`flex items-stretch rounded-xl border transition-all duration-200 bg-white/80 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 ${
+                  errors.employeeId ? "border-red-500" : "border-gray-300"
+                }`}>
+                  <div className="flex items-center gap-2 px-4 bg-gray-100 border-r border-gray-300 text-gray-700 font-semibold select-none">
+                    <IdCard className="w-4 h-4 text-gray-400" />
+                    {ROLE_EMPLOYEE_ID_PREFIX[formData.userRole]}-
+                  </div>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={employeeIdNumber}
+                    onChange={handleEmployeeNumberChange}
+                    onBlur={handleEmployeeNumberBlur}
+                    disabled={employeeIdLoading}
+                    placeholder="001"
+                    className="flex-1 min-w-0 px-4 py-3 outline-none bg-transparent disabled:opacity-60"
+                  />
+                  {employeeIdLoading && (
+                    <span className="flex items-center pr-4 text-xs text-gray-400">Loading…</span>
+                  )}
+                </div>
+              ) : (
+                <div className="w-full px-4 py-3 rounded-xl border border-dashed border-gray-300 bg-gray-50 text-gray-400 text-sm">
+                  Select a user role above to generate an Employee ID
+                </div>
+              )}
+              <p className="text-xs text-gray-500">
+                The prefix ({ROLE_EMPLOYEE_ID_PREFIX[formData.userRole] || "EMP/HR/SA"}) is fixed by the selected role — only the number can be changed. Each role keeps its own separate count.
+              </p>
               {errors.employeeId && (
                 <p className="text-red-500 text-sm flex items-center gap-1">
                   <X className="w-4 h-4" />
@@ -609,16 +668,18 @@ const CreateAccount = () => {
                 </label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
+                  <select
                     name="workLocation"
                     value={formData.workLocation}
                     onChange={handleChange}
-                    placeholder="New York Office"
-                    className={`w-full pl-10 pr-4 py-3 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white/80 ${
-                      errors.workLocation ? "border-red-500" : "border-gray-300"
-                    }`}
-                  />
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 transition-all duration-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white/80"
+                  >
+                    <option value="">Select work location</option>
+                    <option value="Head Office">Head Office</option>
+                    <option value="Branch Office">Branch Office</option>
+                    <option value="Remote">Remote</option>
+                    <option value="Hybrid">Hybrid</option>
+                  </select>
                 </div>
                 {errors.workLocation && (
                   <p className="text-red-500 text-sm flex items-center gap-1">

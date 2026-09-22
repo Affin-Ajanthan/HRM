@@ -6,10 +6,10 @@ import {
   CheckCircle, XCircle, Clock, Award, UserCheck, Search,
   Loader, RefreshCw, Save, AlertCircle, Plus, Trash2, Pencil,
   Eye, ChevronRight, Briefcase, ArrowLeft, Tag, User,
-  Download, Filter, Calendar, UserX,
+  Download, Filter, Calendar, UserX, ArrowUpDown, ChevronUp, ChevronDown,
 } from "lucide-react";
 import logo from "../../assets/logo.jpg";
-import { BASE_URL } from "../../services/api";
+import { BASE_URL, AUTH_URL } from "../../services/api";
 
 // ─── API helper layer ─────────────────────────────────────────────────────────
 const _headers = () => {
@@ -17,14 +17,14 @@ const _headers = () => {
   return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 };
 
-const api = {
+const makeApi = (base) => ({
   get: async (path) => {
-    const res = await fetch(`${BASE_URL}${path}`, { headers: _headers() });
+    const res = await fetch(`${base}${path}`, { headers: _headers() });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
   },
   post: async (path, body) => {
-    const res = await fetch(`${BASE_URL}${path}`, {
+    const res = await fetch(`${base}${path}`, {
       method: "POST",
       headers: _headers(),
       body: JSON.stringify(body),
@@ -33,7 +33,7 @@ const api = {
     return res.json();
   },
   put: async (path, body) => {
-    const res = await fetch(`${BASE_URL}${path}`, {
+    const res = await fetch(`${base}${path}`, {
       method: "PUT",
       headers: _headers(),
       body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -42,14 +42,21 @@ const api = {
     return res.json();
   },
   delete: async (path) => {
-    const res = await fetch(`${BASE_URL}${path}`, {
+    const res = await fetch(`${base}${path}`, {
       method: "DELETE",
       headers: _headers(),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
   },
-};
+});
+
+// HR_Backend (hrm_db_hr) — departments and other HR-owned data live only here.
+const api = makeApi(BASE_URL);
+// User_Backend (hrm_db_user) — the source-of-truth accounts table. Account
+// listing/management reads from here so it reflects what was actually created,
+// not a possibly-stale synced copy.
+const userApi = makeApi(AUTH_URL);
 
 // ─── TOAST ────────────────────────────────────────────────────────────────────
 const Toast = ({ toasts, removeToast }) => (
@@ -814,7 +821,7 @@ const EmployeeSection = ({ toast, onAddClick, refreshKey }) => {
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("/hr/employees");
+      const res = await userApi.get("/hr/employees");
       const data = res.data || [];
       if (data.length > 0) console.log("[Employee fields]", Object.keys(data[0]), data[0]);
       setEmployees(data);
@@ -826,7 +833,7 @@ const EmployeeSection = ({ toast, onAddClick, refreshKey }) => {
 
   const handleDeactivate = async (id, name) => {
     if (!window.confirm(`Deactivate ${name}?`)) return;
-    try { await api.put(`/hr/employees/${id}/deactivate`); toast.addToast("Employee deactivated", "success"); fetchEmployees(); }
+    try { await userApi.put(`/hr/employees/${id}/deactivate`); toast.addToast("Employee deactivated", "success"); fetchEmployees(); }
     catch { toast.addToast("Failed to deactivate", "error"); }
   };
 
@@ -1268,7 +1275,6 @@ const HRDashboard = () => {
   const [stats, setStats]           = useState({ totalEmployees: 0, activeEmployees: 0, pendingLeaves: 0, todayPresent: 0 });
   const [pendingLeaves, setPendingLeaves] = useState([]);
   const [empRefresh, setEmpRefresh] = useState(0);
-  const [allEmployees, setAllEmployees] = useState([]);
   const navigate = useNavigate();
   const toast    = useToast();
 
@@ -1281,7 +1287,7 @@ const HRDashboard = () => {
     } else { navigate("/login"); }
   }, [navigate]);
 
-  useEffect(() => { if (user) { fetchDashboardData(); fetchAllEmployees(); } }, [user]);
+  useEffect(() => { if (user) { fetchDashboardData(); } }, [user]);
 
   const fetchDashboardData = async () => {
     try {
@@ -1292,10 +1298,6 @@ const HRDashboard = () => {
       if (statsRes?.data) setStats({ totalEmployees: statsRes.data.totalEmployees || 0, activeEmployees: statsRes.data.activeEmployees || 0, pendingLeaves: statsRes.data.pendingLeaveApplications || 0, todayPresent: statsRes.data.todayPresent || 0 });
       setPendingLeaves(leavesRes?.data || []);
     } catch {}
-  };
-
-  const fetchAllEmployees = async () => {
-    try { const r = await api.get("/hr/employees"); setAllEmployees(r.data || []); } catch {}
   };
 
   const handleApproveLeave = async (id) => { try { await api.put(`/hr/leaves/${id}/approve`); toast.addToast("Leave approved", "success"); fetchDashboardData(); } catch { toast.addToast("Failed to approve", "error"); } };
@@ -1337,7 +1339,7 @@ const HRDashboard = () => {
 
       <AddEmployeePanel
         open={showAddEmployee} onClose={() => setShowAddEmployee(false)}
-        onSuccess={() => { setEmpRefresh(r => r + 1); fetchDashboardData(); fetchAllEmployees(); setActiveMenu("Employees"); }}
+        onSuccess={() => { setEmpRefresh(r => r + 1); fetchDashboardData(); }}
         toast={toast}
       />
 

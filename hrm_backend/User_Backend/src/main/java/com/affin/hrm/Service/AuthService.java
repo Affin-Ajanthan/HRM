@@ -66,6 +66,12 @@ public class AuthService {
     private static final String DEFAULT_COMPANY_NAME = "Default Company";
         private static final String DEFAULT_COMPANY_REG = "DEFAULT-REG-0001";
 
+        private static final java.util.Map<String, String> ROLE_EMPLOYEE_ID_PREFIX = java.util.Map.of(
+                        "EMPLOYEE", "EMP",
+                        "HR_MANAGER", "HR",
+                        "ADMIN", "SA"
+        );
+
     public AuthResponse login(AuthRequest request) {
                 String normalizedEmail = request.getEmail() == null ? "" : request.getEmail().trim().toLowerCase();
                 String rawPassword = request.getPassword() == null ? "" : request.getPassword();
@@ -250,11 +256,25 @@ public class AuthService {
                                         return departmentRepo.save(newDept);
                                 });
 
+                Employee.Role resolvedRole = Employee.Role.EMPLOYEE;
+                if (request.getRole() != null) {
+                        String normalizedRole = request.getRole().trim().toUpperCase()
+                                        .replace("-", "_")
+                                        .replace(" ", "_");
+                        try {
+                                resolvedRole = Employee.Role.valueOf(normalizedRole);
+                        } catch (Exception ignored) {
+                                resolvedRole = Employee.Role.EMPLOYEE;
+                        }
+                }
+
                 Employee employee = new Employee();
                 employee.setFullName(request.getFullName());
                 employee.setEmail(normalizedEmail);
                 employee.setPassword(passwordEncoder.encode(request.getPassword()));
-                employee.setEmployeeId(request.getEmployeeId() != null ? request.getEmployeeId() : "EMP-" + System.currentTimeMillis());
+                employee.setEmployeeId(request.getEmployeeId() != null && !request.getEmployeeId().isBlank()
+                                ? request.getEmployeeId()
+                                : generateEmployeeId(employeeIdPrefixForRole(resolvedRole.name())));
                 employee.setNic(request.getNic());
                 employee.setDob(request.getDob());
                 employee.setAddress(request.getAddress());
@@ -274,19 +294,7 @@ public class AuthService {
                         employee.setGender(Employee.Gender.OTHER);
                 }
 
-                if (request.getRole() != null) {
-                        String normalizedRole = request.getRole().trim().toUpperCase()
-                                        .replace("-", "_")
-                                        .replace(" ", "_");
-                        try {
-                                employee.setRole(Employee.Role.valueOf(normalizedRole));
-                        } catch (Exception ignored) {
-                                employee.setRole(Employee.Role.EMPLOYEE);
-                        }
-                } else {
-                        employee.setRole(Employee.Role.EMPLOYEE);
-                }
-
+                employee.setRole(resolvedRole);
                 employee.setStatus(Employee.EmployeeStatus.ACTIVE);
                 Employee savedEmployee = employeeRepo.save(employee);
                 
@@ -300,6 +308,38 @@ public class AuthService {
                 if (value == null) return false;
                 String v = value.trim();
                 return v.startsWith("$2a$") || v.startsWith("$2b$") || v.startsWith("$2y$");
+        }
+
+        private String employeeIdPrefixForRole(String role) {
+                String normalizedRole = role == null ? "" : role.trim().toUpperCase().replace("-", "_").replace(" ", "_");
+                return ROLE_EMPLOYEE_ID_PREFIX.getOrDefault(normalizedRole, "EMP");
+        }
+
+        private int nextEmployeeIdNumber(String prefix) {
+                return employeeRepo.findByEmployeeIdStartingWith(prefix + "-").stream()
+                                .map(Employee::getEmployeeId)
+                                .map(id -> id.substring(prefix.length() + 1))
+                                .filter(suffix -> suffix.matches("\\d+"))
+                                .mapToInt(Integer::parseInt)
+                                .max()
+                                .orElse(0) + 1;
+        }
+
+        private String generateEmployeeId(String prefix) {
+                return prefix + "-" + String.format("%03d", nextEmployeeIdNumber(prefix));
+        }
+
+        public java.util.Map<String, Object> getNextEmployeeId(String role) {
+                String prefix = employeeIdPrefixForRole(role);
+                int nextNumber = nextEmployeeIdNumber(prefix);
+                String formattedNumber = String.format("%03d", nextNumber);
+
+                java.util.Map<String, Object> result = new java.util.HashMap<>();
+                result.put("prefix", prefix);
+                result.put("nextNumber", nextNumber);
+                result.put("formattedNumber", formattedNumber);
+                result.put("suggestedId", prefix + "-" + formattedNumber);
+                return result;
         }
 
         public boolean checkUserExists(String email) {

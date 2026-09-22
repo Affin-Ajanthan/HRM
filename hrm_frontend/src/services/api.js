@@ -72,6 +72,11 @@ export const authApi = {
     return request("GET", `${AUTH_URL}/auth/check-user/${encodeURIComponent(email)}`);
   },
 
+  /** Get the next available Employee ID (prefix + number) for a role */
+  nextEmployeeId: async (role) => {
+    return request("GET", `${AUTH_URL}/auth/next-employee-id/${encodeURIComponent(role)}`);
+  },
+
   /** Get current user info */
   me: async () => {
     return request("GET", `${EMPLOYEE_URL}/auth/me`);
@@ -132,6 +137,17 @@ export const employeeApi = {
   // Notifications
   getNotifications:   () => request("GET", `${EMPLOYEE_URL}/employee/notifications`),
   markNotificationAsRead: (id) => request("PUT", `${EMPLOYEE_URL}/employee/notifications/${id}/read`),
+};
+
+// ─── HR DATA (via User_Backend — hrm_db_user is the source of truth) ──
+// These hit User_Backend's own /api/hr/employees endpoints, which read/write
+// the same `employees` table that registration writes to, instead of the
+// synced copy in hrm_db_hr.
+export const userHrApi = {
+  getEmployees:       () => request("GET", `${AUTH_URL}/hr/employees`),
+  getEmployee:        (id) => request("GET", `${AUTH_URL}/hr/employees/${id}`),
+  updateEmployee:     (id, data) => request("PUT", `${AUTH_URL}/hr/employees/${id}`, data),
+  deactivateEmployee: (id) => request("PUT", `${AUTH_URL}/hr/employees/${id}/deactivate`),
 };
 
 // ─── HR DATA ─────────────────────────────────────────────────

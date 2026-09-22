@@ -64,6 +64,16 @@ public class AuthController {
         }
     }
 
+    @GetMapping("/next-employee-id/{role}")
+    public ResponseEntity<ApiResponse<?>> nextEmployeeId(@PathVariable String role) {
+        try {
+            var result = authService.getNextEmployeeId(role);
+            return ResponseEntity.ok(ApiResponse.success(result, "Next employee ID generated"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to generate employee ID: " + e.getMessage()));
+        }
+    }
+
     @GetMapping("/check-user/{email}")
     public ResponseEntity<ApiResponse<?>> checkUserExists(@PathVariable String email) {
         try {

@@ -19,9 +19,12 @@ import {
   Filter,
   UserCheck,
   Sparkles,
+  ArrowUpDown,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
-import { hrApi } from "../../services/api";
+import { hrApi, userHrApi } from "../../services/api";
 
 const Employee = () => {
   const navigate = useNavigate();
@@ -34,6 +37,8 @@ const Employee = () => {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDeptFilter, setSelectedDeptFilter] = useState("ALL");
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState("asc");
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
@@ -90,7 +95,7 @@ const Employee = () => {
   // ---------------------------------------------------------
   const fetchEmployees = async () => {
     try {
-      const res = await hrApi.getEmployees();
+      const res = await userHrApi.getEmployees();
       const list = res?.data || res || [];
 
       setEmployees(Array.isArray(list) ? list : []);
@@ -248,51 +253,11 @@ const Employee = () => {
   };
 
   // ---------------------------------------------------------
-  // OPEN CREATE FORM
+  // OPEN CREATE FORM — send HR to the same account-creation wizard
+  // used everywhere else, so new accounts always land in hrm_db_user.
   // ---------------------------------------------------------
   const openCreateForm = () => {
-    resetForm();
-
-    if (departments.length > 0) {
-      const firstDept = departments[0];
-
-      const code = (
-        firstDept.shortCode ||
-        firstDept.code ||
-        firstDept.name.slice(0, 3).toUpperCase()
-      )
-        .trim()
-        .toUpperCase();
-
-      const roles = firstDept.jobRoles || [];
-
-      const firstRole =
-        roles.length > 0
-          ? roles[0].jobTitle ||
-          roles[0].title ||
-          ""
-          : "";
-
-      setFormData({
-        fullName: "",
-        email: "",
-        dob: "",
-        phone: "",
-        departmentId: firstDept.id,
-        departmentName: firstDept.name,
-        designation: firstRole,
-        employeeId: code,
-        joiningDate: new Date()
-          .toISOString()
-          .split("T")[0],
-        status: "ACTIVE",
-        gender: "",
-        address: "",
-        password: "Welcome@123",
-      });
-    }
-
-    setShowAddForm(true);
+    navigate("/createaccount");
   };
 
   // ---------------------------------------------------------
@@ -457,14 +422,19 @@ const Employee = () => {
           formData.address || null,
       };
 
-      if (editingEmployee) {
-        await hrApi.updateEmployee(
-          editingEmployee.id,
-          payload
-        );
-      } else {
-        await hrApi.createEmployee(payload);
+      if (!editingEmployee) {
+        // New accounts are created via the /createaccount wizard now, not
+        // this modal — it only ever opens through "Edit" going forward.
+        throw new Error("Use Add Users to create a new account.");
       }
+
+      // departmentId here comes from HR_Backend's own department list, which
+      // is a different table/ID space than hrm_db_user's — omit it so this
+      // update can't silently reassign the employee to the wrong department.
+      await userHrApi.updateEmployee(
+        editingEmployee.id,
+        { ...payload, departmentId: null }
+      );
 
       await fetchEmployees();
       closeForm();
@@ -484,13 +454,13 @@ const Employee = () => {
   };
 
   // ---------------------------------------------------------
-  // DELETE EMPLOYEE
+  // DEACTIVATE EMPLOYEE (hrm_db_user has no hard delete, only deactivate)
   // ---------------------------------------------------------
   const handleDelete = async () => {
     if (!deleteTarget) return;
 
     try {
-      await hrApi.deleteEmployee(
+      await userHrApi.deactivateEmployee(
         deleteTarget.id
       );
 
@@ -499,13 +469,13 @@ const Employee = () => {
       setDeleteTarget(null);
     } catch (error) {
       console.error(
-        "Failed to delete employee:",
+        "Failed to deactivate employee:",
         error
       );
 
       alert(
         error.message ||
-        "Failed to delete employee."
+        "Failed to deactivate employee."
       );
     }
   };
@@ -577,6 +547,48 @@ const Employee = () => {
   ]);
 
   // ---------------------------------------------------------
+  // SORTING
+  // ---------------------------------------------------------
+  const toggleSort = (key) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  const sortedEmployees = useMemo(() => {
+    if (!sortKey) return filteredEmployees;
+
+    const pick = (emp) => {
+      switch (sortKey) {
+        case "employeeId":
+          return emp.employeeId || "";
+        case "department":
+          return emp.departmentName || emp.department || "";
+        case "designation":
+          return emp.designation || "";
+        case "dob":
+          return emp.dob || "";
+        case "phone":
+          return emp.phone || "";
+        default:
+          return emp.fullName || "";
+      }
+    };
+
+    const sorted = [...filteredEmployees].sort((a, b) =>
+      pick(a).toString().localeCompare(pick(b).toString(), undefined, {
+        numeric: true,
+        sensitivity: "base",
+      })
+    );
+
+    return sortDir === "asc" ? sorted : sorted.reverse();
+  }, [filteredEmployees, sortKey, sortDir]);
+
+  // ---------------------------------------------------------
   // SUMMARY COUNTS
   // ---------------------------------------------------------
   const totalEmployees =
@@ -617,7 +629,7 @@ const Employee = () => {
             size={17}
             strokeWidth={2.5}
           />
-          Add Employee
+          Add Users
         </button>
       }
     >
@@ -779,7 +791,7 @@ const Employee = () => {
               ">
                 Showing{" "}
                 <strong className="text-slate-800">
-                  {filteredEmployees.length}
+                  {sortedEmployees.length}
                 </strong>{" "}
                 of {employees.length}
               </span>
@@ -811,27 +823,27 @@ const Employee = () => {
             rounded-t-2xl
             text-white
           ">
-            <TableHeader>
+            <TableHeader onClick={() => toggleSort("fullName")} sortDir={sortKey === "fullName" ? sortDir : null}>
               Employee
             </TableHeader>
 
-            <TableHeader>
+            <TableHeader onClick={() => toggleSort("employeeId")} sortDir={sortKey === "employeeId" ? sortDir : null}>
               ID
             </TableHeader>
 
-            <TableHeader>
+            <TableHeader onClick={() => toggleSort("department")} sortDir={sortKey === "department" ? sortDir : null}>
               Department
             </TableHeader>
 
-            <TableHeader>
+            <TableHeader onClick={() => toggleSort("designation")} sortDir={sortKey === "designation" ? sortDir : null}>
               Job Role
             </TableHeader>
 
-            <TableHeader>
+            <TableHeader onClick={() => toggleSort("dob")} sortDir={sortKey === "dob" ? sortDir : null}>
               Birthday
             </TableHeader>
 
-            <TableHeader>
+            <TableHeader onClick={() => toggleSort("phone")} sortDir={sortKey === "phone" ? sortDir : null}>
               Phone
             </TableHeader>
 
@@ -880,7 +892,7 @@ const Employee = () => {
                 Fetching latest records from database
               </p>
             </div>
-          ) : filteredEmployees.length === 0 ? (
+          ) : sortedEmployees.length === 0 ? (
             <div className="
               py-16 px-6
               flex flex-col
@@ -944,7 +956,7 @@ const Employee = () => {
                   "
                 >
                   <Plus size={16} />
-                  Add Employee
+                  Add Users
                 </button>
               )}
             </div>
@@ -953,7 +965,7 @@ const Employee = () => {
               divide-y
               divide-slate-100
             ">
-              {filteredEmployees.map((emp) => {
+              {sortedEmployees.map((emp) => {
                 const empId =
                   emp.employeeId ||
                   `EMP-${emp.id}`;
@@ -1206,7 +1218,7 @@ const Employee = () => {
                           onClick={() =>
                             setDeleteTarget(emp)
                           }
-                          title="Delete Employee"
+                          title="Deactivate Employee"
                           className="
                             h-8 w-8
                             rounded-lg
@@ -2656,7 +2668,7 @@ const Employee = () => {
                   font-bold
                   text-slate-900
                 ">
-                  Delete Employee?
+                  Deactivate Employee?
                 </h3>
 
                 <p className="
@@ -2665,14 +2677,14 @@ const Employee = () => {
                   mt-1
                   leading-relaxed
                 ">
-                  Are you sure you want to remove{" "}
+                  Are you sure you want to deactivate{" "}
                   <strong className="
                     text-slate-800
                   ">
                     {deleteTarget.fullName}
                   </strong>{" "}
-                  ({deleteTarget.employeeId})?
-                  This action cannot be undone.
+                  ({deleteTarget.employeeId})? Their account will be marked
+                  inactive and they won't be able to log in.
                 </p>
               </div>
             </div>
@@ -2717,7 +2729,7 @@ const Employee = () => {
                 "
               >
                 <Trash2 size={15} />
-                Delete Employee
+                Deactivate Employee
               </button>
             </div>
           </div>
@@ -2727,6 +2739,7 @@ const Employee = () => {
   );
 };
 
+
 // ─────────────────────────────────────────────
 // HELPER COMPONENTS
 // ─────────────────────────────────────────────
@@ -2734,18 +2747,29 @@ const Employee = () => {
 const TableHeader = ({
   children,
   className = "",
+  onClick,
+  sortDir,
 }) => (
   <div
+    onClick={onClick}
     className={`
       text-[11px]
       font-bold
       uppercase
       tracking-wider
       text-white
+      ${onClick ? "flex items-center gap-1 cursor-pointer select-none hover:text-teal-50" : ""}
       ${className}
     `}
   >
     {children}
+    {onClick && (
+      sortDir ? (
+        sortDir === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />
+      ) : (
+        <ArrowUpDown size={11} className="opacity-60" />
+      )
+    )}
   </div>
 );
 

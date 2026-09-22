@@ -17,4 +17,5 @@ public interface EmployeeRepo extends JpaRepository<Employee, Long> {
     List<Employee> findByDepartmentId(Long departmentId);
     List<Employee> findByCompanyIdAndRole(Long companyId, Employee.Role role);
     Optional<Employee> findByResetPasswordToken(String token);
+    List<Employee> findByEmployeeIdStartingWith(String prefix);
 }

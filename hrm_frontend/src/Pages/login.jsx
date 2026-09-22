@@ -5,6 +5,7 @@ import { FaApple } from "react-icons/fa";
 import {
   Eye, EyeOff, Mail, Lock, AlertCircle, LogIn,
   Shield, Users, BarChart3, TrendingUp, CheckCircle,
+  Briefcase, UserRound, ArrowRight,
 } from "lucide-react";
 import logo from "../assets/logo.jpg";
 import { authApi } from "../services/api";
@@ -46,6 +47,9 @@ const Login = () => {
   const [error,        setError]        = useState("");
   const [isLoading,    setIsLoading]    = useState(false);
   const [ready,        setReady]        = useState(false);
+  // HR managers are also employees — after a successful HR login, hold off
+  // navigating and ask which dashboard they want instead of guessing.
+  const [hrChoicePending, setHrChoicePending] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => { const t = setTimeout(() => setReady(true), 80); return () => clearTimeout(t); }, []);
@@ -59,9 +63,14 @@ const Login = () => {
       const data = resp.data ?? resp;
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data));
-      if      (data.role === "ADMIN")       navigate("/admin/dashboard");
-      else if (data.role === "HR_MANAGER")  navigate("/hr/dashboard");
-      else                                   navigate("/employee/dashboard");
+      if (data.role === "ADMIN") {
+        navigate("/admin/dashboard");
+      } else if (data.role === "HR_MANAGER") {
+        setIsLoading(false);
+        setHrChoicePending(true);
+      } else {
+        navigate("/employee/dashboard");
+      }
     } catch (err) {
       setIsLoading(false);
       if      (err.response) setError(err.response.data?.message || "Invalid email or password.");
@@ -348,7 +357,7 @@ const Login = () => {
 
               <p className="text-center text-sm text-slate-500 mt-6">
                 New to HRM?{" "}
-                <Link to="/createaccount" className="text-indigo-600 hover:text-indigo-800 font-bold transition-colors">Create account</Link>
+                <Link to="" className="text-indigo-600 hover:text-indigo-800 font-bold transition-colors">Request for Application</Link>
               </p>
             </div>
 
@@ -361,6 +370,55 @@ const Login = () => {
           </div>
         </div>
       </div>
+
+      {/* ── HR dual-role dashboard choice ── */}
+      {hrChoicePending && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 anim-1">
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-300/30"
+                style={{ background: "linear-gradient(135deg,#6366f1,#7c3aed)" }}>
+                <Users size={24} className="text-white" />
+              </div>
+              <h2 className="text-xl font-extrabold text-slate-900">Which dashboard do you need?</h2>
+              <p className="text-sm text-slate-500 mt-1">You have both HR and Employee access — pick where you're headed.</p>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => navigate("/hr/dashboard")}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-200 hover:border-teal-400 hover:bg-teal-50/50 transition-all text-left group"
+              >
+                <div className="w-11 h-11 rounded-xl bg-teal-100 text-teal-600 flex items-center justify-center flex-shrink-0">
+                  <Briefcase size={20} />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-slate-800">HR Dashboard</p>
+                  <p className="text-xs text-slate-500">Manage departments, employees & HR workload</p>
+                </div>
+                <ArrowRight size={16} className="text-slate-300 group-hover:text-teal-500 transition-colors" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate("/employee/dashboard")}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 transition-all text-left group"
+              >
+                <div className="w-11 h-11 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                  <UserRound size={20} />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-slate-800">Employee Dashboard</p>
+                  <p className="text-xs text-slate-500">Your own profile, attendance & leave</p>
+                </div>
+                <ArrowRight size={16} className="text-slate-300 group-hover:text-indigo-500 transition-colors" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

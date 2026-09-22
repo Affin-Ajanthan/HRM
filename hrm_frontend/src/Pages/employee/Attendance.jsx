@@ -1,8 +1,87 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, Calendar, CheckCircle, XCircle, Download, Filter } from "lucide-react";
+import { Clock, Calendar, CheckCircle, XCircle, Download, Filter, MapPin } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { employeeApi } from "../../services/api";
+
+const getCurrentPosition = () => {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("Geolocation is not supported by your browser"));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve(position.coords),
+      (error) => {
+        let msg = "Unable to retrieve your location";
+        if (error.code === error.PERMISSION_DENIED) msg = "Location permission denied. Please enable location access to clock in/out.";
+        else if (error.code === error.POSITION_UNAVAILABLE) msg = "Location information is unavailable";
+        else if (error.code === error.TIMEOUT) msg = "Location request timed out";
+        reject(new Error(msg));
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  });
+};
+
+const mapLink = (location) => {
+  if (!location) return null;
+  return `https://www.google.com/maps?q=${location}`;
+};
+
+const minutesBetween = (inTime, outTime) => {
+  if (!inTime || !outTime) return 0;
+  const [inH, inM] = inTime.split(":").map(Number);
+  const [outH, outM] = outTime.split(":").map(Number);
+  return Math.max(0, (outH * 60 + outM) - (inH * 60 + inM));
+};
+
+const formatMinutes = (totalMinutes) => {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = Math.round(totalMinutes % 60);
+  return `${hours}h ${minutes}m`;
+};
+
+// Today's sessions (raw API rows) -> a single summary object driving the "Today's Attendance" card.
+const summarizeSessions = (sessions) => {
+  if (!sessions || sessions.length === 0) return null;
+  const sorted = [...sessions].sort((a, b) => (a.clockInTime || "").localeCompare(b.clockInTime || ""));
+  const last = sorted[sorted.length - 1];
+  const totalWorkingMinutes = sorted.reduce((sum, s) => sum + minutesBetween(s.clockInTime, s.clockOutTime), 0);
+  return {
+    ...last,
+    sessions: sorted,
+    totalWorkingMinutes,
+    isClockedIn: !last.clockOutTime,
+  };
+};
+
+// Raw session rows (possibly several per day) -> one summary row per calendar day, most recent day first.
+const groupSessionsByDate = (sessions) => {
+  const byDate = {};
+  (sessions || []).forEach((s) => {
+    if (!byDate[s.date]) byDate[s.date] = [];
+    byDate[s.date].push(s);
+  });
+  return Object.keys(byDate)
+    .sort()
+    .reverse()
+    .map((date) => {
+      const daySessions = [...byDate[date]].sort((a, b) => (a.clockInTime || "").localeCompare(b.clockInTime || ""));
+      const last = daySessions[daySessions.length - 1];
+      const totalWorkingMinutes = daySessions.reduce((sum, s) => sum + minutesBetween(s.clockInTime, s.clockOutTime), 0);
+      return {
+        date,
+        status: last.status,
+        clockInTime: last.clockInTime,
+        clockOutTime: last.clockOutTime,
+        clockInLocation: last.clockInLocation,
+        clockOutLocation: last.clockOutLocation,
+        totalWorkingMinutes,
+        sessionCount: daySessions.length,
+      };
+    });
+};
 
 const Attendance = () => {
   const navigate = useNavigate();
@@ -36,25 +115,26 @@ const Attendance = () => {
   const fetchAttendanceData = async () => {
     try {
       setLoading(true);
-      // Fetch today's attendance
+      // Fetch today's sessions (an employee may clock in/out multiple times a day)
       const todayResponse = await employeeApi.getTodayAttendance();
-      if (todayResponse.data) {
-        setAttendance(todayResponse.data);
+      if (Array.isArray(todayResponse.data)) {
+        setAttendance(summarizeSessions(todayResponse.data));
       }
 
       // Fetch attendance history for the month
       const now = new Date();
       const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
       const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      
+
       const historyResponse = await employeeApi.getAttendanceHistory(
         startDate.toISOString().split('T')[0],
         endDate.toISOString().split('T')[0]
       );
-      
+
       if (historyResponse.data && Array.isArray(historyResponse.data)) {
-        setAttendanceHistory(historyResponse.data);
-        calculateStats(historyResponse.data);
+        const grouped = groupSessionsByDate(historyResponse.data);
+        setAttendanceHistory(grouped);
+        calculateStats(grouped);
       }
     } catch (error) {
       console.error("Error fetching attendance:", error);
@@ -64,48 +144,42 @@ const Attendance = () => {
     }
   };
 
-  const calculateStats = (records) => {
-    if (!Array.isArray(records)) return;
-    
-    let present = 0, absent = 0, leave = 0, late = 0;
-    let totalHours = 0;
-    
-    records.forEach(r => {
-      if (r.status === "PRESENT") present++;
-      else if (r.status === "ABSENT") absent++;
-      else if (r.status === "HALF_DAY") leave++;
-      else if (r.status === "LATE") late++;
+  const calculateStats = (days) => {
+    if (!Array.isArray(days)) return;
 
-      if (r.clockInTime && r.clockOutTime) {
-        const [inH, inM] = r.clockInTime.split(":").map(Number);
-        const [outH, outM] = r.clockOutTime.split(":").map(Number);
-        const inMinutes = inH * 60 + inM;
-        const outMinutes = outH * 60 + outM;
-        const diff = Math.max(0, outMinutes - inMinutes);
-        totalHours += diff / 60;
-      }
+    let present = 0, absent = 0, leave = 0, late = 0;
+    let totalMinutes = 0;
+
+    days.forEach(d => {
+      if (d.status === "PRESENT") present++;
+      else if (d.status === "ABSENT") absent++;
+      else if (d.status === "HALF_DAY") leave++;
+      else if (d.status === "LATE") late++;
+
+      totalMinutes += d.totalWorkingMinutes || 0;
     });
 
     setStats({
-      totalDays: records.length,
+      totalDays: days.length,
       present,
       absent,
       leave,
       late,
-      workingHours: totalHours.toFixed(1)
+      workingHours: (totalMinutes / 60).toFixed(1)
     });
   };
 
   const handleClockIn = async () => {
     try {
       setClockInLoading(true);
-      console.log("Attempting to clock in...");
-      const response = await employeeApi.clockIn();
-      console.log("Clock in response:", response);
+      setMessage("");
+      const coords = await getCurrentPosition();
+      const response = await employeeApi.clockInGPS(coords.latitude, coords.longitude);
       if (response.data) {
         setAttendance(response.data);
         setMessage("✓ Clocked in successfully!");
         setTimeout(() => setMessage(""), 3000);
+        fetchAttendanceData();
       }
     } catch (error) {
       console.error("Clock in error:", error);
@@ -119,13 +193,14 @@ const Attendance = () => {
   const handleClockOut = async () => {
     try {
       setClockOutLoading(true);
-      console.log("Attempting to clock out...");
-      const response = await employeeApi.clockOut();
-      console.log("Clock out response:", response);
+      setMessage("");
+      const coords = await getCurrentPosition();
+      const response = await employeeApi.clockOutGPS(coords.latitude, coords.longitude);
       if (response.data) {
         setAttendance(response.data);
         setMessage("✓ Clocked out successfully!");
         setTimeout(() => setMessage(""), 3000);
+        fetchAttendanceData();
       }
     } catch (error) {
       console.error("Clock out error:", error);
@@ -143,18 +218,6 @@ const Attendance = () => {
     const ampm = hour >= 12 ? "PM" : "AM";
     const displayHour = hour % 12 || 12;
     return `${displayHour}:${minutes} ${ampm}`;
-  };
-
-  const calculateWorkingHours = (clockIn, clockOut) => {
-    if (!clockIn || !clockOut) return "0h 0m";
-    const [inH, inM] = clockIn.split(":").map(Number);
-    const [outH, outM] = clockOut.split(":").map(Number);
-    const inMinutes = inH * 60 + inM;
-    const outMinutes = outH * 60 + outM;
-    const diff = Math.max(0, outMinutes - inMinutes);
-    const hours = Math.floor(diff / 60);
-    const minutes = diff % 60;
-    return `${hours}h ${minutes}m`;
   };
 
   const statusBadge = (s) => ({
@@ -214,10 +277,10 @@ const Attendance = () => {
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
                 {[
-                  { label: "Clock In",       value: formatTime(attendance?.clockInTime), bg: "bg-sky-50",    text: "text-sky-600" },
-                  { label: "Clock Out",      value: formatTime(attendance?.clockOutTime), bg: "bg-orange-50", text: "text-orange-600" },
-                  { label: "Working Hours",  value: calculateWorkingHours(attendance?.clockInTime, attendance?.clockOutTime), bg: "bg-emerald-50",text: "text-emerald-600" },
-                  { label: "Status",         value: attendance?.status || "Not Started", bg: "bg-violet-50", text: "text-violet-600" },
+                  { label: "Last Clock In",  value: formatTime(attendance?.clockInTime), bg: "bg-sky-50",    text: "text-sky-600" },
+                  { label: "Last Clock Out", value: formatTime(attendance?.clockOutTime), bg: "bg-orange-50", text: "text-orange-600" },
+                  { label: "Working Hours",  value: formatMinutes(attendance?.totalWorkingMinutes || 0), bg: "bg-emerald-50",text: "text-emerald-600" },
+                  { label: "Status",         value: !attendance ? "Not Started" : attendance.isClockedIn ? "Clocked In" : "Clocked Out", bg: "bg-violet-50", text: "text-violet-600" },
                 ].map(t => (
                   <div key={t.label} className={`${t.bg} rounded-xl p-4 text-center`}>
                     <p className="text-gray-500 text-xs mb-2">{t.label}</p>
@@ -225,22 +288,44 @@ const Attendance = () => {
                   </div>
                 ))}
               </div>
+              {attendance?.sessions?.length > 1 && (
+                <p className="text-xs text-gray-400 mb-3">{attendance.sessions.length} sessions today</p>
+              )}
               <div className="flex gap-3">
                 <button
                   onClick={handleClockIn}
-                  disabled={clockInLoading || (attendance && attendance.clockInTime)}
+                  disabled={clockInLoading || attendance?.isClockedIn}
                   className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-white py-3 rounded-xl flex items-center justify-center gap-2 font-semibold text-sm transition-colors"
                 >
-                  <CheckCircle size={18} /> {clockInLoading ? "Clocking in..." : "Clock In"}
+                  <CheckCircle size={18} /> {clockInLoading ? "Getting location..." : "Clock In"}
                 </button>
                 <button
                   onClick={handleClockOut}
-                  disabled={clockOutLoading || !attendance?.clockInTime || attendance?.clockOutTime}
+                  disabled={clockOutLoading || !attendance?.isClockedIn}
                   className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white py-3 rounded-xl flex items-center justify-center gap-2 font-semibold text-sm transition-colors"
                 >
-                  <XCircle size={18} /> {clockOutLoading ? "Clocking out..." : "Clock Out"}
+                  <XCircle size={18} /> {clockOutLoading ? "Getting location..." : "Clock Out"}
                 </button>
               </div>
+              <p className="text-xs text-gray-400 mt-3 flex items-center gap-1.5">
+                <MapPin size={12} /> Your GPS location is captured at clock-in and clock-out. You can clock in and out as many times as needed during the day.
+              </p>
+              {(attendance?.clockInLocation || attendance?.clockOutLocation) && (
+                <div className="flex flex-wrap gap-3 mt-3">
+                  {attendance?.clockInLocation && (
+                    <a href={mapLink(attendance.clockInLocation)} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-xs font-medium text-sky-600 bg-sky-50 hover:bg-sky-100 px-3 py-1.5 rounded-lg transition-colors">
+                      <MapPin size={13} /> Clock-in location
+                    </a>
+                  )}
+                  {attendance?.clockOutLocation && (
+                    <a href={mapLink(attendance.clockOutLocation)} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-xs font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-lg transition-colors">
+                      <MapPin size={13} /> Clock-out location
+                    </a>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -283,7 +368,7 @@ const Attendance = () => {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gradient-to-r from-sky-500 to-blue-600 text-white text-xs">
-                    {["Date", "Day", "Check In", "Check Out", "Working Hours", "Status"].map(h => (
+                    {["Date", "Day", "Check In", "Check Out", "Working Hours", "Location", "Status"].map(h => (
                       <th key={h} className="text-left px-5 py-3.5 font-semibold">{h}</th>
                     ))}
                   </tr>
@@ -291,11 +376,33 @@ const Attendance = () => {
                 <tbody className="divide-y divide-gray-50">
                   {attendanceHistory.map((r, i) => (
                     <tr key={i} className="hover:bg-sky-50/40 transition-colors">
-                      <td className="px-5 py-3.5 font-medium text-gray-800">{r.date}</td>
+                      <td className="px-5 py-3.5 font-medium text-gray-800">
+                        {r.date}
+                        {r.sessionCount > 1 && (
+                          <span className="ml-1.5 text-xs font-semibold text-violet-500 bg-violet-50 px-1.5 py-0.5 rounded-full align-middle">×{r.sessionCount}</span>
+                        )}
+                      </td>
                       <td className="px-5 py-3.5 text-gray-500">{getDayName(r.date)}</td>
                       <td className="px-5 py-3.5 text-gray-600">{formatTime(r.clockInTime)}</td>
                       <td className="px-5 py-3.5 text-gray-600">{formatTime(r.clockOutTime)}</td>
-                      <td className="px-5 py-3.5 font-semibold text-gray-800">{calculateWorkingHours(r.clockInTime, r.clockOutTime)}</td>
+                      <td className="px-5 py-3.5 font-semibold text-gray-800">{formatMinutes(r.totalWorkingMinutes)}</td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex gap-2">
+                          {r.clockInLocation && (
+                            <a href={mapLink(r.clockInLocation)} target="_blank" rel="noopener noreferrer" title="Clock-in location"
+                              className="text-sky-500 hover:text-sky-700">
+                              <MapPin size={15} />
+                            </a>
+                          )}
+                          {r.clockOutLocation && (
+                            <a href={mapLink(r.clockOutLocation)} target="_blank" rel="noopener noreferrer" title="Clock-out location"
+                              className="text-orange-500 hover:text-orange-700">
+                              <MapPin size={15} />
+                            </a>
+                          )}
+                          {!r.clockInLocation && !r.clockOutLocation && <span className="text-gray-300 text-xs">—</span>}
+                        </div>
+                      </td>
                       <td className="px-5 py-3.5">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge(r.status)}`}>
                           {statusLabel(r.status)}

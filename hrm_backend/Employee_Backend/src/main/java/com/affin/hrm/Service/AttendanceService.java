@@ -45,16 +45,12 @@ public class AttendanceService {
 
     public AttendanceDTO clockIn(Long employeeId, LocalTime clockInTime) {
         LocalDate today = LocalDate.now();
-
-        Optional<Attendance> existing = attendanceRepository.findByEmployeeIdAndDate(employeeId, today);
-        if (existing.isPresent() && existing.get().getClockInTime() != null) {
-            throw new BusinessException("Already clocked in today");
-        }
+        ensureNoOpenSession(employeeId, today);
 
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
 
-        Attendance attendance = existing.orElse(new Attendance());
+        Attendance attendance = new Attendance();
         attendance.setEmployee(employee);
         attendance.setDate(today);
         attendance.setClockInTime(clockInTime != null ? clockInTime : LocalTime.now());
@@ -71,13 +67,7 @@ public class AttendanceService {
     public AttendanceDTO clockOut(Long employeeId, LocalTime clockOutTime) {
         LocalDate today = LocalDate.now();
 
-        Attendance attendance = attendanceRepository.findByEmployeeIdAndDate(employeeId, today)
-                .orElseThrow(() -> new BusinessException("No clock-in record found for today"));
-
-        if (attendance.getClockOutTime() != null) {
-            throw new BusinessException("Already clocked out today");
-        }
-
+        Attendance attendance = findOpenSession(employeeId, today);
         attendance.setClockOutTime(clockOutTime != null ? clockOutTime : LocalTime.now());
         Attendance saved = attendanceRepository.save(attendance);
         auditService.logAction("CLOCK_OUT", "Attendance", saved.getId(),
@@ -88,16 +78,12 @@ public class AttendanceService {
 
     public AttendanceDTO clockInGPS(Long employeeId, String location) {
         LocalDate today = LocalDate.now();
-
-        Optional<Attendance> existing = attendanceRepository.findByEmployeeIdAndDate(employeeId, today);
-        if (existing.isPresent() && existing.get().getClockInTime() != null) {
-            throw new BusinessException("Already clocked in today");
-        }
+        ensureNoOpenSession(employeeId, today);
 
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
 
-        Attendance attendance = existing.orElse(new Attendance());
+        Attendance attendance = new Attendance();
         attendance.setEmployee(employee);
         attendance.setDate(today);
         attendance.setClockInTime(LocalTime.now());
@@ -114,19 +100,23 @@ public class AttendanceService {
     public AttendanceDTO clockOutGPS(Long employeeId, String location) {
         LocalDate today = LocalDate.now();
 
-        Attendance attendance = attendanceRepository.findByEmployeeIdAndDate(employeeId, today)
-                .orElseThrow(() -> new BusinessException("No clock-in record found for today"));
-
-        if (attendance.getClockOutTime() != null) {
-            throw new BusinessException("Already clocked out today");
-        }
-
+        Attendance attendance = findOpenSession(employeeId, today);
         attendance.setClockOutTime(LocalTime.now());
         attendance.setClockOutLocation(location);
         Attendance saved = attendanceRepository.save(attendance);
         auditService.logAction("CLOCK_OUT_GPS", "Attendance", saved.getId(),
                 "Employee clocked out via GPS", attendance.getEmployee().getCompany().getId());
         return convertToDTO(saved);
+    }
+
+    private void ensureNoOpenSession(Long employeeId, LocalDate date) {
+        attendanceRepository.findFirstByEmployeeIdAndDateAndClockOutTimeIsNullOrderByClockInTimeDesc(employeeId, date)
+                .ifPresent(a -> { throw new BusinessException("Already clocked in. Please clock out first."); });
+    }
+
+    private Attendance findOpenSession(Long employeeId, LocalDate date) {
+        return attendanceRepository.findFirstByEmployeeIdAndDateAndClockOutTimeIsNullOrderByClockInTimeDesc(employeeId, date)
+                .orElseThrow(() -> new BusinessException("No active clock-in session found. Please clock in first."));
     }
 
     @Transactional(readOnly = true)
@@ -142,9 +132,9 @@ public class AttendanceService {
     }
 
     @Transactional(readOnly = true)
-    public AttendanceDTO getTodayAttendance(Long employeeId) {
-        return attendanceRepository.findByEmployeeIdAndDate(employeeId, LocalDate.now())
-                .map(this::convertToDTO).orElse(null);
+    public List<AttendanceDTO> getTodayAttendance(Long employeeId) {
+        return attendanceRepository.findByEmployeeIdAndDateOrderByClockInTimeAsc(employeeId, LocalDate.now())
+                .stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
     public AttendanceDTO requestAdjustment(Long attendanceId, String reason) {

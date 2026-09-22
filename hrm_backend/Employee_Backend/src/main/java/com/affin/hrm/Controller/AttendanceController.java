@@ -64,10 +64,10 @@ public class AttendanceController {
     }
 
     @GetMapping("/today")
-    public ResponseEntity<ApiResponse<AttendanceDTO>> getTodayAttendance() {
+    public ResponseEntity<ApiResponse<List<AttendanceDTO>>> getTodayAttendance() {
         Employee employee = authService.getCurrentEmployee();
-        AttendanceDTO dto = attendanceService.getTodayAttendance(employee.getId());
-        return ResponseEntity.ok(ApiResponse.success(dto));
+        List<AttendanceDTO> sessions = attendanceService.getTodayAttendance(employee.getId());
+        return ResponseEntity.ok(ApiResponse.success(sessions));
     }
 
     @GetMapping("/history")

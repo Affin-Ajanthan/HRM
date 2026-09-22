@@ -12,9 +12,7 @@ import java.time.LocalTime;
  * Attendance entity — tracks employee clock-in/out records.
  */
 @Entity
-@Table(name = "attendance", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"employee_id", "date"})
-})
+@Table(name = "attendance")
 @Getter
 @Setter
 @NoArgsConstructor

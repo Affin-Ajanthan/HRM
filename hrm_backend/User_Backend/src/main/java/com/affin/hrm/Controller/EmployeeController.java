@@ -1,7 +1,6 @@
 package com.affin.hrm.Controller;
 
 import com.affin.hrm.DTO.*;
-import com.affin.hrm.service.AttendanceService;
 import com.affin.hrm.service.AuthService;
 import com.affin.hrm.service.LeaveService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,109 +18,10 @@ import java.util.List;
 public class EmployeeController {
 
     @Autowired
-    private AttendanceService attendanceService;
-
-    @Autowired
     private LeaveService leaveService;
 
     @Autowired
     private AuthService authService;
-
-    // ===== ATTENDANCE ENDPOINTS =====
-
-    @PostMapping("/attendance/clock-in")
-    public ResponseEntity<ApiResponse<AttendanceDTO>> clockIn() {
-        try {
-            var employee = authService.getCurrentEmployee();
-            AttendanceDTO attendance = attendanceService.clockIn(employee.getId(), null);
-            return ResponseEntity.ok(ApiResponse.success(attendance, "Clocked in successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Failed to clock in: " + e.getMessage()));
-        }
-    }
-
-    @PostMapping("/attendance/clock-out")
-    public ResponseEntity<ApiResponse<AttendanceDTO>> clockOut() {
-        try {
-            var employee = authService.getCurrentEmployee();
-            AttendanceDTO attendance = attendanceService.clockOut(employee.getId(), null);
-            return ResponseEntity.ok(ApiResponse.success(attendance, "Clocked out successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Failed to clock out: " + e.getMessage()));
-        }
-    }
-
-    @PostMapping("/attendance/clock-in-gps")
-    public ResponseEntity<ApiResponse<AttendanceDTO>> clockInGPS(@RequestParam String latitude,
-                                                                   @RequestParam String longitude) {
-        try {
-            var employee = authService.getCurrentEmployee();
-            String location = latitude + "," + longitude;
-            AttendanceDTO attendance = attendanceService.clockInGPS(employee.getId(), location);
-            return ResponseEntity.ok(ApiResponse.success(attendance, "Clocked in via GPS successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Failed to clock in: " + e.getMessage()));
-        }
-    }
-
-    @PostMapping("/attendance/clock-out-gps")
-    public ResponseEntity<ApiResponse<AttendanceDTO>> clockOutGPS(@RequestParam String latitude,
-                                                                    @RequestParam String longitude) {
-        try {
-            var employee = authService.getCurrentEmployee();
-            String location = latitude + "," + longitude;
-            AttendanceDTO attendance = attendanceService.clockOutGPS(employee.getId(), location);
-            return ResponseEntity.ok(ApiResponse.success(attendance, "Clocked out via GPS successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Failed to clock out: " + e.getMessage()));
-        }
-    }
-
-    @GetMapping("/attendance/today")
-    public ResponseEntity<ApiResponse<AttendanceDTO>> getTodayAttendance() {
-        try {
-            var employee = authService.getCurrentEmployee();
-            AttendanceDTO attendance = attendanceService.getTodayAttendance(employee.getId());
-            return ResponseEntity.ok(ApiResponse.success(attendance, "Today's attendance retrieved"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Failed to retrieve attendance: " + e.getMessage()));
-        }
-    }
-
-    @GetMapping("/attendance/history")
-    public ResponseEntity<ApiResponse<List<AttendanceDTO>>> getAttendanceHistory(
-            @RequestParam(required = false) LocalDate startDate,
-            @RequestParam(required = false) LocalDate endDate) {
-        try {
-            var employee = authService.getCurrentEmployee();
-            LocalDate start = startDate != null ? startDate : LocalDate.now().minusMonths(1);
-            LocalDate end = endDate != null ? endDate : LocalDate.now();
-            List<AttendanceDTO> attendances = attendanceService.getEmployeeAttendance(
-                    employee.getId(), start, end);
-            return ResponseEntity.ok(ApiResponse.success(attendances, "Attendance history retrieved"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Failed to retrieve attendance: " + e.getMessage()));
-        }
-    }
-
-    @PostMapping("/attendance/adjustment-request")
-    public ResponseEntity<ApiResponse<AttendanceDTO>> requestAdjustment(
-            @RequestParam Long attendanceId,
-            @RequestParam String reason) {
-        try {
-            AttendanceDTO attendance = attendanceService.requestAdjustment(attendanceId, reason);
-            return ResponseEntity.ok(ApiResponse.success(attendance, "Adjustment request submitted"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Failed to request adjustment: " + e.getMessage()));
-        }
-    }
 
     // ===== LEAVE ENDPOINTS =====
 

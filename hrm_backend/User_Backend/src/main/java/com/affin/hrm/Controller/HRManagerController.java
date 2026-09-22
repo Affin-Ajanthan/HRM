@@ -1,7 +1,6 @@
 package com.affin.hrm.Controller;
 
 import com.affin.hrm.DTO.*;
-import com.affin.hrm.service.AttendanceService;
 import com.affin.hrm.service.AuthService;
 import com.affin.hrm.service.EmployeeService;
 import com.affin.hrm.service.LeaveService;
@@ -23,9 +22,6 @@ public class HRManagerController {
 
     @Autowired
     private EmployeeService employeeService;
-
-    @Autowired
-    private AttendanceService attendanceService;
 
     @Autowired
     private LeaveService leaveService;
@@ -107,71 +103,6 @@ public class HRManagerController {
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Failed to terminate employee: " + e.getMessage()));
-        }
-    }
-
-    // ===== ATTENDANCE MANAGEMENT =====
-
-    @GetMapping("/attendance/daily")
-    public ResponseEntity<ApiResponse<List<AttendanceDTO>>> getDailyAttendance(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        try {
-            var currentUser = authService.getCurrentEmployee();
-            List<AttendanceDTO> attendances = attendanceService.getDailyAttendance(
-                    currentUser.getCompany().getId(), date);
-            return ResponseEntity.ok(ApiResponse.success(attendances, "Daily attendance retrieved"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Failed to retrieve attendance: " + e.getMessage()));
-        }
-    }
-
-    @GetMapping("/attendance/employee/{id}")
-    public ResponseEntity<ApiResponse<List<AttendanceDTO>>> getEmployeeAttendance(
-            @PathVariable Long id,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        try {
-            List<AttendanceDTO> attendances = attendanceService.getEmployeeAttendance(id, startDate, endDate);
-            return ResponseEntity.ok(ApiResponse.success(attendances, "Employee attendance retrieved"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Failed to retrieve attendance: " + e.getMessage()));
-        }
-    }
-
-    @GetMapping("/attendance/adjustments")
-    public ResponseEntity<ApiResponse<List<AttendanceDTO>>> getPendingAdjustments() {
-        try {
-            var currentUser = authService.getCurrentEmployee();
-            List<AttendanceDTO> adjustments = attendanceService.getPendingAdjustments(
-                    currentUser.getCompany().getId());
-            return ResponseEntity.ok(ApiResponse.success(adjustments, "Pending adjustments retrieved"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Failed to retrieve adjustments: " + e.getMessage()));
-        }
-    }
-
-    @PutMapping("/attendance/adjustments/{id}/approve")
-    public ResponseEntity<ApiResponse<AttendanceDTO>> approveAdjustment(@PathVariable Long id) {
-        try {
-            AttendanceDTO attendance = attendanceService.approveAdjustment(id);
-            return ResponseEntity.ok(ApiResponse.success(attendance, "Adjustment approved"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Failed to approve adjustment: " + e.getMessage()));
-        }
-    }
-
-    @PutMapping("/attendance/adjustments/{id}/reject")
-    public ResponseEntity<ApiResponse<AttendanceDTO>> rejectAdjustment(@PathVariable Long id) {
-        try {
-            AttendanceDTO attendance = attendanceService.rejectAdjustment(id);
-            return ResponseEntity.ok(ApiResponse.success(attendance, "Adjustment rejected"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Failed to reject adjustment: " + e.getMessage()));
         }
     }
 

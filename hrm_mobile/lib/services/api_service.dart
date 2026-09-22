@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // Base URLs for the backend microservices on localhost
-  static const String authBaseUrl = 'http://10.0.2.2:5002/api';     // User_Backend
+  static const String authBaseUrl = 'http://10.0.2.2:5006/api';     // Employee_Backend
   static const String employeeBaseUrl = 'http://10.0.2.2:5006/api'; // Employee_Backend
 
   static String? _token;
@@ -146,7 +146,7 @@ class ApiService {
   // Cancel Pending Leave (Employee_Backend)
   static Future<Map<String, dynamic>> cancelLeave(int leaveId) async {
     final url = Uri.parse('$employeeBaseUrl/employee/leave/$leaveId/cancel');
-    final response = await http.delete(url, headers: _headers());
+    final response = await http.post(url, headers: _headers());
     return _handleResponse(response);
   }
 }

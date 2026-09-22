@@ -10,7 +10,7 @@ Write-Host "  HRM Test User Registration Script" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-$backendUrl = "http://localhost:5002"
+$backendUrl = "http://localhost:5004"
 
 # Test if backend is running
 Write-Host "Testing backend connection..." -ForegroundColor Yellow

@@ -63,17 +63,14 @@ public class SyncService {
      * @param employee Employee to sync
      */
     public void syncToAllBackends(Employee employee) {
-        System.out.println("[SYNC] Syncing employee to all backends: " + employee.getEmail());
+        System.out.println("[SYNC] Syncing employee to Employee_Backend: " + employee.getEmail());
         
         boolean employeeBackendSynced = syncToEmployeeBackend(employee);
-        boolean hrBackendSynced = syncToHRBackend(employee);
         
-        if (employeeBackendSynced && hrBackendSynced) {
-            System.out.println("[SYNC SUCCESS] Employee fully synced: " + employee.getEmail());
-        } else if (employeeBackendSynced || hrBackendSynced) {
-            System.out.println("[SYNC PARTIAL] Employee partially synced: " + employee.getEmail());
+        if (employeeBackendSynced) {
+            System.out.println("[SYNC SUCCESS] Employee synced successfully: " + employee.getEmail());
         } else {
-            System.out.println("[SYNC WARNING] Employee sync failed to all backends: " + employee.getEmail());
+            System.out.println("[SYNC WARNING] Employee sync failed to Employee_Backend: " + employee.getEmail());
         }
     }
     

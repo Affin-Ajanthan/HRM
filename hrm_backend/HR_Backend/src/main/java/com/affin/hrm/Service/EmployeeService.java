@@ -241,6 +241,7 @@ public class EmployeeService {
             employee.setDepartmentName(department != null ? department.getName() : employee.getDepartmentName());
             if (employee.getStatus() == null) employee.setStatus(Employee.EmployeeStatus.ACTIVE);
             if (employee.getRole() == null) employee.setRole(Employee.Role.EMPLOYEE);
+            employee.setId(null); // Force insert for detached entities
             log.info("Created new employee via sync: {}", normalizedEmail);
             return employeeRepository.save(employee);
         }

@@ -24,6 +24,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
     1: 'Annual Leave',
     2: 'Sick Leave',
     3: 'Casual Leave',
+    4: 'Maternity Leave',
   };
 
   @override
@@ -284,7 +285,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
               final used = limit - balance;
 
               return Container(
-                width: 140,
+                width: 160,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: const Color(0xFF3F51B5).withOpacity(0.05),
@@ -413,6 +414,10 @@ class _LeaveScreenState extends State<LeaveScreen> {
                           DropdownMenuItem(
                             value: 3,
                             child: Text('Casual Leave'),
+                          ),
+                          DropdownMenuItem(
+                            value: 4,
+                            child: Text('Maternity Leave'),
                           ),
                         ],
                         onChanged: (val) {

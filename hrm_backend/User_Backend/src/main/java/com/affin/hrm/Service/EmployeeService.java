@@ -180,7 +180,7 @@ public class EmployeeService {
         employeeRepo.save(employee);
         
         // Audit log
-        auditService.logAction("TERMINATE_EMPLOYEE", "Employee", employee.getId(), 
+        auditService.logAction("TERMINATE_EMPLOYEE", "Employee", employee.getId(),
                 "Terminated employee: " + employee.getFullName(), employee.getCompany().getId());
     }
 

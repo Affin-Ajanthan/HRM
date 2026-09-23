@@ -123,6 +123,44 @@ public class AuthService {
             System.err.println("[SESSION LOG ERROR] " + e.getMessage());
         }
 
+        // Push this user's current record to the HR_Backend (and Employee_Backend)
+        // in the background on every login. This guarantees that an HR user
+        // (or any user) is present in hrm_db_hr before they use the HR dashboard
+        // (e.g. add department), even if the original sync at registration time
+        // failed or the HR service was temporarily unavailable. Runs off the
+        // request thread so it never slows down or blocks the login response.
+        final Employee employeeToSync = employee;
+        // Warm up the lazy company/department associations now, while still on
+        // the request thread (Hibernate session still open here).
+        try {
+            if (employeeToSync.getCompany() != null) {
+                employeeToSync.getCompany().getCompanyName();
+                employeeToSync.getCompany().getRegistrationNumber();
+            }
+            if (employeeToSync.getDepartment() != null) {
+                employeeToSync.getDepartment().getName();
+            }
+        } catch (Exception ignored) {
+            // Falls back to defaults inside SyncService if this couldn't be warmed up
+        }
+        // IMPORTANT: this must run synchronously, BEFORE the login response is
+        // returned. The HR dashboard calls HR-service endpoints (e.g. create
+        // department) the instant it receives the JWT, and those endpoints look
+        // the employee up in hrm_db_hr. If this sync were fire-and-forget on a
+        // background thread, the frontend could reach the HR service before the
+        // employee row exists there, producing a false "Employee not found"
+        // error right after a successful login. syncToAllBackends() already
+        // swallows its own per-backend errors (it just logs and returns
+        // true/false), so this cannot make login fail even if the HR or
+        // Employee service is temporarily unreachable — it only guarantees
+        // that, when the services ARE reachable, the sync has actually
+        // completed before the caller gets the token.
+        try {
+            syncService.syncToAllBackends(employeeToSync);
+        } catch (Exception e) {
+            System.err.println("[LOGIN SYNC ERROR] " + e.getMessage());
+        }
+
         return new AuthResponse(
                 jwt,
                 employee.getEmail(),

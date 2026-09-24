@@ -152,9 +152,39 @@ public class DepartmentController {
         return ResponseEntity.ok(ApiResponse.success(convertToDTO(saved), "Department updated successfully"));
     }
 
+    // ===== DELETE DEPARTMENT (permanent) =====
     @DeleteMapping("/{id}")
     @Transactional
     public ResponseEntity<ApiResponse<Void>> deleteDepartment(@PathVariable Long id) {
+        Employee hr = authService.getCurrentEmployee();
+        Department department = departmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Department", "id", id));
+
+        if (!department.getCompany().getId().equals(hr.getCompany().getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        long employeeCount = employeeRepository.countByDepartmentId(id);
+        if (employeeCount > 0) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(
+                    "Cannot delete '" + department.getName() + "': " + employeeCount
+                            + " employee(s) are still assigned to it. Reassign or remove them first, or deactivate the department instead."));
+        }
+
+        String departmentName = department.getName();
+        departmentRepository.delete(department);
+
+        try {
+            auditService.logAction("DELETE", "Department", id, "Deleted department: " + departmentName, hr.getCompany().getId());
+        } catch (Exception ignored) {}
+
+        return ResponseEntity.ok(ApiResponse.success(null, "Department deleted successfully"));
+    }
+
+    // ===== DEACTIVATE DEPARTMENT (soft — keeps the record) =====
+    @PutMapping("/{id}/deactivate")
+    @Transactional
+    public ResponseEntity<ApiResponse<Void>> deactivateDepartment(@PathVariable Long id) {
         Employee hr = authService.getCurrentEmployee();
         Department department = departmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Department", "id", id));

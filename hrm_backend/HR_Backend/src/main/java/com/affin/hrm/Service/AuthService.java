@@ -93,7 +93,67 @@ public class AuthService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = normalizeEmail(authentication.getName());
         return employeeRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee", "email", email));
+                .orElseGet(() -> autoProvisionFromToken(authentication, email));
+    }
+
+    /**
+     * Self-healing fallback: the JWT has already been validated (correct
+     * signature, not expired) by JwtAuthenticationFilter before this code
+     * ever runs — so a request that gets here is genuinely from a logged-in
+     * user, we just don't have a local copy of them yet in hrm_db_hr. That
+     * normally happens because the user-service's push-sync hasn't reached
+     * this service (network/config issue between the two, or it simply
+     * hasn't run yet). Rather than block the person with a 404, create a
+     * minimal record here from the token's own claims (email + role) so the
+     * request can proceed right now. If a real sync arrives later (next
+     * login, or a manual /api/auth/sync-all), saveEmployee()'s upsert logic
+     * will fill in the rest of the real details over this placeholder.
+     */
+    private Employee autoProvisionFromToken(Authentication authentication, String email) {
+        log.warn("No local record for '{}' in hrm_db_hr — auto-provisioning from the JWT so this " +
+                "request can proceed. The push-sync from the user-service has not reached this " +
+                "database yet; check connectivity/config between the two services.", email);
+
+        String roleClaim = authentication.getAuthorities().stream()
+                .findFirst()
+                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .orElse("EMPLOYEE");
+
+        Company company = getOrCreateDefaultCompany();
+        Department department = getOrCreateDepartment(company, "General");
+
+        Employee employee = new Employee();
+        employee.setEmail(email);
+        employee.setFullName(deriveDisplayName(email));
+        employee.setEmployeeId("AUTO-" + System.currentTimeMillis());
+        // Random, unusable password: this record is never authenticated
+        // against directly — the user-service is the real auth source and
+        // already issued the JWT that got the request this far.
+        employee.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+        employee.setCompany(company);
+        employee.setDepartment(department);
+        employee.setDepartmentName(department.getName());
+        employee.setGender(Employee.Gender.OTHER);
+        employee.setJoiningDate(LocalDate.now());
+        employee.setStatus(Employee.EmployeeStatus.ACTIVE);
+        employee.setRole(parseRole(roleClaim));
+
+        Employee saved = employeeRepository.save(employee);
+        log.info("Auto-provisioned employee in hrm_db_hr: {} (role: {})", saved.getEmail(), saved.getRole());
+        return saved;
+    }
+
+    private String deriveDisplayName(String email) {
+        String local = email.contains("@") ? email.substring(0, email.indexOf('@')) : email;
+        local = local.replace(".", " ").replace("_", " ").replace("-", " ").trim();
+        if (local.isEmpty()) return "User";
+        String[] parts = local.split("\\s+");
+        StringBuilder sb = new StringBuilder();
+        for (String part : parts) {
+            if (part.isEmpty()) continue;
+            sb.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1)).append(' ');
+        }
+        return sb.toString().trim();
     }
 
     public Employee register(RegisterRequest request) {

@@ -64,6 +64,20 @@ public class JwtUtil {
         }
     }
 
+    public Long getUserIdFromToken(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            Number userId = claims.get("userId", Number.class);
+            return userId != null ? userId.longValue() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public String getEmailFromToken(String token) {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())

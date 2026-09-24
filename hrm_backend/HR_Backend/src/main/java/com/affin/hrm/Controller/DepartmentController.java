@@ -156,10 +156,6 @@ public class DepartmentController {
     }
 
     // ===== DELETE DEPARTMENT (permanent) =====
-    // Actually removes the department row (and, via cascade, its job roles).
-    // Blocked if employees are still assigned, so you can't accidentally
-    // orphan people's records — reassign or remove them first, or use
-    // /deactivate instead if you just want to hide it without deleting data.
     @DeleteMapping("/{id}")
     @Transactional
     public ResponseEntity<ApiResponse<Void>> deleteDepartment(@PathVariable Long id) {
@@ -179,8 +175,6 @@ public class DepartmentController {
         }
 
         String departmentName = department.getName();
-        // department.getJobRoles() has cascade = CascadeType.ALL + orphanRemoval = true,
-        // so deleting the department also removes its job_roles rows automatically.
         departmentRepository.delete(department);
 
         try {
@@ -190,7 +184,7 @@ public class DepartmentController {
         return ResponseEntity.ok(ApiResponse.success(null, "Department deleted successfully"));
     }
 
-    // ===== DEACTIVATE DEPARTMENT (soft — keeps the record, hides it from active use) =====
+    // ===== DEACTIVATE DEPARTMENT (soft — keeps the record) =====
     @PutMapping("/{id}/deactivate")
     @Transactional
     public ResponseEntity<ApiResponse<Void>> deactivateDepartment(@PathVariable Long id) {

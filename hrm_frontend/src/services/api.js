@@ -172,7 +172,10 @@ export const hrApi = {
   approveLeave:     (leaveId) => request("POST", `${BASE_URL}/hr/leave/${leaveId}/approve`),
   rejectLeave:      (leaveId, reason) => request("POST", `${BASE_URL}/hr/leave/${leaveId}/reject?reason=${encodeURIComponent(reason)}`),
 
-  // Departments
+  // Departments — saved in hrm_db_hr via the HR_Backend (this service owns
+  // department + job role data). Only an HR Manager or Admin (guarded by
+  // hrsrc's own role checks) can add, update, deactivate a department, or
+  // assign a department manager.
   getDepartments:     () => request("GET", `${BASE_URL}/hr/departments`),
   createDepartment:   (data) => request("POST", `${BASE_URL}/hr/departments`, data),
   updateDepartment:   (id, data) => request("PUT", `${BASE_URL}/hr/departments/${id}`, data),

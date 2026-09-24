@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, ClockIcon, CalendarDays, DollarSign, User, Bell,
@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { employeeApi } from "../../services/api";
+import { getCurrentPosition, formatMinutes, summarizeSessions, useNow } from "../../utils/attendance";
 
 const EmployeeDashboard = () => {
   const navigate = useNavigate();
@@ -17,11 +18,15 @@ const EmployeeDashboard = () => {
     lastSalary: "0.00",
   });
   const [notifications, setNotifications] = useState([]);
-  const [attendance, setAttendance] = useState(null);
+  const [todaySessions, setTodaySessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [clockInLoading, setClockInLoading] = useState(false);
   const [clockOutLoading, setClockOutLoading] = useState(false);
   const [message, setMessage] = useState("");
+
+  const isClockedIn = todaySessions.some((s) => !s.clockOutTime);
+  const now = useNow(isClockedIn);
+  const attendance = useMemo(() => summarizeSessions(todaySessions, now), [todaySessions, now]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -75,14 +80,10 @@ const EmployeeDashboard = () => {
     try {
       setLoading(true);
       const response = await employeeApi.getTodayAttendance();
-      if (response.data) {
-        setAttendance(response.data);
-      } else {
-        setAttendance(null);
-      }
+      setTodaySessions(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Error fetching attendance:", error);
-      setAttendance(null);
+      setTodaySessions([]);
     } finally {
       setLoading(false);
     }
@@ -91,13 +92,12 @@ const EmployeeDashboard = () => {
   const handleClockIn = async () => {
     try {
       setClockInLoading(true);
-      console.log("Attempting to clock in...");
-      const response = await employeeApi.clockIn();
-      console.log("Clock in response:", response);
+      const coords = await getCurrentPosition();
+      const response = await employeeApi.clockInGPS(coords.latitude, coords.longitude);
       if (response.data) {
-        setAttendance(response.data);
         setMessage("✓ Clocked in successfully!");
         setTimeout(() => setMessage(""), 3000);
+        fetchTodayAttendance();
       }
     } catch (error) {
       console.error("Clock in error:", error);
@@ -111,11 +111,12 @@ const EmployeeDashboard = () => {
   const handleClockOut = async () => {
     try {
       setClockOutLoading(true);
-      const response = await employeeApi.clockOut();
+      const coords = await getCurrentPosition();
+      const response = await employeeApi.clockOutGPS(coords.latitude, coords.longitude);
       if (response.data) {
-        setAttendance(response.data);
         setMessage("✓ Clocked out successfully!");
         setTimeout(() => setMessage(""), 3000);
+        fetchTodayAttendance();
       }
     } catch (error) {
       setMessage("✗ " + (error.message || "Failed to clock out"));
@@ -132,19 +133,6 @@ const EmployeeDashboard = () => {
     const ampm = hour >= 12 ? "PM" : "AM";
     const displayHour = hour % 12 || 12;
     return `${displayHour}:${minutes} ${ampm}`;
-  };
-
-  const calculateWorkingHours = (clockIn, clockOut) => {
-    if (!clockIn || !clockOut) return "0h 0m";
-    const [inH, inM] = clockIn.split(":").map(Number);
-    const [outH, outM] = clockOut.split(":").map(Number);
-    const inMinutes = inH * 60 + inM;
-    const outMinutes = outH * 60 + outM;
-    const diff = outMinutes - inMinutes;
-    if (diff < 0) return "0h 0m";
-    const hours = Math.floor(diff / 60);
-    const minutes = diff % 60;
-    return `${hours}h ${minutes}m`;
   };
 
   if (!user) return (
@@ -217,21 +205,21 @@ const EmployeeDashboard = () => {
                   </div>
                   <div className="text-center p-4 bg-green-50 rounded-lg">
                     <p className="text-gray-500 text-sm mb-2">Working Hours</p>
-                    <p className="text-3xl font-bold text-green-600">{calculateWorkingHours(attendance?.clockInTime, attendance?.clockOutTime)}</p>
+                    <p className="text-3xl font-bold text-green-600">{formatMinutes(attendance?.totalWorkingMinutes || 0, isClockedIn)}</p>
                   </div>
                 </div>
                 <div className="flex gap-3">
                   <button 
                     onClick={handleClockIn}
-                    disabled={clockInLoading || (attendance && attendance.clockInTime)}
+                    disabled={clockInLoading || isClockedIn}
                     className="flex-1 bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg hover:bg-blue-600 transition flex items-center justify-center gap-2 font-semibold">
-                    <ClockIcon size={20} /> {clockInLoading ? "Clocking in..." : "Clock In"}
+                    <ClockIcon size={20} /> {clockInLoading ? "Getting location..." : "Clock In"}
                   </button>
                   <button 
                     onClick={handleClockOut}
-                    disabled={clockOutLoading || !attendance?.clockInTime || attendance?.clockOutTime}
+                    disabled={clockOutLoading || !isClockedIn}
                     className="flex-1 bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-gray-400 hover:bg-gray-300 hover:text-gray-500 py-3 px-4 rounded-lg flex items-center justify-center gap-2 font-semibold transition">
-                    <ClockIcon size={20} /> {clockOutLoading ? "Clocking out..." : "Clock Out"}
+                    <ClockIcon size={20} /> {clockOutLoading ? "Getting location..." : "Clock Out"}
                   </button>
                 </div>
               </>

@@ -107,10 +107,10 @@ public class AuthService {
                 }
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtUtil.generateToken(authentication);
-
         Employee employee = employeeRepo.findByEmailIgnoreCase(normalizedEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String jwt = jwtUtil.generateToken(authentication, employee.getId());
 
         try {
             SessionLog session = new SessionLog();
@@ -380,6 +380,16 @@ public class AuthService {
                 return result;
         }
 
+        /**
+         * Pushes the currently authenticated user's record to the Employee_Backend.
+         * Called by Employee_Backend itself when it receives a request from a user
+         * it doesn't have yet (e.g. the login-time sync failed).
+         */
+        @org.springframework.transaction.annotation.Transactional(readOnly = true)
+        public boolean syncCurrentEmployeeToEmployeeBackend() {
+                return syncService.syncToEmployeeBackend(getCurrentEmployee());
+        }
+
         public boolean checkUserExists(String email) {
                 String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
                 return employeeRepo.findByEmailIgnoreCase(normalizedEmail).isPresent();
@@ -390,6 +400,8 @@ public class AuthService {
                 return userRepo.findByEmailIgnoreCase(normalizedEmail).isPresent();
         }
 
+        // Transactional so each employee's lazy company/department can be read into the sync payload
+        @org.springframework.transaction.annotation.Transactional(readOnly = true)
         public void syncAllEmployees() {
                  System.out.println("[SYNC] Starting manual sync of all employees to other backends...");
                  employeeRepo.findAll().forEach(employee -> {

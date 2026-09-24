@@ -52,6 +52,7 @@ public class AttendanceService {
 
         Attendance attendance = new Attendance();
         attendance.setEmployee(employee);
+        attendance.setUserId(employee.getUserId());
         attendance.setDate(today);
         attendance.setClockInTime(clockInTime != null ? clockInTime : LocalTime.now());
         attendance.setAttendanceType(Attendance.AttendanceType.MANUAL);
@@ -85,6 +86,7 @@ public class AttendanceService {
 
         Attendance attendance = new Attendance();
         attendance.setEmployee(employee);
+        attendance.setUserId(employee.getUserId());
         attendance.setDate(today);
         attendance.setClockInTime(LocalTime.now());
         attendance.setClockInLocation(location);

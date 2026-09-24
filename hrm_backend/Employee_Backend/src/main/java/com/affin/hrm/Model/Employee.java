@@ -26,6 +26,10 @@ public class Employee {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** The user's id in User_Backend (hrm_db_user.employees.id) — the cross-service identity. */
+    @Column(name = "user_id", unique = true)
+    private Long userId;
+
     @Column(nullable = false, unique = true)
     private String employeeId;
 

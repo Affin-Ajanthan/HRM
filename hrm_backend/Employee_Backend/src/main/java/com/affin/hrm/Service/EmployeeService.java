@@ -28,6 +28,8 @@ import java.util.stream.Collectors;
 public class EmployeeService {
 
     private static final Logger log = LoggerFactory.getLogger(EmployeeService.class);
+    private static final String DEFAULT_COMPANY_NAME = "Default Company";
+    private static final String DEFAULT_COMPANY_REG = "DEFAULT-REG-0001";
 
     private final EmployeeRepository employeeRepository;
     private final CompanyRepository companyRepository;
@@ -167,69 +169,86 @@ public class EmployeeService {
     /**
      * Sync employee from another microservice (e.g., User_Backend).
      */
+    /**
+     * Upserts an employee pushed from User_Backend. The incoming "id" is User_Backend's
+     * id, so it is stored as userId and never used as this database's primary key;
+     * company and department ids belong to another database too, so those are
+     * resolved by registration number / name instead.
+     */
     public Employee saveEmployee(Employee employee) {
         String normalizedEmail = employee.getEmail() != null ? employee.getEmail().trim().toLowerCase() : null;
         if (normalizedEmail == null || normalizedEmail.isBlank()) {
             throw new BusinessException("Employee email is required");
         }
 
-        Employee existing = employeeRepository.findByEmailIgnoreCase(normalizedEmail).orElse(null);
+        Long userId = employee.getUserId() != null ? employee.getUserId() : employee.getId();
+        employee.setId(null);
+        employee.setUserId(userId);
+
+        Employee existing = (userId != null ? employeeRepository.findByUserId(userId) : java.util.Optional.<Employee>empty())
+                .or(() -> employeeRepository.findByEmailIgnoreCase(normalizedEmail))
+                .orElse(null);
         Company company = getOrCreateCompany(employee);
         Department department = getOrCreateDepartment(employee, company);
 
         if (existing != null) {
+            existing.setUserId(userId);
+            existing.setEmail(normalizedEmail);
             existing.setFullName(employee.getFullName());
             if (employee.getPassword() != null && !employee.getPassword().isBlank()) {
                 existing.setPassword(employee.getPassword());
             }
-            existing.setEmployeeId(employee.getEmployeeId());
+            if (employee.getEmployeeId() != null) existing.setEmployeeId(employee.getEmployeeId());
             existing.setNic(employee.getNic());
             existing.setDob(employee.getDob());
             existing.setAddress(employee.getAddress());
             existing.setPhone(employee.getPhone());
             existing.setGender(employee.getGender());
-            existing.setRole(employee.getRole());
-            existing.setStatus(employee.getStatus());
+            if (employee.getRole() != null) existing.setRole(employee.getRole());
+            if (employee.getStatus() != null) existing.setStatus(employee.getStatus());
             existing.setDesignation(employee.getDesignation());
             existing.setJoiningDate(employee.getJoiningDate());
             existing.setCompany(company);
             existing.setDepartment(department);
-            log.info("Updated existing employee via sync: {}", normalizedEmail);
+            log.info("Updated existing employee via sync: {} (userId {})", normalizedEmail, userId);
             return employeeRepository.save(existing);
         } else {
             employee.setEmail(normalizedEmail);
             employee.setCompany(company);
             employee.setDepartment(department);
+            if (employee.getEmployeeId() == null) employee.setEmployeeId("EMP-U" + userId);
+            if (employee.getPassword() == null || employee.getPassword().isBlank()) {
+                // Credentials live in User_Backend; this column is only kept for the legacy local login.
+                employee.setPassword("EXTERNAL_AUTH");
+            }
             if (employee.getStatus() == null) employee.setStatus(Employee.EmployeeStatus.ACTIVE);
             if (employee.getRole() == null) employee.setRole(Employee.Role.EMPLOYEE);
-            log.info("Created new employee via sync: {}", normalizedEmail);
+            log.info("Created new employee via sync: {} (userId {})", normalizedEmail, userId);
             return employeeRepository.save(employee);
         }
     }
 
     private Company getOrCreateCompany(Employee employee) {
-        if (employee.getCompany() != null && employee.getCompany().getId() != null) {
-            Company found = companyRepository.findById(employee.getCompany().getId()).orElse(null);
-            if (found != null) return found;
-        }
-        return companyRepository.findByRegistrationNumber("DEFAULT-REG-0001")
+        Company incoming = employee.getCompany();
+        String regNumber = incoming != null && incoming.getRegistrationNumber() != null
+                ? incoming.getRegistrationNumber() : DEFAULT_COMPANY_REG;
+        return companyRepository.findByRegistrationNumber(regNumber)
+                .or(() -> incoming != null && incoming.getCompanyName() != null
+                        ? companyRepository.findByCompanyName(incoming.getCompanyName())
+                        : java.util.Optional.empty())
                 .orElseGet(() -> {
                     Company c = new Company();
-                    c.setCompanyName(employee.getCompany() != null && employee.getCompany().getCompanyName() != null
-                            ? employee.getCompany().getCompanyName() : "Default Company");
-                    c.setRegistrationNumber("DEFAULT-REG-0001");
+                    c.setCompanyName(incoming != null && incoming.getCompanyName() != null
+                            ? incoming.getCompanyName() : DEFAULT_COMPANY_NAME);
+                    c.setRegistrationNumber(regNumber);
                     c.setStatus(Company.CompanyStatus.APPROVED);
                     return companyRepository.save(c);
                 });
     }
 
     private Department getOrCreateDepartment(Employee employee, Company company) {
-        if (employee.getDepartment() != null && employee.getDepartment().getId() != null) {
-            Department found = departmentRepository.findById(employee.getDepartment().getId()).orElse(null);
-            if (found != null) return found;
-        }
         String deptName = employee.getDepartment() != null && employee.getDepartment().getName() != null
-                ? employee.getDepartment().getName() : "General";
+                ? employee.getDepartment().getName().trim() : "General";
         return departmentRepository.findByCompanyIdAndName(company.getId(), deptName)
                 .orElseGet(() -> {
                     Department d = new Department();

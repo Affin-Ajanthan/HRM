@@ -29,6 +29,10 @@ public class Attendance {
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
+    /** User_Backend id of the employee, stored so records can be traced to the login account. */
+    @Column(name = "user_id")
+    private Long userId;
+
     @Column(nullable = false)
     private LocalDate date;
 

@@ -1,5 +1,6 @@
 package com.affin.hrm.service;
 
+import com.affin.hrm.config.AuthenticatedUser;
 import com.affin.hrm.config.JwtUtil;
 import com.affin.hrm.dto.AuthRequest;
 import com.affin.hrm.dto.AuthResponse;
@@ -14,12 +15,17 @@ import com.affin.hrm.repository.DepartmentRepository;
 import com.affin.hrm.repository.EmployeeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.LocalDate;
 
@@ -39,6 +45,9 @@ public class AuthService {
     private final DepartmentRepository departmentRepository;
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
+
+    @Value("${service.user-url:http://localhost:5004}")
+    private String userServiceUrl;
 
     public AuthService(AuthenticationManager authenticationManager,
                        EmployeeRepository employeeRepository,
@@ -89,11 +98,59 @@ public class AuthService {
         );
     }
 
+    /**
+     * Resolves the logged-in user's employee record in this database. Users log in
+     * through User_Backend, so the JWT's userId claim is the primary key used here,
+     * with email as a fallback for older tokens. If the record hasn't been synced yet,
+     * it is pulled from User_Backend on the spot.
+     */
     public Employee getCurrentEmployee() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = normalizeEmail(authentication.getName());
-        return employeeRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee", "email", email));
+        Long userId = authentication.getPrincipal() instanceof AuthenticatedUser user ? user.userId() : null;
+
+        Employee employee = findLocalEmployee(userId, email);
+        if (employee == null && pullCurrentUserFromUserService()) {
+            employee = findLocalEmployee(userId, email);
+        }
+        if (employee == null) {
+            throw new ResourceNotFoundException("Employee", "email", email);
+        }
+        if (userId != null && employee.getUserId() == null) {
+            employee.setUserId(userId);
+            employee = employeeRepository.save(employee);
+        }
+        return employee;
+    }
+
+    private Employee findLocalEmployee(Long userId, String email) {
+        if (userId != null) {
+            Employee byUserId = employeeRepository.findByUserId(userId).orElse(null);
+            if (byUserId != null) return byUserId;
+        }
+        return employeeRepository.findByEmailIgnoreCase(email).orElse(null);
+    }
+
+    /** Asks User_Backend to push the caller's record here, authenticating with the caller's own token. */
+    private boolean pullCurrentUserFromUserService() {
+        if (!(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs)) {
+            return false;
+        }
+        String authHeader = attrs.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return false;
+        }
+        try {
+            RestClient.create(userServiceUrl).post()
+                    .uri("/api/auth/sync-me")
+                    .header(HttpHeaders.AUTHORIZATION, authHeader)
+                    .retrieve()
+                    .toBodilessEntity();
+            return true;
+        } catch (Exception e) {
+            log.warn("Could not pull current user from User_Backend: {}", e.getMessage());
+            return false;
+        }
     }
 
     public Employee register(RegisterRequest request) {

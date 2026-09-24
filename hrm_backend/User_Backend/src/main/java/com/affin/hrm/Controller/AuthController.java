@@ -98,6 +98,18 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/sync-me")
+    public ResponseEntity<ApiResponse<String>> syncMe() {
+        try {
+            if (!authService.syncCurrentEmployeeToEmployeeBackend()) {
+                return ResponseEntity.status(502).body(ApiResponse.error("Employee service did not accept the sync"));
+            }
+            return ResponseEntity.ok(ApiResponse.success("Synced", "Sync completed"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Sync failed: " + e.getMessage()));
+        }
+    }
+
     @PostMapping("/sync-all")
     public ResponseEntity<ApiResponse<String>> syncAll() {
         try {

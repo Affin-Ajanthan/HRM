@@ -1,0 +1,79 @@
+package com.affin.hrm.controller;
+
+import com.affin.hrm.dto.ApiResponse;
+import com.affin.hrm.dto.EmploymentTypeDTO;
+import com.affin.hrm.dto.LeaveAllocationDTO;
+import com.affin.hrm.dto.LeaveTypeDTO;
+import com.affin.hrm.model.Employee;
+import com.affin.hrm.service.AuthService;
+import com.affin.hrm.service.LeaveConfigService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * HR leave configuration: leave types, employment types and leave entitlements per job role.
+ */
+@RestController
+@RequestMapping("/api/hr")
+@PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER')")
+public class LeaveConfigController {
+
+    private final LeaveConfigService leaveConfigService;
+    private final AuthService authService;
+
+    public LeaveConfigController(LeaveConfigService leaveConfigService, AuthService authService) {
+        this.leaveConfigService = leaveConfigService;
+        this.authService = authService;
+    }
+
+    @GetMapping("/leave-types")
+    public ResponseEntity<ApiResponse<List<LeaveTypeDTO>>> getLeaveTypes() {
+        Employee hr = authService.getCurrentEmployee();
+        return ResponseEntity.ok(ApiResponse.success(leaveConfigService.getLeaveTypes(hr.getCompany().getId())));
+    }
+
+    /** Body: { "names": ["Sick Leave", "Annual Leave", ...] } */
+    @PostMapping("/leave-types")
+    public ResponseEntity<ApiResponse<List<LeaveTypeDTO>>> createLeaveTypes(@RequestBody Map<String, List<String>> body) {
+        Employee hr = authService.getCurrentEmployee();
+        List<LeaveTypeDTO> created = leaveConfigService.createLeaveTypes(body.get("names"), hr);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(created, created.size() + " leave type(s) added"));
+    }
+
+    @GetMapping("/employment-types")
+    public ResponseEntity<ApiResponse<List<EmploymentTypeDTO>>> getEmploymentTypes() {
+        Employee hr = authService.getCurrentEmployee();
+        return ResponseEntity.ok(ApiResponse.success(leaveConfigService.getEmploymentTypes(hr.getCompany().getId())));
+    }
+
+    /** Body: { "names": ["Full-Time", "Internship", ...] } */
+    @PostMapping("/employment-types")
+    public ResponseEntity<ApiResponse<List<EmploymentTypeDTO>>> createEmploymentTypes(@RequestBody Map<String, List<String>> body) {
+        Employee hr = authService.getCurrentEmployee();
+        List<EmploymentTypeDTO> created = leaveConfigService.createEmploymentTypes(body.get("names"), hr);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(created, created.size() + " employment type(s) added"));
+    }
+
+    @GetMapping("/leave-allocations")
+    public ResponseEntity<ApiResponse<List<LeaveAllocationDTO>>> getAllocations(
+            @RequestParam(required = false) Long departmentId) {
+        Employee hr = authService.getCurrentEmployee();
+        return ResponseEntity.ok(ApiResponse.success(
+                leaveConfigService.getAllocations(hr.getCompany().getId(), departmentId)));
+    }
+
+    @PostMapping("/leave-allocations")
+    public ResponseEntity<ApiResponse<List<LeaveAllocationDTO>>> saveAllocations(
+            @RequestBody LeaveAllocationDTO.SaveRequest request) {
+        Employee hr = authService.getCurrentEmployee();
+        List<LeaveAllocationDTO> saved = leaveConfigService.saveAllocations(request, hr);
+        return ResponseEntity.ok(ApiResponse.success(saved, saved.size() + " leave(s) assigned"));
+    }
+}

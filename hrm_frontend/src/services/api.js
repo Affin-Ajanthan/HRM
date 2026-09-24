@@ -173,6 +173,14 @@ export const hrApi = {
   approveLeave:     (leaveId) => request("POST", `${BASE_URL}/hr/leave/${leaveId}/approve`),
   rejectLeave:      (leaveId, reason) => request("POST", `${BASE_URL}/hr/leave/${leaveId}/reject?reason=${encodeURIComponent(reason)}`),
 
+  // Leave configuration — leave types and per-job-role entitlements (hrm_db_hr)
+  getLeaveTypes:        () => request("GET", `${BASE_URL}/hr/leave-types`),
+  createLeaveTypes:     (names) => request("POST", `${BASE_URL}/hr/leave-types`, { names }),
+  getEmploymentTypes:   () => request("GET", `${BASE_URL}/hr/employment-types`),
+  createEmploymentTypes: (names) => request("POST", `${BASE_URL}/hr/employment-types`, { names }),
+  getLeaveAllocations:  (departmentId) => request("GET", `${BASE_URL}/hr/leave-allocations${departmentId ? `?departmentId=${departmentId}` : ""}`),
+  saveLeaveAllocations: (jobRoleId, allocations) => request("POST", `${BASE_URL}/hr/leave-allocations`, { jobRoleId, allocations }),
+
   // Departments — saved in hrm_db_hr via the HR_Backend (this service owns
   // department + job role data). Only an HR Manager or Admin (guarded by
   // hrsrc's own role checks) can add, update, deactivate a department, or

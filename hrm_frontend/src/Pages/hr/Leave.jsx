@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Filter, Eye, CheckCircle, XCircle, Clock, FileText, X } from "lucide-react";
+import { Search, Filter, Eye, CheckCircle, XCircle, Clock, FileText, X, Plus, Briefcase } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 
 const LeaveManagement = ({ role = "hr" }) => {
@@ -51,6 +51,22 @@ const LeaveManagement = ({ role = "hr" }) => {
     <PageLayout role={role} activePage={role === "admin" ? "Leave" : "Leave Management"}
       title={role === "admin" ? "System-Wide Leave" : "Leave Management"}
       subtitle="Approve and manage employee leave requests"
+      actions={role === "hr" && (
+        <div className="flex items-center gap-2">
+          <button onClick={() => navigate("/hr/leave/types")}
+            className="inline-flex items-center gap-2 bg-gradient-to-br from-teal-400 to-emerald-500 hover:from-teal-500 hover:to-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm shadow-teal-500/20 transition-all duration-200">
+            <Plus size={17} strokeWidth={2.5} /> Add Leave Types
+          </button>
+          <button onClick={() => navigate("/hr/leave/employment-types")}
+            className="inline-flex items-center gap-2 bg-gradient-to-br from-teal-400 to-emerald-500 hover:from-teal-500 hover:to-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm shadow-teal-500/20 transition-all duration-200">
+            <Plus size={17} strokeWidth={2.5} /> Add Employment Type
+          </button>
+          <button onClick={() => navigate("/hr/leave/assign")}
+            className="inline-flex items-center gap-2 bg-gradient-to-br from-teal-400 to-emerald-500 hover:from-teal-500 hover:to-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm shadow-teal-500/20 transition-all duration-200">
+            <Briefcase size={17} strokeWidth={2.5} /> Assign Leaves for Job Roles
+          </button>
+        </div>
+      )}
     >
       <div className="space-y-6">
         {/* Stats */}

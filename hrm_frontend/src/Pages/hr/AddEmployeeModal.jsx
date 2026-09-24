@@ -21,7 +21,7 @@ import {
   Trash2,
   Lock as LockIcon,
 } from "lucide-react";
-import { authApi, userHrApi } from "../../services/api";
+import { authApi, userHrApi, hrApi } from "../../services/api";
 
 // Employee ID prefix is fixed by role — only the number is editable.
 const ROLE_EMPLOYEE_ID_PREFIX = { employee: "EMP", hr: "HR", admin: "SA" };
@@ -79,7 +79,6 @@ const USER_ROLES = [
   },
 ];
 
-const EMPLOYMENT_TYPES = ["Full-time", "Part-time", "Contract", "Internship", "Temporary"];
 const WORK_LOCATIONS = ["Head Office", "Branch Office", "Remote", "Hybrid"];
 
 const EMPTY_FORM = {
@@ -150,6 +149,27 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Employment types HR has defined (hrm_db_hr.employment_types)
+  const [employmentTypes, setEmploymentTypes] = useState([]);
+  const [employmentTypesError, setEmploymentTypesError] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    hrApi.getEmploymentTypes()
+      .then((res) => {
+        setEmploymentTypes((res.data || []).map((t) => t.name));
+        setEmploymentTypesError("");
+      })
+      .catch(() => setEmploymentTypesError("Could not load employment types"));
+  }, [open]);
+
+  // Keep an edited employee's saved type selectable even if it isn't in HR's list
+  const employmentTypeOptions = useMemo(() => {
+    const current = formData.employmentType;
+    return current && !employmentTypes.some((t) => t.toLowerCase() === current.toLowerCase())
+      ? [...employmentTypes, current]
+      : employmentTypes;
+  }, [employmentTypes, formData.employmentType]);
 
   // Reset the wizard every time it's opened fresh
   useEffect(() => {
@@ -847,13 +867,19 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                       }`}
                     >
                       <option value="">Select Type</option>
-                      {EMPLOYMENT_TYPES.map((type) => (
+                      {employmentTypeOptions.map((type) => (
                         <option key={type} value={type}>
                           {type}
                         </option>
                       ))}
                     </select>
                     {errors.employmentType && <FieldError msg={errors.employmentType} />}
+                    {employmentTypesError && <FieldError msg={employmentTypesError} />}
+                    {!employmentTypesError && employmentTypes.length === 0 && (
+                      <p className="text-xs text-amber-600">
+                        No employment types yet. Add them in Leave Management → Add Employment Type.
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">

@@ -19,4 +19,6 @@ public class LeaveTypeDTO {
     private Boolean carryForward;
     private Integer maxCarryForwardDays;
     private Boolean active;
+    private String createdByName;
+    private java.time.LocalDateTime createdAt;
 }

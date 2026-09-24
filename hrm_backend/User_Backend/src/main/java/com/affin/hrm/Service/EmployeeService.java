@@ -50,6 +50,9 @@ public class EmployeeService {
     private SyncService syncService;
 
     @Autowired
+    private EmploymentTypeService employmentTypeService;
+
+    @Autowired
     private LeaveApplicationRepo leaveApplicationRepo;
 
     @Autowired
@@ -123,7 +126,7 @@ public class EmployeeService {
         }
 
         employee.setDesignation(employeeDTO.getDesignation());
-        employee.setEmploymentType(Employee.normalizeEmploymentType(employeeDTO.getEmploymentType()));
+        employee.setEmploymentType(employmentTypeService.resolve(employeeDTO.getEmploymentType(), null));
         employee.setJoiningDate(employeeDTO.getJoiningDate() != null ? employeeDTO.getJoiningDate() : LocalDate.now());
         employee.setStatus(Employee.EmployeeStatus.ACTIVE);
 
@@ -168,7 +171,7 @@ public class EmployeeService {
         }
 
         employee.setDesignation(employeeDTO.getDesignation());
-        employee.setEmploymentType(Employee.normalizeEmploymentType(employeeDTO.getEmploymentType()));
+        employee.setEmploymentType(employmentTypeService.resolve(employeeDTO.getEmploymentType(), employee.getEmploymentType()));
         if (employeeDTO.getJoiningDate() != null) {
             employee.setJoiningDate(employeeDTO.getJoiningDate());
         }

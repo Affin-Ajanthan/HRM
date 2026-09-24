@@ -63,6 +63,9 @@ public class AuthService {
     @Autowired
     private RestTemplate restTemplate;
 
+    @Autowired
+    private EmploymentTypeService employmentTypeService;
+
     private static final String DEFAULT_COMPANY_NAME = "Default Company";
         private static final String DEFAULT_COMPANY_REG = "DEFAULT-REG-0001";
 
@@ -318,7 +321,7 @@ public class AuthService {
                 employee.setAddress(request.getAddress());
                 employee.setPhone(request.getPhone());
                 employee.setDesignation(request.getDesignation());
-                employee.setEmploymentType(Employee.normalizeEmploymentType(request.getEmploymentType()));
+                employee.setEmploymentType(employmentTypeService.resolve(request.getEmploymentType(), null));
                 employee.setJoiningDate(request.getJoiningDate() != null ? request.getJoiningDate() : java.time.LocalDate.now());
                 employee.setCompany(company);
                 employee.setDepartment(department);

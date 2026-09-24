@@ -8,16 +8,18 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 /**
- * LeaveType entity — defines types of leave (Annual, Sick, Casual, etc.).
+ * An employment arrangement HR has defined for the company (Full-Time, Internship, ...).
+ * Job role leave entitlements are set per employment type.
  */
 @Entity
-@Table(name = "leave_types")
+@Table(name = "employment_types")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"company"})
 @EqualsAndHashCode(of = "id")
-public class LeaveType {
+public class EmploymentType {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,28 +28,16 @@ public class LeaveType {
     @Column(nullable = false)
     private String name;
 
-    private String description;
-
-    @Column(nullable = false)
-    private Integer defaultDaysPerYear;
-
-    // Existing NOT NULL column in leave_types
-    @Column(nullable = false)
-    private Boolean requiresApproval = true;
-
-    /** HR user (employees.id in hrm_db_hr) who added this leave type, and their name at the time. */
-    private Long createdById;
-    private String createdByName;
-
-    private Boolean carryForward = false;
-    private Integer maxCarryForwardDays = 0;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company;
 
     @Column(nullable = false)
     private Boolean active = true;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "company_id")
-    private Company company;
+    /** HR user (employees.id in hrm_db_hr) who added it, and their name at the time. */
+    private Long createdById;
+    private String createdByName;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

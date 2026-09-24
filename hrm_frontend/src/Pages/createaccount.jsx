@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import heroImg from "../assets/hrm-hero-illustration.png";
 import { 
   Eye, EyeOff, Mail, Lock, User, Check, X, Building, 
@@ -6,7 +6,7 @@ import {
   Briefcase, Users
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { authApi } from "../services/api";
+import { authApi, hrApi } from "../services/api";
 
 // Employee ID prefix is fixed by role — only the number is editable.
 // Each role keeps its own separate numbering sequence (EMP-001, HR-001, SA-001 are distinct).
@@ -70,13 +70,14 @@ const CreateAccount = () => {
     "Customer Support"
   ];
 
-  const employmentTypes = [
-    "Full-time",
-    "Part-time",
-    "Contract",
-    "Internship",
-    "Temporary"
-  ];
+  // Employment types HR has defined (hrm_db_hr.employment_types)
+  const [employmentTypes, setEmploymentTypes] = useState([]);
+  const [employmentTypesError, setEmploymentTypesError] = useState("");
+  useEffect(() => {
+    hrApi.getEmploymentTypes()
+      .then(res => setEmploymentTypes((res.data || []).map(t => t.name)))
+      .catch(() => setEmploymentTypesError("Could not load employment types"));
+  }, []);
 
   // New: User roles with descriptions and permissions
   const userRoles = [
@@ -659,6 +660,12 @@ const CreateAccount = () => {
                     <X className="w-4 h-4" />
                     {errors.employmentType}
                   </p>
+                )}
+                {employmentTypesError && (
+                  <p className="text-red-500 text-sm">{employmentTypesError}</p>
+                )}
+                {!employmentTypesError && employmentTypes.length === 0 && (
+                  <p className="text-amber-600 text-xs">No employment types yet. HR can add them in Leave Management → Add Employment Type.</p>
                 )}
               </div>
 

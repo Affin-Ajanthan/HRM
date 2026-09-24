@@ -55,8 +55,8 @@ public class Employee {
 
     private String designation;
 
-    // Full-time, Part-time, Contract, Internship, Temporary (see EMPLOYMENT_TYPES)
-    @Column(name = "employment_type", length = 30)
+    // One of the employment types HR defines (hrm_db_hr.employment_types), stored by name
+    @Column(name = "employment_type", length = 100)
     private String employmentType;
 
     private LocalDate joiningDate;
@@ -76,20 +76,6 @@ public class Employee {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
-
-    public static final java.util.List<String> EMPLOYMENT_TYPES =
-            java.util.List.of("Full-time", "Part-time", "Contract", "Internship", "Temporary");
-
-    /** Returns the canonical value, null when blank, or throws when not one of EMPLOYMENT_TYPES. */
-    public static String normalizeEmploymentType(String value) {
-        if (value == null || value.isBlank()) return null;
-        String v = value.trim();
-        return EMPLOYMENT_TYPES.stream()
-                .filter(t -> t.equalsIgnoreCase(v))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Invalid employment type '" + value + "'. Allowed: " + String.join(", ", EMPLOYMENT_TYPES)));
-    }
 
     public enum Gender {
         MALE, FEMALE, OTHER

@@ -22,6 +22,10 @@ import { PageLayout } from "../../components/PageLayout";
 import NotificationPopup from "../../components/NotificationPopup.jsx";
 import { hrApi } from "../../services/api";
 
+// Strips the "400: " style status prefix that the API helper adds to messages.
+const cleanError = (error) =>
+  String(error?.message || "").replace(/^\d{3}:\s*/, "").trim();
+
 const Department = () => {
   const navigate = useNavigate();
 
@@ -42,6 +46,7 @@ const Department = () => {
   const [openMenu, setOpenMenu] = useState(null);
 
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -125,6 +130,7 @@ const Department = () => {
     });
 
     setEditingDepartment(null);
+    setFormError("");
   };
 
   const openCreateForm = () => {
@@ -140,6 +146,7 @@ const Department = () => {
   };
 
   const handleDepartmentChange = (field, value) => {
+    setFormError("");
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -173,6 +180,7 @@ const Department = () => {
   };
 
   const updateJobRole = (index, field, value) => {
+    setFormError("");
     setFormData((prev) => ({
       ...prev,
       jobRoles: prev.jobRoles.map((role, i) =>
@@ -192,18 +200,56 @@ const Department = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError("");
 
     if (!formData.name.trim()) {
+      setFormError("Department name is required.");
       return;
     }
 
     if (!formData.shortCode.trim()) {
+      setFormError("Short code is required.");
       return;
     }
 
-    const validJobRoles = formData.jobRoles.filter(
-      (role) => role.jobTitle.trim() && role.basicSalary !== ""
-    );
+    // Job roles: a completely empty row is ignored, but a half-filled row is
+    // reported — it is never silently dropped (that is what used to make job
+    // roles "not save" when the salary was left blank).
+    const jobRolesToSave = [];
+    const seenTitles = new Set();
+
+    for (let i = 0; i < formData.jobRoles.length; i++) {
+      const role = formData.jobRoles[i];
+      const title = (role.jobTitle || "").trim();
+      const salaryText = String(role.basicSalary ?? "").trim();
+
+      if (!title && !salaryText) continue;
+
+      if (!title) {
+        setFormError(`Job Role ${i + 1}: please enter a job title.`);
+        return;
+      }
+
+      if (salaryText === "") {
+        setFormError(`Job Role ${i + 1} (${title}): please enter the basic salary.`);
+        return;
+      }
+
+      const salary = Number(salaryText);
+      if (Number.isNaN(salary) || salary < 0) {
+        setFormError(`Job Role ${i + 1} (${title}): basic salary must be a valid number.`);
+        return;
+      }
+
+      const key = title.toLowerCase();
+      if (seenTitles.has(key)) {
+        setFormError(`Job title "${title}" is listed more than once for this department.`);
+        return;
+      }
+      seenTitles.add(key);
+
+      jobRolesToSave.push({ jobTitle: title, basicSalary: salary });
+    }
 
     setSaving(true);
 
@@ -212,12 +258,10 @@ const Department = () => {
         name: formData.name.trim(),
         shortCode: formData.shortCode.trim().toUpperCase(),
         description: formData.description.trim() || null,
-
-        jobRoles: validJobRoles.map((role) => ({
-          jobTitle: role.jobTitle.trim(),
-          basicSalary: Number(role.basicSalary),
-        })),
+        jobRoles: jobRolesToSave,
       };
+
+      let savedDepartment = null;
 
       if (editingDepartment) {
         const response = await hrApi.updateDepartment(
@@ -225,28 +269,31 @@ const Department = () => {
           payload
         );
 
-        if (response?.data) {
-          setDepartments((prev) =>
-            prev.map((department) =>
-              department.id === editingDepartment.id
-                ? response.data
-                : department
-            )
-          );
-        }
+        savedDepartment = response?.data || null;
       } else {
         const response = await hrApi.createDepartment(payload);
-
-        if (response?.data) {
-          setDepartments((prev) => [...prev, response.data]);
-        }
+        savedDepartment = response?.data || null;
       }
 
+      // Re-load from the database so the list shows exactly what was stored.
       await fetchDepartments();
+
+      // Double-check the job roles really reached the database.
+      const storedCount = savedDepartment?.jobRoles?.length;
+      if (savedDepartment && storedCount !== undefined && storedCount !== jobRolesToSave.length) {
+        alert(
+          `Department saved, but only ${storedCount} of ${jobRolesToSave.length} job role(s) were stored. ` +
+          "Please open the department and check its job roles."
+        );
+      }
+
       closeForm();
     } catch (error) {
       console.error("Failed to save department:", error);
-      alert(error.message || "Failed to save department to database. Please check your backend connection.");
+      setFormError(
+        cleanError(error) ||
+        "Failed to save department to database. Please check your backend connection."
+      );
     } finally {
       setSaving(false);
     }
@@ -311,7 +358,9 @@ const Department = () => {
       setDeleteDepartment(null);
     } catch (error) {
       console.error("Failed to delete department:", error);
-      alert(error.message || "Failed to delete department.");
+      alert(cleanError(error) || "Failed to delete department.");
+      setDeleteDepartment(null);
+      fetchDepartments();
     }
   };
 
@@ -797,62 +846,6 @@ const Department = () => {
                         >
                           <Trash2 size={16} />
                         </button>
-
-                        {/* Side Menu Button Dropdown */}
-                        <div className="relative">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setOpenMenu(
-                                openMenu === department.id
-                                  ? null
-                                  : department.id
-                              )
-                            }
-                            title="More Options"
-                            aria-label="More Options"
-                            className={`
-                              h-8 w-8
-                              rounded-lg
-                              flex items-center justify-center
-                              transition-colors
-                              ${
-                                openMenu === department.id
-                                  ? "text-blue-600 bg-blue-50"
-                                  : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-                              }
-                            `}
-                          >
-                            <MoreVertical size={16} />
-                          </button>
-
-                          {openMenu === department.id && (
-                            <>
-                              <div
-                                className="fixed inset-0 z-40"
-                                onClick={() => setOpenMenu(null)}
-                              />
-                              <DepartmentMenu
-                                openUpwards={
-                                  filteredDepartments.length > 2 &&
-                                  index >= filteredDepartments.length - 2
-                                }
-                                onView={() => {
-                                  setSelectedDepartment(department);
-                                  setOpenMenu(null);
-                                }}
-                                onEdit={() => {
-                                  handleEdit(department);
-                                  setOpenMenu(null);
-                                }}
-                                onDelete={() => {
-                                  setDeleteDepartment(department);
-                                  setOpenMenu(null);
-                                }}
-                              />
-                            </>
-                          )}
-                        </div>
 
                       </div>
 
@@ -1449,6 +1442,16 @@ const Department = () => {
 
               </div>
 
+              {formError && (
+                <div
+                  role="alert"
+                  className="mx-6 mb-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium flex items-start gap-2"
+                >
+                  <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                  <span>{formError}</span>
+                </div>
+              )}
+
               {/* Modal Footer */}
               <div className="
                 px-6 py-4
@@ -1589,8 +1592,20 @@ const Department = () => {
                   <span className="font-semibold text-slate-700">
                     {deleteDepartment.name}
                   </span>
-                  ? This action cannot be undone.
+                  ? This also removes its{" "}
+                  {deleteDepartment.jobRoleCount ??
+                    deleteDepartment.jobRoles?.length ??
+                    0}{" "}
+                  job role(s) and cannot be undone.
                 </p>
+
+                {(deleteDepartment.employeeCount || 0) > 0 && (
+                  <p className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    {deleteDepartment.employeeCount} employee(s) are still
+                    assigned to this department. Reassign or remove them first,
+                    then delete the department.
+                  </p>
+                )}
               </div>
 
             </div>
@@ -1621,7 +1636,10 @@ const Department = () => {
 
               <button
                 onClick={handleDelete}
+                disabled={(deleteDepartment.employeeCount || 0) > 0}
                 className="
+                  disabled:opacity-40
+                  disabled:cursor-not-allowed
                   px-4 py-2.5
                   rounded-xl
                   bg-red-600
@@ -1662,10 +1680,10 @@ const SummaryCard = ({
   title,
   value,
   description,
+  className = "",
 }) => {
   return (
-    <div className="
-        bg-gradient-to-br from-teal-400 to-emerald-500
+    <div className={`
         rounded-2xl
         border border-slate-200
         p-5
@@ -1673,7 +1691,8 @@ const SummaryCard = ({
         hover:shadow-md
         transition-shadow
         text-white
-      ">
+        ${className || "bg-gradient-to-br from-teal-400 to-emerald-500"}
+      `}>
 
       <div className={icon ? "flex items-start justify-between" : ""}>
 
@@ -1684,7 +1703,7 @@ const SummaryCard = ({
             font-semibold
             uppercase
             tracking-wider
-            text-slate-500
+            text-white
           ">
             {title}
           </p>
@@ -1693,7 +1712,7 @@ const SummaryCard = ({
             mt-2
             text-2xl
             font-bold
-            text-slate-900
+            text-white
           ">
             {value}
           </p>
@@ -1702,7 +1721,7 @@ const SummaryCard = ({
             <p className="
               mt-1
               text-xs
-              text-slate-400
+              text-white/80
             ">
               {description}
             </p>
@@ -1714,8 +1733,8 @@ const SummaryCard = ({
           <div className="
             h-10 w-10
             rounded-xl
-            bg-blue-50
-            text-blue-600
+            bg-white/20
+            text-white
             flex items-center
             justify-center
           ">
@@ -1740,7 +1759,7 @@ const TableHeader = ({ children, className = "" }) => {
       font-bold
       uppercase
       tracking-wider
-      text-slate-500
+      text-white
       ${className}
     `}>
       {children}

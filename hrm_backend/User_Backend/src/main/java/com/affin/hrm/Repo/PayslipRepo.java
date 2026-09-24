@@ -13,6 +13,7 @@ import java.util.Optional;
 public interface PayslipRepo extends JpaRepository<Payslip, Long> {
     Optional<Payslip> findByEmployeeIdAndMonthAndYear(Long employeeId, Integer month, Integer year);
     List<Payslip> findByEmployeeId(Long employeeId);
+    void deleteByEmployeeId(Long employeeId);
     List<Payslip> findByEmployeeIdOrderByYearDescMonthDesc(Long employeeId);
     
     @Query("SELECT p FROM Payslip p WHERE p.employee.company.id = :companyId AND p.month = :month AND p.year = :year")

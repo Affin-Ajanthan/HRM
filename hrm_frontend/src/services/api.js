@@ -148,6 +148,7 @@ export const userHrApi = {
   getEmployee:        (id) => request("GET", `${AUTH_URL}/hr/employees/${id}`),
   updateEmployee:     (id, data) => request("PUT", `${AUTH_URL}/hr/employees/${id}`, data),
   deactivateEmployee: (id) => request("PUT", `${AUTH_URL}/hr/employees/${id}/deactivate`),
+  deleteEmployee:     (id) => request("DELETE", `${AUTH_URL}/hr/employees/${id}`),
 };
 
 // ─── HR DATA ─────────────────────────────────────────────────
@@ -179,6 +180,7 @@ export const hrApi = {
   createDepartment:   (data) => request("POST", `${BASE_URL}/hr/departments`, data),
   updateDepartment:   (id, data) => request("PUT", `${BASE_URL}/hr/departments/${id}`, data),
   deleteDepartment:   (id) => request("DELETE", `${BASE_URL}/hr/departments/${id}`),
+  deactivateDepartment: (id) => request("PUT", `${BASE_URL}/hr/departments/${id}/deactivate`),
   assignDeptManager:  (id, managerId) => request("PUT", `${BASE_URL}/hr/departments/${id}/manager?managerId=${managerId}`),
 
   // Payroll / Salaries

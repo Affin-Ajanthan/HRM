@@ -19,4 +19,8 @@ public interface AuditLogRepo extends JpaRepository<AuditLog, Long> {
                                     @Param("endDate") LocalDateTime endDate);
     
     List<AuditLog> findByActionOrderByCreatedAtDesc(String action);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE AuditLog al SET al.employee = null WHERE al.employee.id = :employeeId")
+    void detachEmployee(@Param("employeeId") Long employeeId);
 }

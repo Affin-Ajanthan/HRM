@@ -12,6 +12,11 @@ import java.util.List;
 @Repository
 public interface LeaveApplicationRepo extends JpaRepository<LeaveApplication, Long> {
     List<LeaveApplication> findByEmployeeId(Long employeeId);
+    void deleteByEmployeeId(Long employeeId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE LeaveApplication la SET la.approvedBy = null WHERE la.approvedBy.id = :employeeId")
+    void clearApprover(@Param("employeeId") Long employeeId);
     List<LeaveApplication> findByEmployeeIdAndStatus(Long employeeId, LeaveApplication.LeaveStatus status);
     
     @Query("SELECT la FROM LeaveApplication la WHERE la.employee.company.id = :companyId AND la.status = :status")

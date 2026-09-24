@@ -36,6 +36,7 @@ public class EmployeeDTO {
     private String departmentName;
     private String role;
     private String designation;
+    private String employmentType;
     private LocalDate joiningDate;
     private LocalDate terminationDate;
     private String status;

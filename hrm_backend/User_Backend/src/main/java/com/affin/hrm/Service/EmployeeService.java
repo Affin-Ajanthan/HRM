@@ -7,6 +7,13 @@ import com.affin.hrm.Model.Employee;
 import com.affin.hrm.Repo.CompanyRepo;
 import com.affin.hrm.Repo.DepartmentRepo;
 import com.affin.hrm.Repo.EmployeeRepo;
+import com.affin.hrm.Repo.LeaveApplicationRepo;
+import com.affin.hrm.Repo.LeaveBalanceRepo;
+import com.affin.hrm.Repo.PayslipRepo;
+import com.affin.hrm.Repo.SalaryRepo;
+import com.affin.hrm.Repo.NotificationRepo;
+import com.affin.hrm.Repo.AuditLogRepo;
+import com.affin.hrm.Repo.SessionLogRepo;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -41,6 +48,27 @@ public class EmployeeService {
 
     @Autowired
     private SyncService syncService;
+
+    @Autowired
+    private LeaveApplicationRepo leaveApplicationRepo;
+
+    @Autowired
+    private LeaveBalanceRepo leaveBalanceRepo;
+
+    @Autowired
+    private PayslipRepo payslipRepo;
+
+    @Autowired
+    private SalaryRepo salaryRepo;
+
+    @Autowired
+    private NotificationRepo notificationRepo;
+
+    @Autowired
+    private AuditLogRepo auditLogRepo;
+
+    @Autowired
+    private SessionLogRepo sessionLogRepo;
 
     public List<EmployeeDTO> getAllEmployeesByCompany(Long companyId) {
         List<Employee> employees = employeeRepo.findByCompanyId(companyId);
@@ -95,6 +123,7 @@ public class EmployeeService {
         }
 
         employee.setDesignation(employeeDTO.getDesignation());
+        employee.setEmploymentType(Employee.normalizeEmploymentType(employeeDTO.getEmploymentType()));
         employee.setJoiningDate(employeeDTO.getJoiningDate() != null ? employeeDTO.getJoiningDate() : LocalDate.now());
         employee.setStatus(Employee.EmployeeStatus.ACTIVE);
 
@@ -139,11 +168,27 @@ public class EmployeeService {
         }
 
         employee.setDesignation(employeeDTO.getDesignation());
+        employee.setEmploymentType(Employee.normalizeEmploymentType(employeeDTO.getEmploymentType()));
+        if (employeeDTO.getJoiningDate() != null) {
+            employee.setJoiningDate(employeeDTO.getJoiningDate());
+        }
 
-        // Update department if provided
+        // Update department: by id when given, otherwise by name (the HR screen sends the name)
         if (employeeDTO.getDepartmentId() != null) {
             Department department = departmentRepo.findById(employeeDTO.getDepartmentId())
                     .orElseThrow(() -> new RuntimeException("Department not found with id: " + employeeDTO.getDepartmentId()));
+            employee.setDepartment(department);
+        } else if (employeeDTO.getDepartmentName() != null && !employeeDTO.getDepartmentName().isBlank()) {
+            String deptName = employeeDTO.getDepartmentName().trim();
+            Company company = employee.getCompany();
+            Department department = departmentRepo.findByCompanyIdAndName(company.getId(), deptName)
+                    .orElseGet(() -> {
+                        Department d = new Department();
+                        d.setName(deptName);
+                        d.setDescription(deptName + " Department");
+                        d.setCompany(company);
+                        return departmentRepo.save(d);
+                    });
             employee.setDepartment(department);
         }
 
@@ -169,6 +214,46 @@ public class EmployeeService {
         // Audit log
         auditService.logAction("DEACTIVATE_EMPLOYEE", "Employee", employee.getId(), 
                 "Deactivated employee: " + employee.getFullName(), employee.getCompany().getId());
+    }
+
+    /**
+     * Permanently deletes an employee and everything that points at them.
+     * HR managers may delete employees and other HR managers, but never an
+     * administrator, and nobody may delete their own account.
+     */
+    public void deleteEmployee(Long id, Employee actor) {
+        Employee employee = employeeRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
+
+        if (actor != null && actor.getId().equals(employee.getId())) {
+            throw new RuntimeException("You cannot delete your own account");
+        }
+        if (actor != null && actor.getRole() == Employee.Role.HR_MANAGER
+                && employee.getRole() == Employee.Role.ADMIN) {
+            throw new RuntimeException("HR managers cannot delete a system administrator");
+        }
+
+        Long companyId = employee.getCompany() != null ? employee.getCompany().getId() : null;
+        String label = employee.getFullName() + " (" + employee.getEmployeeId() + ")";
+
+        // Remove / detach rows that reference this employee so the FK constraints don't block the delete
+        leaveApplicationRepo.clearApprover(id);
+        leaveApplicationRepo.deleteByEmployeeId(id);
+        leaveBalanceRepo.deleteByEmployeeId(id);
+        payslipRepo.deleteByEmployeeId(id);
+        salaryRepo.deleteByEmployeeId(id);
+        notificationRepo.deleteByEmployeeId(id);
+        auditLogRepo.detachEmployee(id);
+        departmentRepo.clearManager(id);
+        sessionLogRepo.deleteByUserId(id);
+
+        employeeRepo.delete(employee);
+        employeeRepo.flush();
+
+        auditService.logAction("DELETE_EMPLOYEE", "Employee", id, "Deleted employee: " + label, companyId);
+
+        // Best-effort removal from the Employee / HR backends
+        syncService.deleteFromAllBackends(id);
     }
 
     public void terminateEmployee(Long id, LocalDate terminationDate) {

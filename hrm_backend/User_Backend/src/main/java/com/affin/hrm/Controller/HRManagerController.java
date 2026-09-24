@@ -82,6 +82,18 @@ public class HRManagerController {
         }
     }
 
+    @DeleteMapping("/employees/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteEmployee(@PathVariable Long id) {
+        try {
+            var currentUser = authService.getCurrentEmployee();
+            employeeService.deleteEmployee(id, currentUser);
+            return ResponseEntity.ok(ApiResponse.success(null, "Employee deleted successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Failed to delete employee: " + e.getMessage()));
+        }
+    }
+
     @PutMapping("/employees/{id}/deactivate")
     public ResponseEntity<ApiResponse<Void>> deactivateEmployee(@PathVariable Long id) {
         try {

@@ -125,6 +125,7 @@ export const employeeApi = {
     request("POST", `${EMPLOYEE_URL}/employee/attendance/adjustment-request?attendanceId=${attendanceId}&reason=${encodeURIComponent(reason)}`),
 
   // Leave
+  getLeaveTypes:    () => request("GET", `${EMPLOYEE_URL}/employee/leave/types`),
   applyLeave:       (data) => request("POST", `${EMPLOYEE_URL}/employee/leave/apply`, data),
   getLeaves:        () => request("GET", `${EMPLOYEE_URL}/employee/leave`),
   cancelLeave:      (leaveId) => request("POST", `${EMPLOYEE_URL}/employee/leave/${leaveId}/cancel`),

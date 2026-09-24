@@ -12,6 +12,7 @@ import java.util.List;
 @Repository
 public interface LeaveApplicationRepository extends JpaRepository<LeaveApplication, Long> {
     List<LeaveApplication> findByEmployeeId(Long employeeId);
+    List<LeaveApplication> findByEmployeeIdOrderByCreatedAtDesc(Long employeeId);
     List<LeaveApplication> findByEmployeeIdAndStatus(Long employeeId, LeaveApplication.LeaveStatus status);
 
     @Query("SELECT la FROM LeaveApplication la WHERE la.employee.company.id = :companyId AND la.status = :status")
@@ -22,11 +23,17 @@ public interface LeaveApplicationRepository extends JpaRepository<LeaveApplicati
     List<LeaveApplication> findByCompanyId(@Param("companyId") Long companyId);
 
     @Query("SELECT la FROM LeaveApplication la WHERE la.employee.id = :employeeId " +
-           "AND la.status = 'APPROVED' " +
+           "AND la.status IN ('PENDING', 'APPROVED') " +
            "AND ((la.startDate <= :endDate AND la.endDate >= :startDate))")
     List<LeaveApplication> findOverlappingLeaves(@Param("employeeId") Long employeeId,
                                                   @Param("startDate") LocalDate startDate,
                                                   @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT COALESCE(SUM(la.numberOfDays), 0) FROM LeaveApplication la WHERE la.employee.id = :employeeId " +
+           "AND la.leaveType.id = :leaveTypeId AND la.status = 'PENDING' AND YEAR(la.startDate) = :year")
+    int sumPendingDays(@Param("employeeId") Long employeeId,
+                       @Param("leaveTypeId") Long leaveTypeId,
+                       @Param("year") int year);
 
     @Query("SELECT COUNT(la) FROM LeaveApplication la WHERE la.employee.company.id = :companyId AND la.status = :status")
     long countByCompanyIdAndStatus(@Param("companyId") Long companyId, @Param("status") LeaveApplication.LeaveStatus status);

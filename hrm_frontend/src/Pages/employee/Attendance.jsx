@@ -1,106 +1,57 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Clock, Calendar, CheckCircle, XCircle, Download, Filter, MapPin } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { employeeApi } from "../../services/api";
-
-const getCurrentPosition = () => {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error("Geolocation is not supported by your browser"));
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => resolve(position.coords),
-      (error) => {
-        let msg = "Unable to retrieve your location";
-        if (error.code === error.PERMISSION_DENIED) msg = "Location permission denied. Please enable location access to clock in/out.";
-        else if (error.code === error.POSITION_UNAVAILABLE) msg = "Location information is unavailable";
-        else if (error.code === error.TIMEOUT) msg = "Location request timed out";
-        reject(new Error(msg));
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  });
-};
+import {
+  getCurrentPosition, formatMinutes, summarizeSessions, groupSessionsByDate, toLocalDateString, useNow,
+} from "../../utils/attendance";
 
 const mapLink = (location) => {
   if (!location) return null;
   return `https://www.google.com/maps?q=${location}`;
 };
 
-const minutesBetween = (inTime, outTime) => {
-  if (!inTime || !outTime) return 0;
-  const [inH, inM] = inTime.split(":").map(Number);
-  const [outH, outM] = outTime.split(":").map(Number);
-  return Math.max(0, (outH * 60 + outM) - (inH * 60 + inM));
-};
+const calculateStats = (days) => {
+  let present = 0, absent = 0, leave = 0, late = 0;
+  let totalMinutes = 0;
 
-const formatMinutes = (totalMinutes) => {
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = Math.round(totalMinutes % 60);
-  return `${hours}h ${minutes}m`;
-};
+  days.forEach(d => {
+    if (d.status === "PRESENT") present++;
+    else if (d.status === "ABSENT") absent++;
+    else if (d.status === "HALF_DAY") leave++;
+    else if (d.status === "LATE") late++;
 
-// Today's sessions (raw API rows) -> a single summary object driving the "Today's Attendance" card.
-const summarizeSessions = (sessions) => {
-  if (!sessions || sessions.length === 0) return null;
-  const sorted = [...sessions].sort((a, b) => (a.clockInTime || "").localeCompare(b.clockInTime || ""));
-  const last = sorted[sorted.length - 1];
-  const totalWorkingMinutes = sorted.reduce((sum, s) => sum + minutesBetween(s.clockInTime, s.clockOutTime), 0);
-  return {
-    ...last,
-    sessions: sorted,
-    totalWorkingMinutes,
-    isClockedIn: !last.clockOutTime,
-  };
-};
-
-// Raw session rows (possibly several per day) -> one summary row per calendar day, most recent day first.
-const groupSessionsByDate = (sessions) => {
-  const byDate = {};
-  (sessions || []).forEach((s) => {
-    if (!byDate[s.date]) byDate[s.date] = [];
-    byDate[s.date].push(s);
+    totalMinutes += d.totalWorkingMinutes || 0;
   });
-  return Object.keys(byDate)
-    .sort()
-    .reverse()
-    .map((date) => {
-      const daySessions = [...byDate[date]].sort((a, b) => (a.clockInTime || "").localeCompare(b.clockInTime || ""));
-      const last = daySessions[daySessions.length - 1];
-      const totalWorkingMinutes = daySessions.reduce((sum, s) => sum + minutesBetween(s.clockInTime, s.clockOutTime), 0);
-      return {
-        date,
-        status: last.status,
-        clockInTime: last.clockInTime,
-        clockOutTime: last.clockOutTime,
-        clockInLocation: last.clockInLocation,
-        clockOutLocation: last.clockOutLocation,
-        totalWorkingMinutes,
-        sessionCount: daySessions.length,
-      };
-    });
+
+  return {
+    totalDays: days.length,
+    present,
+    absent,
+    leave,
+    late,
+    workingHours: (totalMinutes / 60).toFixed(1)
+  };
 };
 
 const Attendance = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  const [attendance, setAttendance] = useState(null);
-  const [attendanceHistory, setAttendanceHistory] = useState([]);
+  // Raw session rows from the API; the summaries below are derived from them on every render
+  // so an open session's working time keeps counting up while the page is open.
+  const [todaySessions, setTodaySessions] = useState([]);
+  const [historySessions, setHistorySessions] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState("current");
   const [loading, setLoading] = useState(true);
   const [clockInLoading, setClockInLoading] = useState(false);
   const [clockOutLoading, setClockOutLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [stats, setStats] = useState({
-    totalDays: 0,
-    present: 0,
-    absent: 0,
-    leave: 0,
-    late: 0,
-    workingHours: "0.0"
-  });
+  const isClockedIn = todaySessions.some((sess) => !sess.clockOutTime);
+  const now = useNow(isClockedIn);
+  const attendance = useMemo(() => summarizeSessions(todaySessions, now), [todaySessions, now]);
+  const attendanceHistory = useMemo(() => groupSessionsByDate(historySessions, now), [historySessions, now]);
+  const stats = useMemo(() => calculateStats(attendanceHistory), [attendanceHistory]);
 
   useEffect(() => {
     const s = localStorage.getItem("user");
@@ -117,9 +68,7 @@ const Attendance = () => {
       setLoading(true);
       // Fetch today's sessions (an employee may clock in/out multiple times a day)
       const todayResponse = await employeeApi.getTodayAttendance();
-      if (Array.isArray(todayResponse.data)) {
-        setAttendance(summarizeSessions(todayResponse.data));
-      }
+      setTodaySessions(Array.isArray(todayResponse.data) ? todayResponse.data : []);
 
       // Fetch attendance history for the month
       const now = new Date();
@@ -127,46 +76,16 @@ const Attendance = () => {
       const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
       const historyResponse = await employeeApi.getAttendanceHistory(
-        startDate.toISOString().split('T')[0],
-        endDate.toISOString().split('T')[0]
+        toLocalDateString(startDate),
+        toLocalDateString(endDate)
       );
-
-      if (historyResponse.data && Array.isArray(historyResponse.data)) {
-        const grouped = groupSessionsByDate(historyResponse.data);
-        setAttendanceHistory(grouped);
-        calculateStats(grouped);
-      }
+      setHistorySessions(Array.isArray(historyResponse.data) ? historyResponse.data : []);
     } catch (error) {
       console.error("Error fetching attendance:", error);
       setMessage("Error loading attendance data");
     } finally {
       setLoading(false);
     }
-  };
-
-  const calculateStats = (days) => {
-    if (!Array.isArray(days)) return;
-
-    let present = 0, absent = 0, leave = 0, late = 0;
-    let totalMinutes = 0;
-
-    days.forEach(d => {
-      if (d.status === "PRESENT") present++;
-      else if (d.status === "ABSENT") absent++;
-      else if (d.status === "HALF_DAY") leave++;
-      else if (d.status === "LATE") late++;
-
-      totalMinutes += d.totalWorkingMinutes || 0;
-    });
-
-    setStats({
-      totalDays: days.length,
-      present,
-      absent,
-      leave,
-      late,
-      workingHours: (totalMinutes / 60).toFixed(1)
-    });
   };
 
   const handleClockIn = async () => {
@@ -176,7 +95,6 @@ const Attendance = () => {
       const coords = await getCurrentPosition();
       const response = await employeeApi.clockInGPS(coords.latitude, coords.longitude);
       if (response.data) {
-        setAttendance(response.data);
         setMessage("✓ Clocked in successfully!");
         setTimeout(() => setMessage(""), 3000);
         fetchAttendanceData();
@@ -197,7 +115,6 @@ const Attendance = () => {
       const coords = await getCurrentPosition();
       const response = await employeeApi.clockOutGPS(coords.latitude, coords.longitude);
       if (response.data) {
-        setAttendance(response.data);
         setMessage("✓ Clocked out successfully!");
         setTimeout(() => setMessage(""), 3000);
         fetchAttendanceData();
@@ -279,7 +196,7 @@ const Attendance = () => {
                 {[
                   { label: "Last Clock In",  value: formatTime(attendance?.clockInTime), bg: "bg-sky-50",    text: "text-sky-600" },
                   { label: "Last Clock Out", value: formatTime(attendance?.clockOutTime), bg: "bg-orange-50", text: "text-orange-600" },
-                  { label: "Working Hours",  value: formatMinutes(attendance?.totalWorkingMinutes || 0), bg: "bg-emerald-50",text: "text-emerald-600" },
+                  { label: "Working Hours",  value: formatMinutes(attendance?.totalWorkingMinutes || 0, isClockedIn), bg: "bg-emerald-50",text: "text-emerald-600" },
                   { label: "Status",         value: !attendance ? "Not Started" : attendance.isClockedIn ? "Clocked In" : "Clocked Out", bg: "bg-violet-50", text: "text-violet-600" },
                 ].map(t => (
                   <div key={t.label} className={`${t.bg} rounded-xl p-4 text-center`}>

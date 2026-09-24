@@ -25,6 +25,14 @@ public class JwtUtil {
     }
 
     public String generateToken(Authentication authentication) {
+        return generateToken(authentication, null);
+    }
+
+    /**
+     * Generates a token that also carries the user's id (employees.id in hrm_db_user)
+     * as the "userId" claim, so other services can key their own data by it.
+     */
+    public String generateToken(Authentication authentication, Long userId) {
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpiration);
@@ -41,6 +49,7 @@ public class JwtUtil {
         String token = Jwts.builder()
                 .setSubject(userDetails.getUsername())
             .claim("role", role)
+                .claim("userId", userId)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)

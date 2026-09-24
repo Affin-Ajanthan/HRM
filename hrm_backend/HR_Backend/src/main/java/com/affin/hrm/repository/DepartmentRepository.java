@@ -19,6 +19,8 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
 
     Optional<Department> findByCompanyIdAndName(Long companyId, String name);
 
+    List<Department> findByCompanyIdAndNameIgnoreCase(Long companyId, String name);
+
     @EntityGraph(attributePaths = {"jobRoles", "manager"})
     Optional<Department> findWithDetailsById(Long id);
 }

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { hrApi, userHrApi } from "../../services/api";
+import AddEmployeeModal from "./AddEmployeeModal";
 
 const Employee = () => {
   const navigate = useNavigate();
@@ -33,34 +34,16 @@ const Employee = () => {
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDeptFilter, setSelectedDeptFilter] = useState("ALL");
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState("asc");
 
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [viewingEmployee, setViewingEmployee] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-
-  // Form State
-  const [formData, setFormData] = useState({
-    fullName: "",
-    email: "",
-    dob: "",
-    phone: "",
-    departmentId: "",
-    departmentName: "",
-    designation: "",
-    employeeId: "",
-    joiningDate: new Date().toISOString().split("T")[0],
-    status: "ACTIVE",
-    gender: "",
-    address: "",
-    password: "Welcome@123",
-  });
 
   // ---------------------------------------------------------
   // AUTHENTICATION
@@ -133,334 +116,34 @@ const Employee = () => {
   }, [user]);
 
   // ---------------------------------------------------------
-  // SELECTED DEPARTMENT FOR FORM
-  // ---------------------------------------------------------
-  const currentDeptObj = useMemo(() => {
-    if (!formData.departmentId) return null;
-
-    return departments.find(
-      (d) =>
-        String(d.id) === String(formData.departmentId)
-    );
-  }, [departments, formData.departmentId]);
-
-  // ---------------------------------------------------------
-  // AVAILABLE JOB ROLES
-  // ---------------------------------------------------------
-  const availableJobRoles = useMemo(() => {
-    if (!currentDeptObj || !currentDeptObj.jobRoles) {
-      return [];
-    }
-
-    return currentDeptObj.jobRoles
-      .map((role) => {
-        if (typeof role === "string") return role;
-
-        return role.jobTitle || role.title || "";
-      })
-      .filter(Boolean);
-  }, [currentDeptObj]);
-
-  // ---------------------------------------------------------
-  // DEPARTMENT CODE
-  // ---------------------------------------------------------
-  const currentDeptCode = useMemo(() => {
-    if (!currentDeptObj) return "";
-
-    return (
-      currentDeptObj.shortCode ||
-      currentDeptObj.code ||
-      currentDeptObj.name.slice(0, 3).toUpperCase()
-    )
-      .trim()
-      .toUpperCase();
-  }, [currentDeptObj]);
-
-  // ---------------------------------------------------------
-  // DEPARTMENT SELECTION HANDLER
-  // ---------------------------------------------------------
-  const handleDepartmentChange = (deptId) => {
-    const selectedDept = departments.find(
-      (d) =>
-        String(d.id) === String(deptId)
-    );
-
-    if (!selectedDept) {
-      setFormData((prev) => ({
-        ...prev,
-        departmentId: "",
-        departmentName: "",
-        designation: "",
-      }));
-
-      return;
-    }
-
-    const code = (
-      selectedDept.shortCode ||
-      selectedDept.code ||
-      selectedDept.name.slice(0, 3).toUpperCase()
-    )
-      .trim()
-      .toUpperCase();
-
-    // Employee ID is simply the department's short code
-    // (e.g. "SE" for Software Engineering, "AI" for AI department) —
-    // no running number is appended.
-    const newEmployeeId = code;
-
-    const roles = selectedDept.jobRoles || [];
-
-    const firstRole =
-      roles.length > 0
-        ? roles[0].jobTitle ||
-        roles[0].title ||
-        ""
-        : "";
-
-    setFormData((prev) => ({
-      ...prev,
-      departmentId: selectedDept.id,
-      departmentName: selectedDept.name,
-      designation: firstRole || "",
-      employeeId: newEmployeeId,
-    }));
-  };
-
-  // ---------------------------------------------------------
-  // FORM RESET
-  // ---------------------------------------------------------
-  const resetForm = () => {
-    setFormData({
-      fullName: "",
-      email: "",
-      dob: "",
-      phone: "",
-      departmentId: "",
-      departmentName: "",
-      designation: "",
-      employeeId: "",
-      joiningDate: new Date()
-        .toISOString()
-        .split("T")[0],
-      status: "ACTIVE",
-      gender: "",
-      address: "",
-      password: "Welcome@123",
-    });
-
-    setEditingEmployee(null);
-  };
-
-  // ---------------------------------------------------------
-  // OPEN CREATE FORM — send HR to the same account-creation wizard
-  // used everywhere else, so new accounts always land in hrm_db_user.
+  // OPEN CREATE FORM — opens the Add Employee popup right on this
+  // page (instead of navigating to a separate page), so new accounts
+  // still land in hrm_db_user via the same auth/register endpoint.
   // ---------------------------------------------------------
   const openCreateForm = () => {
-    navigate("/createaccount");
+    fetchDepartments(); // pick up departments / job roles added since this page loaded
+    setEditingEmployee(null);
+    setShowAddEmployeeModal(true);
   };
 
   // ---------------------------------------------------------
-  // EDIT EMPLOYEE
+  // EDIT EMPLOYEE — opens the same wizard as "Add Employee",
+  // pre-filled with this employee's saved data.
   // ---------------------------------------------------------
   const handleEdit = (employee) => {
+    fetchDepartments();
     setEditingEmployee(employee);
-
-    let matchedDept = null;
-
-    if (employee.departmentId) {
-      matchedDept = departments.find(
-        (d) =>
-          String(d.id) ===
-          String(employee.departmentId)
-      );
-    }
-
-    if (!matchedDept && employee.department) {
-      matchedDept = departments.find(
-        (d) =>
-          d.name.toLowerCase() ===
-          employee.department.toLowerCase() ||
-          String(d.id) ===
-          String(employee.department)
-      );
-    }
-
-    if (!matchedDept && employee.departmentName) {
-      matchedDept = departments.find(
-        (d) =>
-          d.name.toLowerCase() ===
-          employee.departmentName.toLowerCase()
-      );
-    }
-
-    setFormData({
-      fullName: employee.fullName || "",
-      email: employee.email || "",
-      dob:
-        employee.dob ||
-        employee.birthday ||
-        "",
-      phone:
-        employee.phone ||
-        employee.phoneNumber ||
-        "",
-      departmentId: matchedDept
-        ? matchedDept.id
-        : employee.departmentId || "",
-      departmentName: matchedDept
-        ? matchedDept.name
-        : employee.departmentName ||
-        employee.department ||
-        "",
-      designation:
-        employee.designation ||
-        employee.role ||
-        "",
-      employeeId:
-        employee.employeeId || "",
-      joiningDate:
-        employee.joiningDate ||
-        new Date()
-          .toISOString()
-          .split("T")[0],
-      status:
-        employee.status || "ACTIVE",
-      gender: employee.gender || "",
-      address: employee.address || "",
-      password: "Welcome@123",
-    });
-
-    setShowAddForm(true);
+    setShowAddEmployeeModal(true);
   };
 
   // ---------------------------------------------------------
-  // CLOSE FORM
-  // ---------------------------------------------------------
-  const closeForm = () => {
-    if (saving) return;
-
-    resetForm();
-    setShowAddForm(false);
-  };
-
-  // ---------------------------------------------------------
-  // SUBMIT
-  // ---------------------------------------------------------
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!formData.fullName.trim()) {
-      alert(
-        "Please enter the employee's full name."
-      );
-      return;
-    }
-
-    if (!formData.email.trim()) {
-      alert(
-        "Please enter a valid email address."
-      );
-      return;
-    }
-
-    if (!formData.employeeId.trim()) {
-      alert("Please enter an employee ID.");
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      const payload = {
-        employeeId:
-          formData.employeeId
-            .trim()
-            .toUpperCase(),
-
-        fullName:
-          formData.fullName.trim(),
-
-        email:
-          formData.email
-            .trim()
-            .toLowerCase(),
-
-        dob: formData.dob || null,
-
-        phone:
-          formData.phone.trim() || null,
-
-        departmentId:
-          formData.departmentId
-            ? Number(formData.departmentId)
-            : null,
-
-        departmentName:
-          formData.departmentName || null,
-
-        designation:
-          formData.designation.trim() || null,
-
-        joiningDate:
-          formData.joiningDate ||
-          new Date()
-            .toISOString()
-            .split("T")[0],
-
-        status:
-          formData.status || "ACTIVE",
-
-        password:
-          formData.password ||
-          "Welcome@123",
-
-        gender:
-          formData.gender || null,
-
-        address:
-          formData.address || null,
-      };
-
-      if (!editingEmployee) {
-        // New accounts are created via the /createaccount wizard now, not
-        // this modal — it only ever opens through "Edit" going forward.
-        throw new Error("Use Add Users to create a new account.");
-      }
-
-      // departmentId here comes from HR_Backend's own department list, which
-      // is a different table/ID space than hrm_db_user's — omit it so this
-      // update can't silently reassign the employee to the wrong department.
-      await userHrApi.updateEmployee(
-        editingEmployee.id,
-        { ...payload, departmentId: null }
-      );
-
-      await fetchEmployees();
-      closeForm();
-    } catch (error) {
-      console.error(
-        "Failed to save employee:",
-        error
-      );
-
-      alert(
-        error.message ||
-        "Failed to save employee to database."
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ---------------------------------------------------------
-  // DEACTIVATE EMPLOYEE (hrm_db_user has no hard delete, only deactivate)
+  // DELETE EMPLOYEE (permanent, HR / Admin only — enforced by the backend)
   // ---------------------------------------------------------
   const handleDelete = async () => {
     if (!deleteTarget) return;
 
     try {
-      await userHrApi.deactivateEmployee(
+      await userHrApi.deleteEmployee(
         deleteTarget.id
       );
 
@@ -469,13 +152,13 @@ const Employee = () => {
       setDeleteTarget(null);
     } catch (error) {
       console.error(
-        "Failed to deactivate employee:",
+        "Failed to delete employee:",
         error
       );
 
       alert(
         error.message ||
-        "Failed to deactivate employee."
+        "Failed to delete employee."
       );
     }
   };
@@ -629,7 +312,7 @@ const Employee = () => {
             size={17}
             strokeWidth={2.5}
           />
-          Add Users
+          Add Employee
         </button>
       }
     >
@@ -956,7 +639,7 @@ const Employee = () => {
                   "
                 >
                   <Plus size={16} />
-                  Add Users
+                  Add Employee
                 </button>
               )}
             </div>
@@ -1218,7 +901,7 @@ const Employee = () => {
                           onClick={() =>
                             setDeleteTarget(emp)
                           }
-                          title="Deactivate Employee"
+                          title="Delete Employee"
                           className="
                             h-8 w-8
                             rounded-lg
@@ -1518,855 +1201,6 @@ const Employee = () => {
       </div>
 
       {/* =====================================================
-          ADD / EDIT EMPLOYEE MODAL
-      ====================================================== */}
-      {showAddForm && (
-        <div className="
-          fixed inset-0
-          z-50
-          bg-slate-900/40
-          backdrop-blur-sm
-          flex items-center
-          justify-center
-          p-4
-        ">
-          <div className="
-            bg-white
-            w-full
-            max-w-2xl
-            max-h-[92vh]
-            overflow-hidden
-            rounded-2xl
-            shadow-2xl
-            flex flex-col
-          ">
-
-            {/* Modal Header */}
-            <div className="
-              px-6 py-5
-              border-b
-              border-slate-200
-              flex items-center
-              justify-between
-            ">
-              <div>
-                <h2 className="
-                  text-lg
-                  font-bold
-                  text-slate-900
-                ">
-                  {editingEmployee
-                    ? "Edit Employee"
-                    : "Add New Employee"}
-                </h2>
-
-                <p className="
-                  text-xs
-                  text-slate-500
-                  mt-0.5
-                ">
-                  Enter employee details, select department & job role
-                </p>
-              </div>
-
-              <button
-                onClick={closeForm}
-                className="
-                  h-9 w-9
-                  rounded-lg
-                  flex items-center
-                  justify-center
-                  text-slate-400
-                  hover:bg-slate-100
-                  hover:text-slate-700
-                  transition-colors
-                "
-              >
-                <X size={19} />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <form
-              onSubmit={handleSubmit}
-              className="
-                flex flex-col
-                min-h-0
-              "
-            >
-              <div className="
-                overflow-y-auto
-                p-6
-                space-y-6
-              ">
-
-                {/* SECTION 1 */}
-                <div>
-                  <div className="
-                    flex items-center
-                    gap-2
-                    mb-4
-                  ">
-                    <span className="
-                      h-6 w-6
-                      rounded-md
-                      bg-blue-600
-                      text-white
-                      text-xs
-                      font-bold
-                      flex items-center
-                      justify-center
-                    ">
-                      1
-                    </span>
-
-                    <h3 className="
-                      text-sm
-                      font-bold
-                      text-slate-800
-                    ">
-                      Personal Information
-                    </h3>
-                  </div>
-
-                  <div className="
-                    grid
-                    grid-cols-1
-                    sm:grid-cols-2
-                    gap-4
-                  ">
-
-                    {/* Full Name */}
-                    <div className="sm:col-span-2">
-                      <label className="
-                        block
-                        text-xs
-                        font-semibold
-                        text-slate-600
-                        uppercase
-                        tracking-wider
-                        mb-1.5
-                      ">
-                        Full Name{" "}
-                        <span className="text-red-500">
-                          *
-                        </span>
-                      </label>
-
-                      <input
-                        type="text"
-                        required
-                        value={formData.fullName}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            fullName:
-                              e.target.value,
-                          })
-                        }
-                        placeholder="e.g. Alex Morgan"
-                        className="
-                          w-full
-                          px-3.5 py-2.5
-                          bg-slate-50
-                          border border-slate-200
-                          rounded-xl
-                          text-sm
-                          text-slate-800
-                          placeholder:text-slate-400
-                          focus:outline-none
-                          focus:bg-white
-                          focus:border-blue-500
-                          focus:ring-4
-                          focus:ring-blue-500/10
-                        "
-                      />
-                    </div>
-
-                    {/* Email */}
-                    <div>
-                      <label className="
-                        block
-                        text-xs
-                        font-semibold
-                        text-slate-600
-                        uppercase
-                        tracking-wider
-                        mb-1.5
-                      ">
-                        Email Address{" "}
-                        <span className="text-red-500">
-                          *
-                        </span>
-                      </label>
-
-                      <div className="relative">
-                        <Mail
-                          size={16}
-                          className="
-                            absolute
-                            left-3
-                            top-1/2
-                            -translate-y-1/2
-                            text-slate-400
-                          "
-                        />
-
-                        <input
-                          type="email"
-                          required
-                          value={formData.email}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              email:
-                                e.target.value,
-                            })
-                          }
-                          placeholder="alex@company.com"
-                          className="
-                            w-full
-                            pl-9 pr-3.5
-                            py-2.5
-                            bg-slate-50
-                            border border-slate-200
-                            rounded-xl
-                            text-sm
-                            text-slate-800
-                            placeholder:text-slate-400
-                            focus:outline-none
-                            focus:bg-white
-                            focus:border-blue-500
-                            focus:ring-4
-                            focus:ring-blue-500/10
-                          "
-                        />
-                      </div>
-                    </div>
-
-                    {/* Birthday */}
-                    <div>
-                      <label className="
-                        block
-                        text-xs
-                        font-semibold
-                        text-slate-600
-                        uppercase
-                        tracking-wider
-                        mb-1.5
-                      ">
-                        Birthday{" "}
-                        <span className="text-red-500">
-                          *
-                        </span>
-                      </label>
-
-                      <div className="relative">
-                        <Calendar
-                          size={16}
-                          className="
-                            absolute
-                            left-3
-                            top-1/2
-                            -translate-y-1/2
-                            text-slate-400
-                          "
-                        />
-
-                        <input
-                          type="date"
-                          required
-                          value={formData.dob}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              dob: e.target.value,
-                            })
-                          }
-                          className="
-                            w-full
-                            pl-9 pr-3.5
-                            py-2.5
-                            bg-slate-50
-                            border border-slate-200
-                            rounded-xl
-                            text-sm
-                            text-slate-800
-                            focus:outline-none
-                            focus:bg-white
-                            focus:border-blue-500
-                            focus:ring-4
-                            focus:ring-blue-500/10
-                          "
-                        />
-                      </div>
-                    </div>
-
-                    {/* Phone */}
-                    <div>
-                      <label className="
-                        block
-                        text-xs
-                        font-semibold
-                        text-slate-600
-                        uppercase
-                        tracking-wider
-                        mb-1.5
-                      ">
-                        Phone Number{" "}
-                        <span className="text-red-500">
-                          *
-                        </span>
-                      </label>
-
-                      <div className="relative">
-                        <Phone
-                          size={16}
-                          className="
-                            absolute
-                            left-3
-                            top-1/2
-                            -translate-y-1/2
-                            text-slate-400
-                          "
-                        />
-
-                        <input
-                          type="tel"
-                          required
-                          value={formData.phone}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              phone:
-                                e.target.value,
-                            })
-                          }
-                          placeholder="+1 (555) 012-3456"
-                          className="
-                            w-full
-                            pl-9 pr-3.5
-                            py-2.5
-                            bg-slate-50
-                            border border-slate-200
-                            rounded-xl
-                            text-sm
-                            text-slate-800
-                            placeholder:text-slate-400
-                            focus:outline-none
-                            focus:bg-white
-                            focus:border-blue-500
-                            focus:ring-4
-                            focus:ring-blue-500/10
-                          "
-                        />
-                      </div>
-                    </div>
-
-                    {/* Joining Date */}
-                    <div>
-                      <label className="
-                        block
-                        text-xs
-                        font-semibold
-                        text-slate-600
-                        uppercase
-                        tracking-wider
-                        mb-1.5
-                      ">
-                        Joining Date
-                      </label>
-
-                      <input
-                        type="date"
-                        value={formData.joiningDate}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            joiningDate:
-                              e.target.value,
-                          })
-                        }
-                        className="
-                          w-full
-                          px-3.5 py-2.5
-                          bg-slate-50
-                          border border-slate-200
-                          rounded-xl
-                          text-sm
-                          text-slate-800
-                          focus:outline-none
-                          focus:bg-white
-                          focus:border-blue-500
-                        "
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* SECTION 2 */}
-                <div className="
-                  pt-4
-                  border-t
-                  border-slate-100
-                ">
-                  <div className="
-                    flex items-center
-                    justify-between
-                    mb-4
-                  ">
-                    <div className="
-                      flex items-center
-                      gap-2
-                    ">
-                      <span className="
-                        h-6 w-6
-                        rounded-md
-                        bg-blue-600
-                        text-white
-                        text-xs
-                        font-bold
-                        flex items-center
-                        justify-center
-                      ">
-                        2
-                      </span>
-
-                      <h3 className="
-                        text-sm
-                        font-bold
-                        text-slate-800
-                      ">
-                        Department & Role Assignment
-                      </h3>
-                    </div>
-
-                    {currentDeptCode && (
-                      <span className="
-                        text-xs
-                        font-mono
-                        font-bold
-                        text-blue-600
-                        bg-blue-50
-                        px-2.5 py-1
-                        rounded-lg
-                        border
-                        border-blue-200/60
-                      ">
-                        Code: {currentDeptCode}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="
-                    grid
-                    grid-cols-1
-                    sm:grid-cols-2
-                    gap-4
-                  ">
-
-                    {/* Department */}
-                    <div>
-                      <label className="
-                        block
-                        text-xs
-                        font-semibold
-                        text-slate-600
-                        uppercase
-                        tracking-wider
-                        mb-1.5
-                      ">
-                        Department{" "}
-                        <span className="text-red-500">
-                          *
-                        </span>
-                      </label>
-
-                      <select
-                        required
-                        value={formData.departmentId}
-                        onChange={(e) =>
-                          handleDepartmentChange(
-                            e.target.value
-                          )
-                        }
-                        className="
-                          w-full
-                          px-3.5 py-2.5
-                          bg-slate-50
-                          border border-slate-200
-                          rounded-xl
-                          text-sm
-                          text-slate-800
-                          focus:outline-none
-                          focus:bg-white
-                          focus:border-blue-500
-                          focus:ring-4
-                          focus:ring-blue-500/10
-                        "
-                      >
-                        <option value="">
-                          -- Select Department --
-                        </option>
-
-                        {departments.map(
-                          (dept) => {
-                            const code =
-                              dept.shortCode ||
-                              dept.code ||
-                              "";
-
-                            return (
-                              <option
-                                key={dept.id}
-                                value={dept.id}
-                              >
-                                {dept.name}{" "}
-                                {code
-                                  ? `(${code})`
-                                  : ""}
-                              </option>
-                            );
-                          }
-                        )}
-                      </select>
-
-                      {departments.length === 0 && (
-                        <p className="
-                          text-xs
-                          text-amber-600
-                          mt-1
-                        ">
-                          No departments in database.
-                          Please create a department first.
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Job Role */}
-                    <div>
-                      <label className="
-                        block
-                        text-xs
-                        font-semibold
-                        text-slate-600
-                        uppercase
-                        tracking-wider
-                        mb-1.5
-                      ">
-                        Job Role (Designation){" "}
-                        <span className="text-red-500">
-                          *
-                        </span>
-                      </label>
-
-                      {availableJobRoles.length >
-                        0 ? (
-                        <select
-                          required
-                          value={
-                            formData.designation
-                          }
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              designation:
-                                e.target.value,
-                            })
-                          }
-                          className="
-                            w-full
-                            px-3.5 py-2.5
-                            bg-slate-50
-                            border border-slate-200
-                            rounded-xl
-                            text-sm
-                            text-slate-800
-                            focus:outline-none
-                            focus:bg-white
-                            focus:border-blue-500
-                            focus:ring-4
-                            focus:ring-blue-500/10
-                          "
-                        >
-                          <option value="">
-                            -- Select Job Role --
-                          </option>
-
-                          {availableJobRoles.map(
-                            (
-                              roleTitle,
-                              idx
-                            ) => (
-                              <option
-                                key={idx}
-                                value={roleTitle}
-                              >
-                                {roleTitle}
-                              </option>
-                            )
-                          )}
-                        </select>
-                      ) : (
-                        <div>
-                          <input
-                            type="text"
-                            required
-                            value={
-                              formData.designation
-                            }
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                designation:
-                                  e.target.value,
-                              })
-                            }
-                            placeholder={
-                              formData.departmentId
-                                ? "Enter job role title..."
-                                : "Select a department first"
-                            }
-                            className="
-                              w-full
-                              px-3.5 py-2.5
-                              bg-slate-50
-                              border border-slate-200
-                              rounded-xl
-                              text-sm
-                              text-slate-800
-                              placeholder:text-slate-400
-                              focus:outline-none
-                              focus:bg-white
-                              focus:border-blue-500
-                            "
-                          />
-
-                          {formData.departmentId && (
-                            <p className="
-                              text-[11px]
-                              text-slate-400
-                              mt-1
-                            ">
-                              No predefined roles in
-                              this department. You can
-                              type a custom role.
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Employee ID */}
-                    <div className="sm:col-span-2">
-                      <div className="
-                        flex items-center
-                        justify-between
-                        mb-1.5
-                      ">
-                        <label className="
-                          block
-                          text-xs
-                          font-semibold
-                          text-slate-600
-                          uppercase
-                          tracking-wider
-                        ">
-                          Employee ID{" "}
-                          <span className="text-red-500">
-                            *
-                          </span>
-                        </label>
-
-                        <span className="
-                          text-xs
-                          text-slate-400
-                        ">
-                          Starts with department code:{" "}
-                          <strong className="
-                            text-slate-700
-                          ">
-                            {currentDeptCode || "—"}
-                          </strong>
-                        </span>
-                      </div>
-
-                      <div className="
-                        relative
-                        flex items-center
-                      ">
-                        {currentDeptCode && (
-                          <div className="
-                            absolute
-                            left-1.5
-                            px-2.5 py-1.5
-                            rounded-lg
-                            bg-blue-100/80
-                            text-blue-700
-                            font-mono
-                            font-bold
-                            text-xs
-                            pointer-events-none
-                          ">
-                            {currentDeptCode}
-                          </div>
-                        )}
-
-                        <input
-                          type="text"
-                          required
-                          disabled={!currentDeptCode}
-                          value={
-                            formData.employeeId
-                          }
-                          onChange={(e) => {
-                            let val =
-                              e.target.value.toUpperCase();
-
-                            // Keep the department code locked in as the
-                            // prefix — HR can freely type/append the
-                            // employee number after it (e.g. SE003).
-                            if (
-                              currentDeptCode &&
-                              !val.startsWith(
-                                currentDeptCode
-                              )
-                            ) {
-                              val = `${currentDeptCode}${val.replace(
-                                currentDeptCode,
-                                ""
-                              )}`;
-                            }
-
-                            setFormData({
-                              ...formData,
-                              employeeId: val,
-                            });
-                          }}
-                          placeholder={
-                            currentDeptCode
-                              ? `${currentDeptCode}003`
-                              : "Select a department first"
-                          }
-                          className={`
-                            w-full
-                            py-2.5 pr-3.5
-                            ${currentDeptCode
-                              ? "pl-16"
-                              : "pl-3.5"
-                            }
-                            bg-slate-50
-                            border border-slate-200
-                            rounded-xl
-                            text-sm
-                            font-mono
-                            font-bold
-                            text-slate-800
-                            placeholder:text-slate-400
-                            focus:outline-none
-                            focus:bg-white
-                            focus:border-blue-500
-                            focus:ring-4
-                            focus:ring-blue-500/10
-                            disabled:bg-slate-100
-                            disabled:cursor-not-allowed
-                          `}
-                        />
-                      </div>
-
-                      <p className="
-                        text-[11px]
-                        text-slate-400
-                        mt-1
-                      ">
-                        This employee's ID will be saved as{" "}
-                        <strong className="
-                          text-slate-600
-                        ">
-                          {formData.employeeId ||
-                            (currentDeptCode
-                              ? `${currentDeptCode}003`
-                              : "ID")}
-                        </strong>{" "}
-                        in the database — add a number after the
-                        department code (e.g. <strong>SE003</strong>).
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Modal Footer */}
-              <div className="
-                px-6 py-4
-                border-t
-                border-slate-200
-                bg-slate-50
-                flex items-center
-                justify-end
-                gap-3
-              ">
-                <button
-                  type="button"
-                  onClick={closeForm}
-                  disabled={saving}
-                  className="
-                    px-4 py-2.5
-                    rounded-xl
-                    bg-white
-                    border border-slate-200
-                    text-slate-700
-                    text-sm
-                    font-semibold
-                    hover:bg-slate-100
-                    transition-colors
-                  "
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="
-                    px-5 py-2.5
-                    rounded-xl
-                    bg-blue-600
-                    hover:bg-blue-700
-                    text-white
-                    text-sm
-                    font-semibold
-                    flex items-center
-                    gap-2
-                    shadow-sm
-                    shadow-blue-600/20
-                    transition-colors
-                  "
-                >
-                  {saving ? (
-                    <>
-                      <Loader2
-                        size={16}
-                        className="animate-spin"
-                      />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 size={16} />
-                      {editingEmployee
-                        ? "Update Employee"
-                        : "Save Employee"}
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* =====================================================
           VIEW DETAILS MODAL
       ====================================================== */}
       {viewingEmployee && (
@@ -2579,6 +1413,31 @@ const Employee = () => {
               gap-3
             ">
               <button
+                onClick={() => {
+                  const emp = viewingEmployee;
+                  setViewingEmployee(null);
+                  setDeleteTarget(emp);
+                }}
+                className="
+                  mr-auto
+                  px-4 py-2
+                  rounded-xl
+                  bg-white
+                  border border-red-200
+                  text-red-600
+                  text-sm
+                  font-semibold
+                  hover:bg-red-50
+                  flex items-center
+                  gap-1.5
+                  transition-colors
+                "
+              >
+                <Trash2 size={14} />
+                Delete Employee
+              </button>
+
+              <button
                 onClick={() =>
                   setViewingEmployee(null)
                 }
@@ -2626,6 +1485,29 @@ const Employee = () => {
       )}
 
       {/* =====================================================
+          ADD EMPLOYEE POPUP WIZARD
+      ====================================================== */}
+      <AddEmployeeModal
+        open={showAddEmployeeModal}
+        employee={editingEmployee}
+        onClose={() => {
+          setShowAddEmployeeModal(false);
+          setEditingEmployee(null);
+        }}
+        departments={departments}
+        onDelete={(emp) => {
+          setShowAddEmployeeModal(false);
+          setEditingEmployee(null);
+          setDeleteTarget(emp);
+        }}
+        onSuccess={async () => {
+          await fetchEmployees();
+          setShowAddEmployeeModal(false);
+          setEditingEmployee(null);
+        }}
+      />
+
+      {/* =====================================================
           DELETE CONFIRMATION MODAL
       ====================================================== */}
       {deleteTarget && (
@@ -2668,7 +1550,7 @@ const Employee = () => {
                   font-bold
                   text-slate-900
                 ">
-                  Deactivate Employee?
+                  Delete Employee?
                 </h3>
 
                 <p className="
@@ -2677,14 +1559,15 @@ const Employee = () => {
                   mt-1
                   leading-relaxed
                 ">
-                  Are you sure you want to deactivate{" "}
+                  Are you sure you want to permanently delete{" "}
                   <strong className="
                     text-slate-800
                   ">
                     {deleteTarget.fullName}
                   </strong>{" "}
-                  ({deleteTarget.employeeId})? Their account will be marked
-                  inactive and they won't be able to log in.
+                  ({deleteTarget.employeeId})? Their account and related
+                  records (leave, payslips, salary) will be removed. This
+                  cannot be undone.
                 </p>
               </div>
             </div>
@@ -2729,7 +1612,7 @@ const Employee = () => {
                 "
               >
                 <Trash2 size={15} />
-                Deactivate Employee
+                Delete Employee
               </button>
             </div>
           </div>

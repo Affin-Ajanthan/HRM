@@ -17,4 +17,5 @@ public interface NotificationRepo extends JpaRepository<Notification, Long> {
     List<Notification> findCompanyWideNotifications(@Param("companyId") Long companyId);
     
     Long countByEmployeeIdAndIsRead(Long employeeId, Boolean isRead);
+    void deleteByEmployeeId(Long employeeId);
 }

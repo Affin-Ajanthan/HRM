@@ -78,6 +78,27 @@ public class SyncService {
     }
     
     /**
+     * Best-effort removal of an employee from the other backends.
+     * Expects DELETE {service}/api/sync/employee/{id}; failures are logged and never block the delete.
+     */
+    public void deleteFromAllBackends(Long employeeId) {
+        deleteFrom(employeeServiceUrl + "/api/sync/employee/" + employeeId, "Employee_Backend");
+        deleteFrom(hrServiceUrl + "/api/sync/employee/" + employeeId, "HR_Backend");
+    }
+
+    private void deleteFrom(String url, String backendName) {
+        try {
+            if (restTemplate == null) {
+                restTemplate = new RestTemplate();
+            }
+            restTemplate.delete(url);
+            System.out.println("[SYNC SUCCESS] Deleted from " + backendName + ": " + url);
+        } catch (Exception e) {
+            System.err.println("[SYNC WARNING] Could not delete from " + backendName + ": " + e.getMessage());
+        }
+    }
+
+    /**
      * Sync with retry logic - automatically retries if sync fails
      *
      * @param url Endpoint URL

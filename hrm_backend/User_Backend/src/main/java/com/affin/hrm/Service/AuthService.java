@@ -280,6 +280,7 @@ public class AuthService {
                 employee.setAddress(request.getAddress());
                 employee.setPhone(request.getPhone());
                 employee.setDesignation(request.getDesignation());
+                employee.setEmploymentType(Employee.normalizeEmploymentType(request.getEmploymentType()));
                 employee.setJoiningDate(request.getJoiningDate() != null ? request.getJoiningDate() : java.time.LocalDate.now());
                 employee.setCompany(company);
                 employee.setDepartment(department);

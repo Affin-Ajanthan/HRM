@@ -119,3 +119,20 @@
   .hover-lift { transition: transform .25s ease, box-shadow .25s ease; }
   .hover-lift:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,.1); }
 }
+
+/* ─── Green scrollbar (Add Employee wizard, etc.) — wide + high contrast ─── */
+.green-scrollbar {
+  scrollbar-width: thin;                       /* Firefox */
+  scrollbar-color: #10b981 #d1fae5;            /* thumb  track */
+}
+.green-scrollbar::-webkit-scrollbar { width: 10px; height: 10px; }
+.green-scrollbar::-webkit-scrollbar-track {
+  background: #d1fae5;                         /* emerald-100 */
+  border-radius: 99px;
+}
+.green-scrollbar::-webkit-scrollbar-thumb {
+  background: #10b981;                         /* emerald-500 */
+  border-radius: 99px;
+  border: 2px solid #d1fae5;
+}
+.green-scrollbar::-webkit-scrollbar-thumb:hover { background: #059669; } /* emerald-600 */

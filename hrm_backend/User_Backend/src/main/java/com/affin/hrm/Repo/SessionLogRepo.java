@@ -10,5 +10,6 @@ import java.util.Optional;
 @Repository
 public interface SessionLogRepo extends JpaRepository<SessionLog, Long> {
     List<SessionLog> findByUserId(Long userId);
+    void deleteByUserId(Long userId);
     Optional<SessionLog> findFirstByUserIdAndStatusTrueOrderByIdDesc(Long userId);
 }

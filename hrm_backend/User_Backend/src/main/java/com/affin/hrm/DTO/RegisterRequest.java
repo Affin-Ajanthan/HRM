@@ -18,5 +18,6 @@ public class RegisterRequest {
     private String role;
     private String department;
     private String designation;
+    private String employmentType;
     private LocalDate joiningDate;
 }

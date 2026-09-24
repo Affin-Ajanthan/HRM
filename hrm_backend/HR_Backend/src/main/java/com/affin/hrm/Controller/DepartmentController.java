@@ -5,6 +5,7 @@ import com.affin.hrm.model.*;
 import com.affin.hrm.repository.*;
 import com.affin.hrm.service.AuthService;
 import com.affin.hrm.service.AuditService;
+import com.affin.hrm.exception.BusinessException;
 import com.affin.hrm.exception.ResourceNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,7 +19,9 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -69,8 +72,14 @@ public class DepartmentController {
         Employee hr = authService.getCurrentEmployee();
         Company company = hr.getCompany();
 
+        String newName = dto.getName() != null ? dto.getName().trim() : "";
+        if (newName.isEmpty()) {
+            throw new BusinessException("Department name is required");
+        }
+        assertDepartmentNameAvailable(company.getId(), newName, null);
+
         Department department = new Department();
-        department.setName(dto.getName() != null ? dto.getName().trim() : "");
+        department.setName(newName);
         department.setShortCode(dto.getShortCode() != null ? dto.getShortCode().trim().toUpperCase() : null);
         department.setDescription(dto.getDescription() != null ? dto.getDescription().trim() : null);
         department.setCompany(company);
@@ -82,18 +91,11 @@ public class DepartmentController {
             department.setManager(manager);
         }
 
-        if (dto.getJobRoles() != null && !dto.getJobRoles().isEmpty()) {
-            for (JobRoleDTO roleDto : dto.getJobRoles()) {
-                if (roleDto.getJobTitle() != null && !roleDto.getJobTitle().trim().isEmpty()) {
-                    JobRole role = new JobRole();
-                    role.setJobTitle(roleDto.getJobTitle().trim());
-                    role.setBasicSalary(roleDto.getBasicSalary() != null ? roleDto.getBasicSalary() : 0.0);
-                    department.addJobRole(role);
-                }
-            }
-        }
+        // Job roles are saved together with the department (cascade) so they
+        // always end up in the job_roles table linked to this department.
+        applyJobRoles(department, dto.getJobRoles());
 
-        Department saved = departmentRepository.save(department);
+        Department saved = departmentRepository.saveAndFlush(department);
 
         try {
             auditService.logAction("CREATE", "Department", saved.getId(), "Created department: " + saved.getName(), company.getId());
@@ -116,7 +118,14 @@ public class DepartmentController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        if (dto.getName() != null) department.setName(dto.getName().trim());
+        if (dto.getName() != null) {
+            String updatedName = dto.getName().trim();
+            if (updatedName.isEmpty()) {
+                throw new BusinessException("Department name is required");
+            }
+            assertDepartmentNameAvailable(hr.getCompany().getId(), updatedName, department.getId());
+            department.setName(updatedName);
+        }
         if (dto.getShortCode() != null) department.setShortCode(dto.getShortCode().trim().toUpperCase());
         if (dto.getDescription() != null) department.setDescription(dto.getDescription().trim());
         if (dto.getActive() != null) department.setActive(dto.getActive());
@@ -129,19 +138,13 @@ public class DepartmentController {
             department.setManager(null);
         }
 
+        // Sync the department's job roles with the submitted list: existing
+        // roles are updated in place, new ones added, removed ones deleted.
         if (dto.getJobRoles() != null) {
-            department.getJobRoles().clear();
-            for (JobRoleDTO roleDto : dto.getJobRoles()) {
-                if (roleDto.getJobTitle() != null && !roleDto.getJobTitle().trim().isEmpty()) {
-                    JobRole role = new JobRole();
-                    role.setJobTitle(roleDto.getJobTitle().trim());
-                    role.setBasicSalary(roleDto.getBasicSalary() != null ? roleDto.getBasicSalary() : 0.0);
-                    department.addJobRole(role);
-                }
-            }
+            applyJobRoles(department, dto.getJobRoles());
         }
 
-        Department saved = departmentRepository.save(department);
+        Department saved = departmentRepository.saveAndFlush(department);
 
         try {
             auditService.logAction("UPDATE", "Department", saved.getId(), "Updated department: " + saved.getName(), hr.getCompany().getId());
@@ -152,9 +155,45 @@ public class DepartmentController {
         return ResponseEntity.ok(ApiResponse.success(convertToDTO(saved), "Department updated successfully"));
     }
 
+    // ===== DELETE DEPARTMENT (permanent) =====
+    // Actually removes the department row (and, via cascade, its job roles).
+    // Blocked if employees are still assigned, so you can't accidentally
+    // orphan people's records — reassign or remove them first, or use
+    // /deactivate instead if you just want to hide it without deleting data.
     @DeleteMapping("/{id}")
     @Transactional
     public ResponseEntity<ApiResponse<Void>> deleteDepartment(@PathVariable Long id) {
+        Employee hr = authService.getCurrentEmployee();
+        Department department = departmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Department", "id", id));
+
+        if (!department.getCompany().getId().equals(hr.getCompany().getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        long employeeCount = employeeRepository.countByDepartmentId(id);
+        if (employeeCount > 0) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(
+                    "Cannot delete '" + department.getName() + "': " + employeeCount
+                            + " employee(s) are still assigned to it. Reassign or remove them first, or deactivate the department instead."));
+        }
+
+        String departmentName = department.getName();
+        // department.getJobRoles() has cascade = CascadeType.ALL + orphanRemoval = true,
+        // so deleting the department also removes its job_roles rows automatically.
+        departmentRepository.delete(department);
+
+        try {
+            auditService.logAction("DELETE", "Department", id, "Deleted department: " + departmentName, hr.getCompany().getId());
+        } catch (Exception ignored) {}
+
+        return ResponseEntity.ok(ApiResponse.success(null, "Department deleted successfully"));
+    }
+
+    // ===== DEACTIVATE DEPARTMENT (soft — keeps the record, hides it from active use) =====
+    @PutMapping("/{id}/deactivate")
+    @Transactional
+    public ResponseEntity<ApiResponse<Void>> deactivateDepartment(@PathVariable Long id) {
         Employee hr = authService.getCurrentEmployee();
         Department department = departmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Department", "id", id));
@@ -193,6 +232,71 @@ public class DepartmentController {
         Department saved = departmentRepository.save(department);
         syncDepartmentToEmployeeService(saved);
         return ResponseEntity.ok(ApiResponse.success(convertToDTO(saved), "Manager assigned successfully"));
+    }
+
+    // ===== helpers =====
+
+    /** Rejects a department name that another department in the same company already uses (case-insensitive). */
+    private void assertDepartmentNameAvailable(Long companyId, String name, Long excludeId) {
+        boolean taken = departmentRepository.findByCompanyIdAndNameIgnoreCase(companyId, name).stream()
+                .anyMatch(d -> excludeId == null || !d.getId().equals(excludeId));
+        if (taken) {
+            throw new BusinessException("A department named '" + name
+                    + "' already exists. Edit that department to add or change its job roles.");
+        }
+    }
+
+    private static String roleTitle(JobRole role) {
+        String t = role.getJobTitle() != null ? role.getJobTitle() : role.getTitle();
+        return t == null ? "" : t.trim();
+    }
+
+    /**
+     * Makes the department's job roles match the submitted list.
+     * Blank titles are ignored and duplicate titles (case-insensitive) are collapsed.
+     * A missing salary is stored as 0.
+     */
+    private void applyJobRoles(Department department, List<JobRoleDTO> submitted) {
+        Map<String, JobRoleDTO> wanted = new LinkedHashMap<>();
+        if (submitted != null) {
+            for (JobRoleDTO roleDto : submitted) {
+                if (roleDto == null || roleDto.getJobTitle() == null) continue;
+                String title = roleDto.getJobTitle().trim();
+                if (title.isEmpty()) continue;
+                wanted.putIfAbsent(title.toLowerCase(), roleDto);
+            }
+        }
+
+        if (department.getJobRoles() == null) {
+            department.setJobRoles(new ArrayList<>());
+        }
+
+        // delete roles that are no longer in the list (orphanRemoval removes the rows)
+        department.getJobRoles().removeIf(existing -> !wanted.containsKey(roleTitle(existing).toLowerCase()));
+
+        for (Map.Entry<String, JobRoleDTO> entry : wanted.entrySet()) {
+            String key = entry.getKey();
+            JobRoleDTO roleDto = entry.getValue();
+            String title = roleDto.getJobTitle().trim();
+            double salary = roleDto.getBasicSalary() != null ? roleDto.getBasicSalary() : 0.0;
+
+            JobRole role = null;
+            for (JobRole existing : department.getJobRoles()) {
+                if (roleTitle(existing).toLowerCase().equals(key)) {
+                    role = existing;
+                    break;
+                }
+            }
+
+            if (role == null) {
+                role = new JobRole();
+                department.addJobRole(role);
+            }
+            role.setJobTitle(title);
+            role.setTitle(title);
+            role.setBasicSalary(salary);
+            role.setActive(true);
+        }
     }
 
     private void syncDepartmentToEmployeeService(Department department) {

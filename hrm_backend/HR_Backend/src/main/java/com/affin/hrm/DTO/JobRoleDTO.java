@@ -1,5 +1,6 @@
 package com.affin.hrm.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -16,6 +17,7 @@ public class JobRoleDTO {
     private Long id;
 
     @NotBlank(message = "Job title is required")
+    @JsonAlias({"title", "name"})
     private String jobTitle;
 
     private Double basicSalary;

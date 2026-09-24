@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * Data Transfer Object for Leave Application data.
@@ -36,4 +37,5 @@ public class LeaveApplicationDTO {
     private String rejectionReason;
     private Long approvedBy;
     private String approvedByName;
+    private LocalDateTime createdAt;
 }

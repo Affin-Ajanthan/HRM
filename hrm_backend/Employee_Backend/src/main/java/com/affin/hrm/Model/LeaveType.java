@@ -31,6 +31,10 @@ public class LeaveType {
     @Column(nullable = false)
     private Integer defaultDaysPerYear;
 
+    // Existing NOT NULL column in leave_types (same field as User_Backend's LeaveType)
+    @Column(nullable = false)
+    private Boolean requiresApproval = true;
+
     private Boolean carryForward = false;
     private Integer maxCarryForwardDays = 0;
 

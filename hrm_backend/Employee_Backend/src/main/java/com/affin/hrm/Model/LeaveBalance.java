@@ -2,6 +2,9 @@ package com.affin.hrm.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
 
 /**
  * LeaveBalance entity — tracks leave balance per employee per type per year.
@@ -39,4 +42,9 @@ public class LeaveBalance {
 
     @Column(nullable = false)
     private Integer remainingDays;
+
+    // Existing NOT NULL column in leave_balances
+    @UpdateTimestamp
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
 }

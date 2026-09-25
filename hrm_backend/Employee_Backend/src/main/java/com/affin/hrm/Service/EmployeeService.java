@@ -1,5 +1,6 @@
 package com.affin.hrm.service;
 
+import com.affin.hrm.dto.CompanyDTO;
 import com.affin.hrm.dto.EmployeeDTO;
 import com.affin.hrm.exception.BusinessException;
 import com.affin.hrm.exception.ResourceNotFoundException;
@@ -37,19 +38,22 @@ public class EmployeeService {
     private final ModelMapper modelMapper;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
+    private final EmailService emailService;
 
     public EmployeeService(EmployeeRepository employeeRepository,
                            CompanyRepository companyRepository,
                            DepartmentRepository departmentRepository,
                            ModelMapper modelMapper,
                            PasswordEncoder passwordEncoder,
-                           AuditService auditService) {
+                           AuditService auditService,
+                           EmailService emailService) {
         this.employeeRepository = employeeRepository;
         this.companyRepository = companyRepository;
         this.departmentRepository = departmentRepository;
         this.modelMapper = modelMapper;
         this.passwordEncoder = passwordEncoder;
         this.auditService = auditService;
+        this.emailService = emailService;
     }
 
     @Transactional(readOnly = true)
@@ -257,6 +261,44 @@ public class EmployeeService {
                     d.setCompany(company);
                     return departmentRepository.save(d);
                 });
+    }
+
+    /**
+     * Approve a pending company request, auto-provision HR Manager account, and send approval email.
+     */
+    public CompanyDTO approveCompany(Long companyId) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Company", "id", companyId));
+
+        company.setStatus(Company.CompanyStatus.APPROVED);
+        Company savedCompany = companyRepository.save(company);
+
+        // Auto-provision initial HR Manager account
+        String email = savedCompany.getEmail();
+        String tempPassword = "HR#" + (100000 + new java.util.Random().nextInt(900000)) + "!";
+
+        Employee hrUser = employeeRepository.findByEmailIgnoreCase(email)
+                .orElseGet(() -> {
+                    Employee newHr = new Employee();
+                    newHr.setEmail(email);
+                    newHr.setFullName(savedCompany.getContactPersonName() != null ? savedCompany.getContactPersonName() : (savedCompany.getCompanyName() + " HR Manager"));
+                    newHr.setPassword(passwordEncoder.encode(tempPassword));
+                    newHr.setRole(Employee.Role.HR_MANAGER);
+                    newHr.setCompany(savedCompany);
+                    newHr.setStatus(Employee.EmployeeStatus.ACTIVE);
+                    newHr.setEmployeeId("HR-" + savedCompany.getId() + "-001");
+                    newHr.setJoiningDate(LocalDate.now());
+                    return employeeRepository.save(newHr);
+                });
+
+        // Send approval welcome email with credentials
+        emailService.sendApprovalEmail(email, savedCompany.getContactPersonName(), savedCompany.getCompanyName(), tempPassword);
+
+        log.info("Approved company '{}' (ID: {}) and provisioned HR Manager account ({})", savedCompany.getCompanyName(), savedCompany.getId(), email);
+
+        CompanyDTO dto = modelMapper.map(savedCompany, CompanyDTO.class);
+        dto.setStatus(savedCompany.getStatus().name());
+        return dto;
     }
 
     private EmployeeDTO convertToDTO(Employee employee) {

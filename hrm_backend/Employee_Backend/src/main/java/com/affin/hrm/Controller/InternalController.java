@@ -189,6 +189,12 @@ public class InternalController {
         return ResponseEntity.ok(modelMapper.map(saved, CompanyDTO.class));
     }
 
+    @PostMapping("/companies/{id}/approve")
+    public ResponseEntity<CompanyDTO> approveCompanyInternal(@PathVariable Long id) {
+        CompanyDTO approved = employeeService.approveCompany(id);
+        return ResponseEntity.ok(approved);
+    }
+
     // ── Departments ──────────────────────────────────────────────
 
     @GetMapping("/departments")

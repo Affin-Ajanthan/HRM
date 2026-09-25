@@ -149,12 +149,12 @@ public class AdminService {
     }
 
     public CompanyDTO approveCompany(Long id) {
-        CompanyDTO dto = new CompanyDTO();
-        dto.setStatus("APPROVED");
-        restTemplate.put(employeeServiceUrl + "/api/internal/companies/" + id, dto);
-        logAction("APPROVE_COMPANY", "Company", id, "Approved company");
-        CompanyDTO updated = getCompanyById(id);
-        syncCompanyToHRBackend(updated);
+        CompanyDTO updated = restTemplate.postForObject(
+                employeeServiceUrl + "/api/internal/companies/" + id + "/approve", null, CompanyDTO.class);
+        logAction("APPROVE_COMPANY", "Company", id, "Approved company and provisioned HR Manager account");
+        if (updated != null) {
+            syncCompanyToHRBackend(updated);
+        }
         return updated;
     }
 

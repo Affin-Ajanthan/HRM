@@ -284,6 +284,7 @@ public class AdminService {
             auditLog.setEntityType(entity != null ? entity : "SYSTEM");
             auditLog.setEntityId(entityId);
             auditLog.setDescription(description);
+            auditLog.setPerformedBy("ADMIN");
             auditLogRepository.save(auditLog);
         } catch (Exception e) {
             log.error("Failed to create audit log: {}", e.getMessage());

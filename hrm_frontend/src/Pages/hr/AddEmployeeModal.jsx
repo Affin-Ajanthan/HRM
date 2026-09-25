@@ -79,8 +79,6 @@ const USER_ROLES = [
   },
 ];
 
-const WORK_LOCATIONS = ["Head Office", "Branch Office", "Remote", "Hybrid"];
-
 const EMPTY_FORM = {
   firstName: "",
   lastName: "",
@@ -133,8 +131,9 @@ const buildFormFromEmployee = (emp, departments) => {
     departmentName: matchedDept ? matchedDept.name : emp.departmentName || emp.department || "",
     jobTitle: emp.designation || "",
     employmentType: emp.employmentType || "",
-    workLocation:
-      emp.workLocation || (WORK_LOCATIONS.includes(emp.address) ? emp.address : ""),
+    // "address" doubles as the stored work location (see submit payload below),
+    // so fall back to it directly rather than checking against a fixed list.
+    workLocation: emp.workLocation || emp.address || "",
     hireDate: toDateInput(emp.joiningDate),
   };
 };
@@ -170,6 +169,28 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
       ? [...employmentTypes, current]
       : employmentTypes;
   }, [employmentTypes, formData.employmentType]);
+
+  // Work locations HR has defined (hrm_db_hr.work_locations)
+  const [workLocations, setWorkLocations] = useState([]);
+  const [workLocationsError, setWorkLocationsError] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    hrApi.getWorkLocations()
+      .then((res) => {
+        setWorkLocations((res.data || []).map((t) => t.name));
+        setWorkLocationsError("");
+      })
+      .catch(() => setWorkLocationsError("Could not load work locations"));
+  }, [open]);
+
+  // Keep an edited employee's saved location selectable even if it isn't in HR's list
+  const workLocationOptions = useMemo(() => {
+    const current = formData.workLocation;
+    return current && !workLocations.some((t) => t.toLowerCase() === current.toLowerCase())
+      ? [...workLocations, current]
+      : workLocations;
+  }, [workLocations, formData.workLocation]);
 
   // Reset the wizard every time it's opened fresh
   useEffect(() => {
@@ -498,7 +519,7 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
     <div
       className="
         fixed inset-0
-        z-50
+        z-[100]
         bg-slate-900/40
         backdrop-blur-sm
         flex items-center
@@ -522,15 +543,14 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
         <div
           className="
             px-6 py-5
-            border-b
-            border-slate-200
+            bg-gradient-to-r from-teal-500 to-emerald-600
             flex items-center
             justify-between
           "
         >
           <div>
-            <h2 className="text-lg font-bold text-slate-900">{isEdit ? "Edit Employee" : "Add New Employee"}</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <h2 className="text-lg font-bold text-white">{isEdit ? "Edit Employee" : "Add New Employee"}</h2>
+            <p className="text-xs text-white/80 mt-0.5">
               Step {currentStep} of {STEPS.length} — {STEPS.find((s) => s.id === currentStep)?.title}
             </p>
           </div>
@@ -541,7 +561,7 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
               type="button"
               onClick={() => onDelete(employee)}
               disabled={isSubmitting}
-              className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-semibold text-white bg-red-500/90 hover:bg-red-500 disabled:opacity-50 transition-colors"
             >
               <Trash2 size={14} />
               Delete Employee
@@ -555,9 +575,9 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
               rounded-lg
               flex items-center
               justify-center
-              text-slate-400
-              hover:bg-slate-100
-              hover:text-slate-700
+              text-white/80
+              hover:bg-white/15
+              hover:text-white
               transition-colors
             "
           >
@@ -895,7 +915,7 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                         }`}
                       >
                         <option value="">Select work location</option>
-                        {WORK_LOCATIONS.map((loc) => (
+                        {workLocationOptions.map((loc) => (
                           <option key={loc} value={loc}>
                             {loc}
                           </option>
@@ -903,6 +923,12 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                       </select>
                     </div>
                     {errors.workLocation && <FieldError msg={errors.workLocation} />}
+                    {workLocationsError && <FieldError msg={workLocationsError} />}
+                    {!workLocationsError && workLocations.length === 0 && (
+                      <p className="text-xs text-amber-600">
+                        No work locations yet. Add them from the Employees page → Add Work Location.
+                      </p>
+                    )}
                   </div>
                 </div>
 

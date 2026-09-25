@@ -17,6 +17,11 @@ const EmploymentTypes = () => (
     icon={BadgeCheck}
     load={hrApi.getEmploymentTypes}
     save={hrApi.createEmploymentTypes}
+    onUpdate={hrApi.updateEmploymentType}
+    onDelete={hrApi.deleteEmploymentType}
+    backPath="/hr/employees"
+    backLabel="Back to Employees"
+    activePage="Employees"
   />
 );
 

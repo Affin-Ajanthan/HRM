@@ -178,8 +178,16 @@ export const hrApi = {
   createLeaveTypes:     (names) => request("POST", `${BASE_URL}/hr/leave-types`, { names }),
   getEmploymentTypes:   () => request("GET", `${BASE_URL}/hr/employment-types`),
   createEmploymentTypes: (names) => request("POST", `${BASE_URL}/hr/employment-types`, { names }),
+  updateEmploymentType: (id, name) => request("PUT", `${BASE_URL}/hr/employment-types/${id}`, { name }),
+  deleteEmploymentType: (id) => request("DELETE", `${BASE_URL}/hr/employment-types/${id}`),
   getLeaveAllocations:  (departmentId) => request("GET", `${BASE_URL}/hr/leave-allocations${departmentId ? `?departmentId=${departmentId}` : ""}`),
   saveLeaveAllocations: (jobRoleId, allocations) => request("POST", `${BASE_URL}/hr/leave-allocations`, { jobRoleId, allocations }),
+
+  // Work locations (hrm_db_hr.work_locations)
+  getWorkLocations:    () => request("GET", `${BASE_URL}/hr/work-locations`),
+  createWorkLocations: (names) => request("POST", `${BASE_URL}/hr/work-locations`, { names }),
+  updateWorkLocation:  (id, name) => request("PUT", `${BASE_URL}/hr/work-locations/${id}`, { name }),
+  deleteWorkLocation:  (id) => request("DELETE", `${BASE_URL}/hr/work-locations/${id}`),
 
   // Departments — saved in hrm_db_hr via the HR_Backend (this service owns
   // department + job role data). Only an HR Manager or Admin (guarded by

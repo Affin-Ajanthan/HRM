@@ -36,6 +36,8 @@ public class LeaveConfigService {
     private final JobRoleLeaveAllocationRepository allocationRepository;
     private final AuditService auditService;
 
+    private static final int MAX_NAME_LENGTH = 100;
+
     public LeaveConfigService(LeaveTypeRepository leaveTypeRepository,
                               EmploymentTypeRepository employmentTypeRepository,
                               JobRoleRepository jobRoleRepository,
@@ -111,6 +113,58 @@ public class LeaveConfigService {
         }
         log.info("{} added {} employment type(s) for company {}", hr.getEmail(), created.size(), companyId);
         return created;
+    }
+
+    /** Renames an employment type. The new name must not already be used by another active type. */
+    public EmploymentTypeDTO updateEmploymentType(Long id, String name, Employee hr) {
+        Long companyId = hr.getCompany().getId();
+        EmploymentType type = employmentTypeRepository.findById(id)
+                .filter(t -> t.getCompany().getId().equals(companyId))
+                .orElseThrow(() -> new ResourceNotFoundException("EmploymentType", "id", id));
+
+        String newName = name == null ? "" : name.trim().replaceAll("\\s+", " ");
+        if (newName.isEmpty()) {
+            throw new BusinessException("Employment type name is required");
+        }
+        if (newName.length() > MAX_NAME_LENGTH) {
+            throw new BusinessException("Employment type name must be at most " + MAX_NAME_LENGTH + " characters");
+        }
+        boolean taken = employmentTypeRepository.findByCompanyIdAndActive(companyId, true).stream()
+                .anyMatch(t -> !t.getId().equals(id) && t.getName().trim().equalsIgnoreCase(newName));
+        if (taken) {
+            throw new BusinessException("An employment type named '" + newName + "' already exists");
+        }
+
+        String oldName = type.getName();
+        type.setName(newName);
+        EmploymentType saved = employmentTypeRepository.save(type);
+        audit("UPDATE", "EmploymentType", saved.getId(), "Renamed employment type '" + oldName + "' to '" + newName + "'", companyId);
+        log.info("{} renamed employment type {} to '{}' for company {}", hr.getEmail(), id, newName, companyId);
+        return toDTO(saved);
+    }
+
+    /**
+     * Removes an employment type permanently from the database. Blocked while it is still
+     * used by a job role's leave entitlements, since deleting it would leave those
+     * allocations pointing at nothing.
+     */
+    public void deleteEmploymentType(Long id, Employee hr) {
+        Long companyId = hr.getCompany().getId();
+        EmploymentType type = employmentTypeRepository.findById(id)
+                .filter(t -> t.getCompany().getId().equals(companyId))
+                .orElseThrow(() -> new ResourceNotFoundException("EmploymentType", "id", id));
+
+        long inUse = allocationRepository.countByEmploymentTypeId(id);
+        if (inUse > 0) {
+            throw new BusinessException("Cannot delete '" + type.getName() + "': it has " + inUse
+                    + " leave entitlement(s) assigned. Remove those first.");
+        }
+
+        String name = type.getName();
+        employmentTypeRepository.delete(type);
+        employmentTypeRepository.flush();
+        audit("DELETE", "EmploymentType", id, "Deleted employment type: " + name, companyId);
+        log.info("{} deleted employment type {} ('{}') for company {}", hr.getEmail(), id, name, companyId);
     }
 
     // ── Job role allocations ─────────────────────────────────────

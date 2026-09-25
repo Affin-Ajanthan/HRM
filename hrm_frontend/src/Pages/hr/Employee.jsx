@@ -22,8 +22,11 @@ import {
   ArrowUpDown,
   ChevronUp,
   ChevronDown,
+  BadgeCheck,
+  MapPin,
 } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
+import { NameListModal } from "../../components/NameListModal";
 import { hrApi, userHrApi } from "../../services/api";
 import AddEmployeeModal from "./AddEmployeeModal";
 
@@ -44,6 +47,8 @@ const Employee = () => {
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [viewingEmployee, setViewingEmployee] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [showAddEmployeeTypeModal, setShowAddEmployeeTypeModal] = useState(false);
+  const [showAddWorkLocationModal, setShowAddWorkLocationModal] = useState(false);
 
   // ---------------------------------------------------------
   // AUTHENTICATION
@@ -296,24 +301,64 @@ const Employee = () => {
       title="Employees"
       subtitle="Manage your organization's workforce, departments, and job roles"
       actions={
-        <button
-          onClick={openCreateForm}
-          className="
-            inline-flex items-center gap-2
-            bg-gradient-to-br from-teal-400 to-emerald-500
-            hover:from-teal-500 hover:to-emerald-600
-            text-white px-4 py-2.5
-            rounded-xl text-sm font-semibold
-            shadow-sm shadow-teal-500/20
-            transition-all duration-200
-          "
-        >
-          <Plus
-            size={17}
-            strokeWidth={2.5}
-          />
-          Add Employee
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowAddEmployeeTypeModal(true)}
+            className="
+              inline-flex items-center gap-2
+              bg-gradient-to-br from-teal-400 to-emerald-500
+              hover:from-teal-500 hover:to-emerald-600
+              text-white px-4 py-2.5
+              rounded-xl text-sm font-semibold
+              shadow-sm shadow-teal-500/20
+              transition-all duration-200
+            "
+          >
+            <Plus
+              size={17}
+              strokeWidth={2.5}
+            />
+            Add Employee Type
+          </button>
+
+          <button
+            onClick={() => setShowAddWorkLocationModal(true)}
+            className="
+              inline-flex items-center gap-2
+              bg-gradient-to-br from-teal-400 to-emerald-500
+              hover:from-teal-500 hover:to-emerald-600
+              text-white px-4 py-2.5
+              rounded-xl text-sm font-semibold
+              shadow-sm shadow-teal-500/20
+              transition-all duration-200
+            "
+          >
+            <Plus
+              size={17}
+              strokeWidth={2.5}
+            />
+            Add Work Location
+          </button>
+
+          <button
+            onClick={openCreateForm}
+            className="
+              inline-flex items-center gap-2
+              bg-gradient-to-br from-teal-400 to-emerald-500
+              hover:from-teal-500 hover:to-emerald-600
+              text-white px-4 py-2.5
+              rounded-xl text-sm font-semibold
+              shadow-sm shadow-teal-500/20
+              transition-all duration-200
+            "
+          >
+            <Plus
+              size={17}
+              strokeWidth={2.5}
+            />
+            Add Employee
+          </button>
+        </div>
       }
     >
       <div className="space-y-6">
@@ -1206,7 +1251,7 @@ const Employee = () => {
       {viewingEmployee && (
         <div className="
           fixed inset-0
-          z-50
+          z-[100]
           bg-slate-900/40
           backdrop-blur-sm
           flex items-center
@@ -1485,6 +1530,50 @@ const Employee = () => {
       )}
 
       {/* =====================================================
+          ADD EMPLOYEE TYPE POPUP
+      ====================================================== */}
+      <NameListModal
+        open={showAddEmployeeTypeModal}
+        onClose={() => setShowAddEmployeeTypeModal(false)}
+        title="Add Employee Type"
+        subtitle="Define the employment arrangements used in your company"
+        heading="Employment Types"
+        hint="Add as many as you need, e.g. Full-Time, Part-Time, Internship"
+        placeholder="Employment type, e.g. Full-Time"
+        addLabel="Add another employment type"
+        saveLabel="Save Employment Types"
+        existingLabel="Existing employment types"
+        emptyLabel="No employment types added yet"
+        icon={BadgeCheck}
+        load={hrApi.getEmploymentTypes}
+        save={hrApi.createEmploymentTypes}
+        onUpdate={hrApi.updateEmploymentType}
+        onDelete={hrApi.deleteEmploymentType}
+      />
+
+      {/* =====================================================
+          ADD WORK LOCATION POPUP
+      ====================================================== */}
+      <NameListModal
+        open={showAddWorkLocationModal}
+        onClose={() => setShowAddWorkLocationModal(false)}
+        title="Add Work Location"
+        subtitle="Define the work locations used in your company"
+        heading="Work Locations"
+        hint="Add as many as you need, e.g. Head Office, Branch Office, Remote"
+        placeholder="Work location, e.g. Head Office"
+        addLabel="Add another work location"
+        saveLabel="Save Work Locations"
+        existingLabel="Existing work locations"
+        emptyLabel="No work locations added yet"
+        icon={MapPin}
+        load={hrApi.getWorkLocations}
+        save={hrApi.createWorkLocations}
+        onUpdate={hrApi.updateWorkLocation}
+        onDelete={hrApi.deleteWorkLocation}
+      />
+
+      {/* =====================================================
           ADD EMPLOYEE POPUP WIZARD
       ====================================================== */}
       <AddEmployeeModal
@@ -1513,7 +1602,7 @@ const Employee = () => {
       {deleteTarget && (
         <div className="
           fixed inset-0
-          z-50
+          z-[100]
           bg-slate-900/40
           backdrop-blur-sm
           flex items-center

@@ -1,8 +1,10 @@
 package com.affin.hrm.controller;
 
 import com.affin.hrm.dto.LeaveEntitlementDTO;
+import com.affin.hrm.dto.PaySheetDTO;
 import com.affin.hrm.repository.EmployeeRepository;
 import com.affin.hrm.service.LeaveConfigService;
+import com.affin.hrm.service.SalaryConfigService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -24,10 +26,28 @@ public class InternalController {
 
     private final EmployeeRepository employeeRepository;
     private final LeaveConfigService leaveConfigService;
+    private final SalaryConfigService salaryConfigService;
 
-    public InternalController(EmployeeRepository employeeRepository, LeaveConfigService leaveConfigService) {
+    public InternalController(EmployeeRepository employeeRepository, LeaveConfigService leaveConfigService,
+                              SalaryConfigService salaryConfigService) {
         this.employeeRepository = employeeRepository;
         this.leaveConfigService = leaveConfigService;
+        this.salaryConfigService = salaryConfigService;
+    }
+
+    /**
+     * An employee's pay sheet (job role basic payment + individual allowances / deductions), used by
+     * Employee_Backend for the employee's own payslip page. Looked up by email like leave entitlements.
+     */
+    @GetMapping("/pay-sheet")
+    @Transactional(readOnly = true)
+    public ResponseEntity<PaySheetDTO> getPaySheet(@RequestParam String email) {
+        return employeeRepository.findByEmailIgnoreCase(email.trim())
+                .map(e -> ResponseEntity.ok(salaryConfigService.getPaySheet(e)))
+                .orElseGet(() -> {
+                    log.warn("Internal: pay sheet requested for unknown employee {}", email);
+                    return ResponseEntity.notFound().build();
+                });
     }
 
     /**

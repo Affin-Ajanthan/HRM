@@ -266,12 +266,22 @@ public class InternalController {
 
     // ── Internal Payroll & Salary Endpoints ────────────────────────
 
+    /**
+     * Generates the month's payslips. HR_Backend sends its company's employee emails in the body,
+     * since company and employee ids differ between the databases; without a body the employees
+     * of companyId in this database are used, as before.
+     */
     @PostMapping("/payroll/generate")
-    public ResponseEntity<List<Payslip>> generateBulkPayroll(@RequestParam Long companyId,
-                                                             @RequestParam Integer month,
-                                                             @RequestParam Integer year) {
-        log.info("Internal: Bulk payroll generation requested for company: {}, month: {}, year: {}", companyId, month, year);
-        List<Payslip> generated = payrollService.generateBulkPayroll(companyId, month, year);
+    public ResponseEntity<List<PayslipDTO>> generateBulkPayroll(@RequestParam Long companyId,
+                                                                @RequestParam Integer month,
+                                                                @RequestParam Integer year,
+                                                                @RequestBody(required = false) List<String> emails) {
+        log.info("Internal: Bulk payroll generation requested for company: {}, month: {}, year: {}, emails: {}",
+                companyId, month, year, emails == null ? "none" : emails.size());
+        List<PayslipDTO> generated = emails != null
+                ? payrollService.generateBulkPayrollForEmails(emails, month, year)
+                : payrollService.generateBulkPayroll(companyId, month, year).stream()
+                        .map(PayrollService::toDTO).collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(generated);
     }
 

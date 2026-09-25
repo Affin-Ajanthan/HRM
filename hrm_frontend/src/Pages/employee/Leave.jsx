@@ -1,11 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, Plus, CheckCircle, XCircle, Clock, FileText, Calendar, AlertCircle, X } from "lucide-react";
+import { CalendarDays, Plus, CheckCircle, XCircle, Clock, FileText, Calendar, AlertCircle, X, Filter, Search } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { employeeApi } from "../../services/api";
+import {
+  EmpButton, SearchBar, FilterSelect, ShowingCount, TableCard, TableHeaderRow, TableHeader, TableRows, TableRow, LoadingState, EmptyState,
+} from "../../components/EmployeeUI";
+import { EMP_GRADIENT, useSort } from "../../components/employeeTheme";
 
 // Top-edge colours for the per-type balance cards, in the order the API returns the types
 const BALANCE_EDGES = ["border-t-violet-500", "border-t-teal-500", "border-t-indigo-500"];
+
+const HISTORY_COLS = "grid-cols-[1.5fr_1.5fr_0.7fr_1fr_1.8fr_1fr]";
+
 
 const Leave = () => {
   const navigate = useNavigate();
@@ -97,7 +104,37 @@ const Leave = () => {
 
   const statusIcon = { Approved: <CheckCircle size={14} />, Rejected: <XCircle size={14} />, Pending: <Clock size={14} />, Cancelled: <AlertCircle size={14} /> };
 
+  // History search / filter / sort
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  const filteredHistory = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return leaveHistory.filter((l) => {
+      if (statusFilter !== "ALL" && (l.status || "").toUpperCase() !== statusFilter) return false;
+      if (!q) return true;
+      return [l.leaveTypeName, l.reason, l.startDate, l.endDate]
+        .some((v) => (v || "").toString().toLowerCase().includes(q));
+    });
+  }, [leaveHistory, searchTerm, statusFilter]);
+
+  const { sorted: sortedHistory, headerProps } = useSort(filteredHistory, (l, key) =>
+    key === "numberOfDays" ? String(l.numberOfDays || 0).padStart(4, "0") : l[key] || ""
+  );
+
   if (!user) return null;
+
+  const isFiltering = searchTerm || statusFilter !== "ALL";
+
+  const statusPill = (status) => {
+    const label = statusLabel(status);
+    return (
+      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${statusStyle(label)}`}>
+        {statusIcon[label]} {label}
+      </span>
+    );
+  };
+
 
   return (
     <PageLayout
@@ -106,9 +143,9 @@ const Leave = () => {
       title="Leave Management"
       subtitle="Apply for leave and track your balance"
       actions={
-        <button onClick={openApplyForm} className="flex items-center gap-2 bg-employee-600 hover:bg-employee-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
-          <Plus size={16} /> Apply for Leave
-        </button>
+        <EmpButton onClick={openApplyForm}>
+          <Plus size={17} strokeWidth={2.5} /> Apply for Leave
+        </EmpButton>
       }
     >
       <div className="space-y-6">
@@ -147,49 +184,104 @@ const Leave = () => {
           ))}
         </div>
 
-        {/* History */}
-        <div className="bg-gradient-to-br from-white to-employee-50 rounded-xl border border-employee-100 shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-3 mb-5">
-            <span className="bg-violet-50 p-2 rounded-lg"><FileText size={20} className="text-violet-600" /></span> Leave History
-          </h2>
-          <div className="space-y-3">
-            {loading && (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-employee-500"></div>
-              </div>
-            )}
-            {!loading && leaveHistory.length === 0 && (
-              <p className="text-center text-sm text-slate-500 py-8">No leave applications yet</p>
-            )}
-            {!loading && leaveHistory.map(leave => (
-              <div key={leave.id} className="bg-white/70 border border-employee-100 rounded-lg p-5 hover:border-employee-200 hover:bg-white transition-all">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-semibold text-slate-800">{leave.leaveTypeName}</h3>
-                      <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusStyle(statusLabel(leave.status))}`}>
-                        {statusIcon[statusLabel(leave.status)]} {statusLabel(leave.status)}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-4 text-xs text-slate-500">
-                      <span className="flex items-center gap-1"><Calendar size={12} /> {leave.startDate} → {leave.endDate}</span>
-                      <span className="flex items-center gap-1"><CalendarDays size={12} /> {leave.numberOfDays} working day{leave.numberOfDays > 1 ? "s" : ""}</span>
-                      <span className="flex items-center gap-1"><Clock size={12} /> Applied {formatAppliedOn(leave.createdAt)}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-employee-50/60 border border-employee-100 rounded-lg px-4 py-2.5 text-sm text-slate-600">
-                  <span className="font-medium text-slate-700">Reason: </span>{leave.reason}
-                </div>
-                {leave.status === "REJECTED" && leave.rejectionReason && (
-                  <div className="bg-red-50 border border-red-100 rounded-lg px-4 py-2.5 text-sm text-red-700 mt-2">
-                    <span className="font-medium">Rejection reason: </span>{leave.rejectionReason}
-                  </div>
-                )}
-              </div>
-            ))}
+        {/* =====================================================
+            SEARCH & FILTER CONTROLS
+        ====================================================== */}
+        <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder="Search by leave type, reason, or date...">
+          <div className="flex items-center gap-2">
+            <Filter size={15} className="text-slate-400" />
+            <FilterSelect value={statusFilter} onChange={setStatusFilter}>
+              <option value="ALL">All Statuses</option>
+              <option value="PENDING">Pending</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="CANCELLED">Cancelled</option>
+            </FilterSelect>
           </div>
-        </div>
+          <ShowingCount shown={sortedHistory.length} total={leaveHistory.length} />
+        </SearchBar>
+
+        {/* =====================================================
+            LEAVE HISTORY TABLE
+        ====================================================== */}
+        <TableCard>
+          <TableHeaderRow cols={HISTORY_COLS}>
+            <TableHeader {...headerProps("leaveTypeName")}>Leave Type</TableHeader>
+            <TableHeader {...headerProps("startDate")}>Period</TableHeader>
+            <TableHeader {...headerProps("numberOfDays")}>Days</TableHeader>
+            <TableHeader {...headerProps("createdAt")}>Applied On</TableHeader>
+            <TableHeader>Reason</TableHeader>
+            <TableHeader {...headerProps("status")}>Status</TableHeader>
+          </TableHeaderRow>
+
+          {loading ? (
+            <LoadingState title="Loading leave history..." subtitle="Fetching latest records from database" />
+          ) : sortedHistory.length === 0 ? (
+            <EmptyState
+              icon={isFiltering ? <Search size={28} /> : <FileText size={28} />}
+              title={isFiltering ? "No matching applications" : "No leave applications yet"}
+              subtitle={isFiltering
+                ? "Try clearing your search or choosing another status."
+                : "Apply for leave and your applications will appear here."}
+              action={!isFiltering && (
+                <EmpButton onClick={openApplyForm}><Plus size={16} /> Apply for Leave</EmpButton>
+              )}
+            />
+          ) : (
+            <TableRows>
+              {sortedHistory.map((leave) => {
+                const rejection = leave.status === "REJECTED" && leave.rejectionReason && (
+                  <p className="text-xs text-red-600 mt-1 truncate" title={leave.rejectionReason}>
+                    Rejected: {leave.rejectionReason}
+                  </p>
+                );
+                const days = `${leave.numberOfDays} day${leave.numberOfDays > 1 ? "s" : ""}`;
+
+                return (
+                  <TableRow
+                    key={leave.id}
+                    cols={HISTORY_COLS}
+                    mobile={
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-semibold text-slate-800">{leave.leaveTypeName}</p>
+                          {statusPill(leave.status)}
+                        </div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                          <span className="flex items-center gap-1"><Calendar size={12} /> {leave.startDate} → {leave.endDate}</span>
+                          <span className="flex items-center gap-1"><CalendarDays size={12} /> {days}</span>
+                          <span className="flex items-center gap-1"><Clock size={12} /> Applied {formatAppliedOn(leave.createdAt)}</span>
+                        </div>
+                        <p className="text-sm text-slate-600">{leave.reason}</p>
+                        {rejection}
+                      </div>
+                    }
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`h-10 w-10 flex-shrink-0 rounded-xl ${EMP_GRADIENT} text-white font-bold text-sm flex items-center justify-center shadow-sm`}>
+                        {(leave.leaveTypeName || "L").charAt(0).toUpperCase()}
+                      </div>
+                      <p className="text-sm font-semibold text-slate-800 truncate">{leave.leaveTypeName}</p>
+                    </div>
+                    <span className="flex items-center gap-1.5 text-xs text-slate-600">
+                      <Calendar size={13} className="text-slate-400 flex-shrink-0" />
+                      {leave.startDate} → {leave.endDate}
+                    </span>
+                    <span className="text-sm font-semibold text-slate-800">{leave.numberOfDays}</span>
+                    <span className="flex items-center gap-1.5 text-xs text-slate-600">
+                      <Clock size={13} className="text-slate-400" /> {formatAppliedOn(leave.createdAt)}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm text-slate-600 truncate" title={leave.reason}>{leave.reason}</p>
+                      {rejection}
+                    </div>
+                    <div>{statusPill(leave.status)}</div>
+                  </TableRow>
+                );
+              })}
+            </TableRows>
+          )}
+        </TableCard>
       </div>
 
       {/* Apply Form Modal */}

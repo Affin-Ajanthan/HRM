@@ -7,6 +7,7 @@ import com.affin.hrm.dto.LeaveTypeDTO;
 import com.affin.hrm.exception.BusinessException;
 import com.affin.hrm.exception.ResourceNotFoundException;
 import com.affin.hrm.model.*;
+import com.affin.hrm.repository.BasicPaymentRepository;
 import com.affin.hrm.repository.EmploymentTypeRepository;
 import com.affin.hrm.repository.JobRoleLeaveAllocationRepository;
 import com.affin.hrm.repository.JobRoleRepository;
@@ -35,6 +36,7 @@ public class LeaveConfigService {
     private final EmploymentTypeRepository employmentTypeRepository;
     private final JobRoleRepository jobRoleRepository;
     private final JobRoleLeaveAllocationRepository allocationRepository;
+    private final BasicPaymentRepository basicPaymentRepository;
     private final AuditService auditService;
 
     private static final int MAX_NAME_LENGTH = 100;
@@ -43,11 +45,13 @@ public class LeaveConfigService {
                               EmploymentTypeRepository employmentTypeRepository,
                               JobRoleRepository jobRoleRepository,
                               JobRoleLeaveAllocationRepository allocationRepository,
+                              BasicPaymentRepository basicPaymentRepository,
                               AuditService auditService) {
         this.leaveTypeRepository = leaveTypeRepository;
         this.employmentTypeRepository = employmentTypeRepository;
         this.jobRoleRepository = jobRoleRepository;
         this.allocationRepository = allocationRepository;
+        this.basicPaymentRepository = basicPaymentRepository;
         this.auditService = auditService;
     }
 
@@ -159,6 +163,11 @@ public class LeaveConfigService {
         if (inUse > 0) {
             throw new BusinessException("Cannot delete '" + type.getName() + "': it has " + inUse
                     + " leave entitlement(s) assigned. Remove those first.");
+        }
+        long salaryRows = basicPaymentRepository.countByEmploymentTypeId(id);
+        if (salaryRows > 0) {
+            throw new BusinessException("Cannot delete '" + type.getName() + "': it has " + salaryRows
+                    + " job role salary row(s) assigned. Remove those first.");
         }
 
         String name = type.getName();

@@ -2,6 +2,7 @@ package com.affin.hrm.controller;
 
 import com.affin.hrm.dto.*;
 import com.affin.hrm.model.*;
+import com.affin.hrm.repository.EmployeeRepository;
 import com.affin.hrm.service.AuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/hr")
@@ -27,13 +29,15 @@ public class PayrollController {
 
     private final RestTemplate restTemplate;
     private final AuthService authService;
+    private final EmployeeRepository employeeRepository;
 
     @Value("${service.employee-url:http://localhost:5006}")
     private String employeeServiceUrl;
 
-    public PayrollController(RestTemplate restTemplate, AuthService authService) {
+    public PayrollController(RestTemplate restTemplate, AuthService authService, EmployeeRepository employeeRepository) {
         this.restTemplate = restTemplate;
         this.authService = authService;
+        this.employeeRepository = employeeRepository;
     }
 
     @GetMapping("/salaries")
@@ -82,8 +86,14 @@ public class PayrollController {
         Long companyId = hr.getCompany().getId();
         try {
             String url = employeeServiceUrl + "/api/internal/payroll/generate?companyId=" + companyId + "&month=" + month + "&year=" + year;
-            restTemplate.postForObject(url, null, Object.class);
-            return ResponseEntity.ok(ApiResponse.success(null, "Payroll generated successfully for month: " + month + "/" + year));
+            // Company and employee ids differ between the databases, so the employees are sent by email
+            List<String> emails = employeeRepository.findByCompanyIdAndStatus(companyId, Employee.EmployeeStatus.ACTIVE).stream()
+                    .map(Employee::getEmail)
+                    .collect(Collectors.toList());
+            List<?> generated = restTemplate.postForObject(url, emails, List.class);
+            int count = generated != null ? generated.size() : 0;
+            return ResponseEntity.ok(ApiResponse.success(null,
+                    "Payroll generated successfully for month: " + month + "/" + year + " (" + count + " payslip(s))"));
         } catch (Exception e) {
             log.error("Failed to generate payroll in Employee backend: {}", e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error("Failed to generate payroll: " + e.getMessage()));

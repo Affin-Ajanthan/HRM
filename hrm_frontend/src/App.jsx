@@ -18,6 +18,7 @@ import Profile from "./Pages/employee/Profile.jsx";
 import HRAttendance from "./Pages/hr/Attendance.jsx";
 import HRLeave from "./Pages/hr/Leave.jsx";
 import HRPayslip from "./Pages/hr/Payslip.jsx";
+import HRSalaryAssign from "./Pages/hr/SalaryAssign.jsx";
 import HRProfile from "./Pages/hr/Profile.jsx";
 import HRDepartment from "./Pages/hr/Department.jsx";
 import HREmployee from "./Pages/hr/Employee.jsx";
@@ -62,6 +63,7 @@ function App() {
       <Route path="/hr/leave/assign" element={<HRLeaveAssign />} />
       <Route path="/hr/leave/employment-types" element={<HREmploymentTypes />} />
       <Route path="/hr/payslip" element={<HRPayslip />} />
+      <Route path="/hr/payroll/salaries" element={<HRSalaryAssign />} />
       <Route path="/hr/report" element={<HRReport />} />
       <Route path="/hr/reports" element={<HRReport />} />
       <Route path="/hr/notifications" element={<HRNotifications />} />

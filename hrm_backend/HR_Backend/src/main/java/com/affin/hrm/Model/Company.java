@@ -36,6 +36,14 @@ public class Company {
     private String phone;
     private String address;
     private String website;
+    private String industry;
+    private String contactPersonName;
+    private String contactPersonRole;
+
+    @Column(columnDefinition = "TEXT")
+    private String notes;
+
+    private Integer employeeCount;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

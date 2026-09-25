@@ -25,7 +25,12 @@ public class CompanyDTO {
     private String phone;
     private String address;
     private String website;
+    private String industry;
+    private String contactPersonName;
+    private String contactPersonRole;
+    private String notes;
     private String status;
     private String rejectionReason;
     private long employeeCount;
+    private String createdAt;
 }

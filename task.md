@@ -3,7 +3,7 @@
 ## 10-Commit Execution Plan for Company Registration Request Feature
 
 - [x] **Commit 1**: Backend Model Updates (`Company.java`, `CompanyDTO.java`, `CompanyRequestDTO.java` across backend services)
-- [ ] **Commit 2**: Public Company Request Controller & Repository in Backend (`PublicCompanyController.java` & save to DB as `PENDING`)
+- [x] **Commit 2**: Public Company Request Controller & Repository in Backend (`PublicCompanyController.java` & save to DB as `PENDING`)
 - [ ] **Commit 3**: Admin In-App Notification System for New Applications (`NotificationService` trigger for system admins)
 - [ ] **Commit 4**: Email Service Implementation (`EmailService.java` for sending HTML/Text emails with SMTP & fallback logger)
 - [ ] **Commit 5**: Admin Approval Logic & HR Account Auto-Provisioning (`AdminService.approveCompany` generating `HR_MANAGER` account)

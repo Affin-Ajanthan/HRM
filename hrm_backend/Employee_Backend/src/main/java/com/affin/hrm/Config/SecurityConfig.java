@@ -69,7 +69,8 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/api/auth/login",
                     "/api/auth/register",
-                    "/api/auth/check-user/**"
+                    "/api/auth/check-user/**",
+                    "/api/public/**"
                 ).permitAll()
                 .requestMatchers("/api/sync/**").permitAll()
                 .requestMatchers("/api/internal/**").permitAll()

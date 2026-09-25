@@ -51,14 +51,6 @@ const Hero = () => {
           >
             Contact
           </li>
-          <li>
-            <button
-              onClick={() => setIsRequestModalOpen(true)}
-              className="bg-emerald-500/90 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow"
-            >
-              <Building2 size={14} /> Request for Your Company
-            </button>
-          </li>
         </ul>
       </nav>
 

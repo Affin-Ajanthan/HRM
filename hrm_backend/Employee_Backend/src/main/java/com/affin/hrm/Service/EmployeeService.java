@@ -304,6 +304,28 @@ public class EmployeeService {
         return dto;
     }
 
+    /**
+     * Reject a pending company request and send rejection email.
+     */
+    public CompanyDTO rejectCompany(Long companyId, String reason) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Company", "id", companyId));
+
+        company.setStatus(Company.CompanyStatus.REJECTED);
+        company.setRejectionReason(reason);
+        Company savedCompany = companyRepository.save(company);
+
+        // Send rejection email
+        emailService.sendRejectionEmail(savedCompany.getEmail(), savedCompany.getContactPersonName(), savedCompany.getCompanyName(), reason);
+
+        log.info("Rejected company '{}' (ID: {}). Reason: {}", savedCompany.getCompanyName(), savedCompany.getId(), reason);
+
+        CompanyDTO dto = modelMapper.map(savedCompany, CompanyDTO.class);
+        dto.setStatus(savedCompany.getStatus().name());
+        dto.setRejectionReason(reason);
+        return dto;
+    }
+
     private void syncToUserBackend(Company company, Employee hrUser) {
         try {
             org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();

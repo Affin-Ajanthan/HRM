@@ -195,6 +195,12 @@ public class InternalController {
         return ResponseEntity.ok(approved);
     }
 
+    @PostMapping("/companies/{id}/reject")
+    public ResponseEntity<CompanyDTO> rejectCompanyInternal(@PathVariable Long id, @RequestParam(required = false) String reason) {
+        CompanyDTO rejected = employeeService.rejectCompany(id, reason != null ? reason : "Application rejected by admin.");
+        return ResponseEntity.ok(rejected);
+    }
+
     // ── Departments ──────────────────────────────────────────────
 
     @GetMapping("/departments")

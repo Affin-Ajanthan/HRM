@@ -159,13 +159,12 @@ public class AdminService {
     }
 
     public CompanyDTO rejectCompany(Long id, String reason) {
-        CompanyDTO dto = new CompanyDTO();
-        dto.setStatus("REJECTED");
-        dto.setRejectionReason(reason);
-        restTemplate.put(employeeServiceUrl + "/api/internal/companies/" + id, dto);
+        CompanyDTO updated = restTemplate.postForObject(
+                employeeServiceUrl + "/api/internal/companies/" + id + "/reject?reason=" + (reason != null ? reason : ""), null, CompanyDTO.class);
         logAction("REJECT_COMPANY", "Company", id, "Rejected company. Reason: " + reason);
-        CompanyDTO updated = getCompanyById(id);
-        syncCompanyToHRBackend(updated);
+        if (updated != null) {
+            syncCompanyToHRBackend(updated);
+        }
         return updated;
     }
 

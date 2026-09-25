@@ -1,21 +1,14 @@
-# Inter-Service Communication — Tasks
+# HRM Tasks — 10 Step Commits Implementation Plan
 
-## Step 1: Employee_Backend — Internal API
-- [ ] Create `InternalController.java` (service-to-service endpoints)
-- [ ] Update `SecurityConfig` to allow `/api/internal/**` without auth
-- [ ] Add service URL env vars to `.env`
+## 10-Commit Execution Plan for Company Registration Request Feature
 
-## Step 2: Admin_Backend — Use RestTemplate
-- [ ] Add `RestTemplateConfig.java` with Employee service URL
-- [ ] Refactor `AdminService.java` to call Employee_Backend via REST
-- [ ] Remove unused Employee/Company JPA models & repositories
-- [ ] Keep only admin-owned tables (AuditLog, SystemConfiguration)
-
-## Step 3: HR_Backend — Use RestTemplate
-- [ ] Add `RestTemplateConfig.java` with Employee service URL
-- [ ] Refactor HR services to call Employee_Backend via REST
-- [ ] Remove duplicate Employee/Company JPA models & repositories
-
-## Step 4: Verification
-- [ ] Build all 4 services
-- [ ] Test registration → admin visibility flow
+- [x] **Commit 1**: Backend Model Updates (`Company.java`, `CompanyDTO.java`, `CompanyRequestDTO.java` across backend services)
+- [ ] **Commit 2**: Public Company Request Controller & Repository in Backend (`PublicCompanyController.java` & save to DB as `PENDING`)
+- [ ] **Commit 3**: Admin In-App Notification System for New Applications (`NotificationService` trigger for system admins)
+- [ ] **Commit 4**: Email Service Implementation (`EmailService.java` for sending HTML/Text emails with SMTP & fallback logger)
+- [ ] **Commit 5**: Admin Approval Logic & HR Account Auto-Provisioning (`AdminService.approveCompany` generating `HR_MANAGER` account)
+- [ ] **Commit 6**: User Database (`hrm_db_user`) Synchronization with `companyId` & `companyName` (`SyncService` inter-service sync)
+- [ ] **Commit 7**: Admin Rejection Logic with Rejection Reason Email (`AdminService.rejectCompany`)
+- [ ] **Commit 8**: Frontend Hero Section "Request for Your Company" CTA Button (`hero.jsx`)
+- [ ] **Commit 9**: Frontend Public Company Registration Request Modal (`CompanyRequestModal.jsx`)
+- [ ] **Commit 10**: Frontend Admin Dashboard Integration & Real-time Approval/Rejection (`Companies.jsx` & header notification bell)

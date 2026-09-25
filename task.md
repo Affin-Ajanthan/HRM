@@ -7,7 +7,7 @@
 - [x] **Commit 3**: Admin In-App Notification System for New Applications (`NotificationService` trigger for system admins)
 - [x] **Commit 4**: Email Service Implementation (`EmailService.java` for sending HTML/Text emails with SMTP & fallback logger)
 - [x] **Commit 5**: Admin Approval Logic & HR Account Auto-Provisioning (`AdminService.approveCompany` generating `HR_MANAGER` account)
-- [ ] **Commit 6**: User Database (`hrm_db_user`) Synchronization with `companyId` & `companyName` (`SyncService` inter-service sync)
+- [x] **Commit 6**: User Database (`hrm_db_user`) Synchronization with `companyId` & `companyName` (`SyncService` inter-service sync)
 - [ ] **Commit 7**: Admin Rejection Logic with Rejection Reason Email (`AdminService.rejectCompany`)
 - [ ] **Commit 8**: Frontend Hero Section "Request for Your Company" CTA Button (`hero.jsx`)
 - [ ] **Commit 9**: Frontend Public Company Registration Request Modal (`CompanyRequestModal.jsx`)

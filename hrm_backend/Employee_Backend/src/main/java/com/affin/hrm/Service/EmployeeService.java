@@ -294,11 +294,54 @@ public class EmployeeService {
         // Send approval welcome email with credentials
         emailService.sendApprovalEmail(email, savedCompany.getContactPersonName(), savedCompany.getCompanyName(), tempPassword);
 
+        // Sync approved company & HR Manager account to User_Backend (hrm_db_user)
+        syncToUserBackend(savedCompany, hrUser);
+
         log.info("Approved company '{}' (ID: {}) and provisioned HR Manager account ({})", savedCompany.getCompanyName(), savedCompany.getId(), email);
 
         CompanyDTO dto = modelMapper.map(savedCompany, CompanyDTO.class);
         dto.setStatus(savedCompany.getStatus().name());
         return dto;
+    }
+
+    private void syncToUserBackend(Company company, Employee hrUser) {
+        try {
+            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            String userServiceUrl = "http://localhost:5002";
+
+            // 1. Sync Company
+            try {
+                restTemplate.postForObject(userServiceUrl + "/api/sync/company", company, String.class);
+                log.info("Synced approved company '{}' to User_Backend (hrm_db_user)", company.getCompanyName());
+            } catch (Exception e) {
+                log.warn("Could not sync company '{}' to User_Backend: {}", company.getCompanyName(), e.getMessage());
+            }
+
+            // 2. Sync HR Employee Account
+            try {
+                java.util.Map<String, Object> payload = new java.util.HashMap<>();
+                payload.put("id", hrUser.getId());
+                payload.put("employeeId", hrUser.getEmployeeId());
+                payload.put("fullName", hrUser.getFullName());
+                payload.put("email", hrUser.getEmail());
+                payload.put("password", hrUser.getPassword());
+                payload.put("role", hrUser.getRole() != null ? hrUser.getRole().name() : "HR_MANAGER");
+                payload.put("status", hrUser.getStatus() != null ? hrUser.getStatus().name() : "ACTIVE");
+
+                java.util.Map<String, Object> compMap = new java.util.HashMap<>();
+                compMap.put("id", company.getId());
+                compMap.put("companyName", company.getCompanyName());
+                compMap.put("registrationNumber", company.getRegistrationNumber());
+                payload.put("company", compMap);
+
+                restTemplate.postForObject(userServiceUrl + "/api/sync/employee", payload, String.class);
+                log.info("Synced HR Manager user '{}' ({}) to User_Backend (hrm_db_user) with company '{}'", hrUser.getEmail(), company.getCompanyName(), company.getCompanyName());
+            } catch (Exception e) {
+                log.warn("Could not sync HR Manager user '{}' to User_Backend: {}", hrUser.getEmail(), e.getMessage());
+            }
+        } catch (Exception e) {
+            log.error("Failed user database sync for company {}: {}", company.getCompanyName(), e.getMessage());
+        }
     }
 
     private EmployeeDTO convertToDTO(Employee employee) {

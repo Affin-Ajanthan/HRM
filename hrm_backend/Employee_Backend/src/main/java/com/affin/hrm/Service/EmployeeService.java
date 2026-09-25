@@ -1,5 +1,6 @@
 package com.affin.hrm.service;
 
+import com.affin.hrm.dto.CompanyDTO;
 import com.affin.hrm.dto.EmployeeDTO;
 import com.affin.hrm.exception.BusinessException;
 import com.affin.hrm.exception.ResourceNotFoundException;
@@ -37,19 +38,22 @@ public class EmployeeService {
     private final ModelMapper modelMapper;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
+    private final EmailService emailService;
 
     public EmployeeService(EmployeeRepository employeeRepository,
                            CompanyRepository companyRepository,
                            DepartmentRepository departmentRepository,
                            ModelMapper modelMapper,
                            PasswordEncoder passwordEncoder,
-                           AuditService auditService) {
+                           AuditService auditService,
+                           EmailService emailService) {
         this.employeeRepository = employeeRepository;
         this.companyRepository = companyRepository;
         this.departmentRepository = departmentRepository;
         this.modelMapper = modelMapper;
         this.passwordEncoder = passwordEncoder;
         this.auditService = auditService;
+        this.emailService = emailService;
     }
 
     @Transactional(readOnly = true)
@@ -257,6 +261,111 @@ public class EmployeeService {
                     d.setCompany(company);
                     return departmentRepository.save(d);
                 });
+    }
+
+    /**
+     * Approve a pending company request, auto-provision HR Manager account, and send approval email.
+     */
+    public CompanyDTO approveCompany(Long companyId) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Company", "id", companyId));
+
+        company.setStatus(Company.CompanyStatus.APPROVED);
+        Company savedCompany = companyRepository.save(company);
+
+        // Auto-provision initial HR Manager account
+        String email = savedCompany.getEmail();
+        String tempPassword = "HR#" + (100000 + new java.util.Random().nextInt(900000)) + "!";
+
+        Employee hrUser = employeeRepository.findByEmailIgnoreCase(email)
+                .orElseGet(() -> {
+                    Employee newHr = new Employee();
+                    newHr.setEmail(email);
+                    newHr.setEmployeeId("HR-" + savedCompany.getId() + "-001");
+                    newHr.setJoiningDate(LocalDate.now());
+                    return newHr;
+                });
+
+        hrUser.setFullName(savedCompany.getContactPersonName() != null ? savedCompany.getContactPersonName() : (savedCompany.getCompanyName() + " HR Manager"));
+        hrUser.setPassword(passwordEncoder.encode(tempPassword));
+        hrUser.setRole(Employee.Role.HR_MANAGER);
+        hrUser.setCompany(savedCompany);
+        hrUser.setStatus(Employee.EmployeeStatus.ACTIVE);
+        Employee savedHrUser = employeeRepository.save(hrUser);
+
+        // Send approval welcome email with credentials
+        emailService.sendApprovalEmail(email, savedCompany.getContactPersonName(), savedCompany.getCompanyName(), tempPassword);
+
+        // Sync approved company & HR Manager account to User_Backend (hrm_db_user)
+        syncToUserBackend(savedCompany, savedHrUser);
+
+        log.info("Approved company '{}' (ID: {}) and provisioned HR Manager account ({})", savedCompany.getCompanyName(), savedCompany.getId(), email);
+
+        CompanyDTO dto = modelMapper.map(savedCompany, CompanyDTO.class);
+        dto.setStatus(savedCompany.getStatus().name());
+        return dto;
+    }
+
+    /**
+     * Reject a pending company request and send rejection email.
+     */
+    public CompanyDTO rejectCompany(Long companyId, String reason) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Company", "id", companyId));
+
+        company.setStatus(Company.CompanyStatus.REJECTED);
+        company.setRejectionReason(reason);
+        Company savedCompany = companyRepository.save(company);
+
+        // Send rejection email
+        emailService.sendRejectionEmail(savedCompany.getEmail(), savedCompany.getContactPersonName(), savedCompany.getCompanyName(), reason);
+
+        log.info("Rejected company '{}' (ID: {}). Reason: {}", savedCompany.getCompanyName(), savedCompany.getId(), reason);
+
+        CompanyDTO dto = modelMapper.map(savedCompany, CompanyDTO.class);
+        dto.setStatus(savedCompany.getStatus().name());
+        dto.setRejectionReason(reason);
+        return dto;
+    }
+
+    private void syncToUserBackend(Company company, Employee hrUser) {
+        try {
+            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            String userServiceUrl = "http://localhost:5002";
+
+            // 1. Sync Company
+            try {
+                restTemplate.postForObject(userServiceUrl + "/api/sync/company", company, String.class);
+                log.info("Synced approved company '{}' to User_Backend (hrm_db_user)", company.getCompanyName());
+            } catch (Exception e) {
+                log.warn("Could not sync company '{}' to User_Backend: {}", company.getCompanyName(), e.getMessage());
+            }
+
+            // 2. Sync HR Employee Account
+            try {
+                java.util.Map<String, Object> payload = new java.util.HashMap<>();
+                payload.put("id", hrUser.getId());
+                payload.put("employeeId", hrUser.getEmployeeId());
+                payload.put("fullName", hrUser.getFullName());
+                payload.put("email", hrUser.getEmail());
+                payload.put("password", hrUser.getPassword());
+                payload.put("role", hrUser.getRole() != null ? hrUser.getRole().name() : "HR_MANAGER");
+                payload.put("status", hrUser.getStatus() != null ? hrUser.getStatus().name() : "ACTIVE");
+
+                java.util.Map<String, Object> compMap = new java.util.HashMap<>();
+                compMap.put("id", company.getId());
+                compMap.put("companyName", company.getCompanyName());
+                compMap.put("registrationNumber", company.getRegistrationNumber());
+                payload.put("company", compMap);
+
+                restTemplate.postForObject(userServiceUrl + "/api/sync/employee", payload, String.class);
+                log.info("Synced HR Manager user '{}' ({}) to User_Backend (hrm_db_user) with company '{}'", hrUser.getEmail(), company.getCompanyName(), company.getCompanyName());
+            } catch (Exception e) {
+                log.warn("Could not sync HR Manager user '{}' to User_Backend: {}", hrUser.getEmail(), e.getMessage());
+            }
+        } catch (Exception e) {
+            log.error("Failed user database sync for company {}: {}", company.getCompanyName(), e.getMessage());
+        }
     }
 
     private EmployeeDTO convertToDTO(Employee employee) {

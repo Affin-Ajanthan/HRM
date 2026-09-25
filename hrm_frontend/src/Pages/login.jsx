@@ -66,8 +66,7 @@ const Login = () => {
       if (data.role === "ADMIN") {
         navigate("/admin/dashboard");
       } else if (data.role === "HR_MANAGER") {
-        setIsLoading(false);
-        setHrChoicePending(true);
+        navigate("/hr/dashboard");
       } else {
         navigate("/employee/dashboard");
       }

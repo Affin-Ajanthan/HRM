@@ -66,10 +66,12 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(
                     "/api/auth/login",
                     "/api/auth/register",
-                    "/api/auth/check-user/**"
+                    "/api/auth/check-user/**",
+                    "/api/public/**"
                 ).permitAll()
                 .requestMatchers("/api/sync/**").permitAll()
                 .requestMatchers("/api/internal/**").permitAll()

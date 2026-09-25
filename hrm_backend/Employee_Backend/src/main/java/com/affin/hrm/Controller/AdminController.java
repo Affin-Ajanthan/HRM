@@ -121,14 +121,29 @@ public class AdminController {
     public ResponseEntity<ApiResponse<List<EmployeeDTO>>> getAllUsers() {
         List<EmployeeDTO> users = employeeRepository.findAll().stream()
                 .map(e -> {
-                    EmployeeDTO dto = modelMapper.map(e, EmployeeDTO.class);
-                    dto.setPassword(null);
-                    if (e.getCompany() != null) {
-                        dto.setCompanyId(e.getCompany().getId());
-                        dto.setCompanyName(e.getCompany().getCompanyName());
-                    }
+                    EmployeeDTO dto = new EmployeeDTO();
+                    dto.setId(e.getId());
+                    dto.setEmployeeId(e.getEmployeeId());
+                    dto.setFullName(e.getFullName());
+                    dto.setEmail(e.getEmail());
+                    dto.setPhone(e.getPhone());
+                    dto.setNic(e.getNic());
+                    dto.setDob(e.getDob());
+                    dto.setAddress(e.getAddress());
+                    dto.setDesignation(e.getDesignation());
+                    dto.setJoiningDate(e.getJoiningDate());
+                    dto.setTerminationDate(e.getTerminationDate());
+                    if (e.getGender() != null) dto.setGender(e.getGender().name());
                     if (e.getRole() != null) dto.setRole(e.getRole().name());
                     if (e.getStatus() != null) dto.setStatus(e.getStatus().name());
+                    try {
+                        if (e.getCompany() != null) {
+                            dto.setCompanyId(e.getCompany().getId());
+                            dto.setCompanyName(e.getCompany().getCompanyName());
+                        }
+                    } catch (Exception ex) {
+                        // ignore lazy proxy exception
+                    }
                     return dto;
                 })
                 .collect(Collectors.toList());

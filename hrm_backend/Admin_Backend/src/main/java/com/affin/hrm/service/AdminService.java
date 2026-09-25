@@ -63,6 +63,7 @@ public class AdminService {
             DashboardStatsDTO stats = new DashboardStatsDTO();
             stats.setTotalEmployees(toLong(data.get("totalEmployees")));
             stats.setTotalCompanies(toLong(data.get("totalCompanies")));
+            stats.setPendingCompanies(toLong(data.get("pendingCompanies")));
             stats.setTotalDepartments(toLong(data.get("totalDepartments")));
             stats.setPresentToday(toLong(data.get("presentToday")));
             stats.setPendingLeaves(toLong(data.get("pendingLeaves")));
@@ -149,23 +150,19 @@ public class AdminService {
     }
 
     public CompanyDTO approveCompany(Long id) {
-        CompanyDTO dto = new CompanyDTO();
-        dto.setStatus("APPROVED");
-        restTemplate.put(employeeServiceUrl + "/api/internal/companies/" + id, dto);
-        logAction("APPROVE_COMPANY", "Company", id, "Approved company");
-        CompanyDTO updated = getCompanyById(id);
-        syncCompanyToHRBackend(updated);
+        CompanyDTO updated = restTemplate.postForObject(
+                employeeServiceUrl + "/api/internal/companies/" + id + "/approve", null, CompanyDTO.class);
+        logAction("APPROVE_COMPANY", "Company", id, "Approved company and provisioned HR Manager account");
+        if (updated != null) {
+            syncCompanyToHRBackend(updated);
+        }
         return updated;
     }
 
     public CompanyDTO rejectCompany(Long id, String reason) {
-        CompanyDTO dto = new CompanyDTO();
-        dto.setStatus("REJECTED");
-        dto.setRejectionReason(reason);
-        restTemplate.put(employeeServiceUrl + "/api/internal/companies/" + id, dto);
+        CompanyDTO updated = restTemplate.postForObject(
+                employeeServiceUrl + "/api/internal/companies/" + id + "/reject?reason=" + (reason != null ? reason : ""), null, CompanyDTO.class);
         logAction("REJECT_COMPANY", "Company", id, "Rejected company. Reason: " + reason);
-        CompanyDTO updated = getCompanyById(id);
-        syncCompanyToHRBackend(updated);
         return updated;
     }
 
@@ -278,13 +275,16 @@ public class AdminService {
 
     // ── Private Helpers ──────────────────────────────────────────
 
-    private void logAction(String action, String entity, Long entityId, String description) {
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void logAction(String action, String entity, Long entityId, String description) {
         try {
             AuditLog auditLog = new AuditLog();
             auditLog.setAction(action);
-            auditLog.setEntity(entity);
+            auditLog.setEntity(entity != null ? entity : "SYSTEM");
+            auditLog.setEntityType(entity != null ? entity : "SYSTEM");
             auditLog.setEntityId(entityId);
             auditLog.setDescription(description);
+            auditLog.setPerformedBy("ADMIN");
             auditLogRepository.save(auditLog);
         } catch (Exception e) {
             log.error("Failed to create audit log: {}", e.getMessage());

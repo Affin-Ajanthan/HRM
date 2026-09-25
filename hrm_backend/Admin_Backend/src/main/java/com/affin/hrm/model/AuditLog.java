@@ -30,10 +30,16 @@ public class AuditLog {
     @Column(nullable = false)
     private String entity;
 
+    @Column(name = "entity_type")
+    private String entityType;
+
     private Long entityId;
 
     @Column(length = 1000)
     private String description;
+
+    @Column(name = "performed_by")
+    private String performedBy = "ADMIN";
 
     private Long userId;
     

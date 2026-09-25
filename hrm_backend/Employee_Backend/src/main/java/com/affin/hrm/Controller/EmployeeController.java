@@ -131,9 +131,13 @@ public class EmployeeController {
 
     @GetMapping("/notifications")
     public ResponseEntity<ApiResponse<List<Notification>>> getMyNotifications() {
-        Employee employee = authService.getCurrentEmployee();
-        List<Notification> notifications = notificationRepository.findByEmployeeIdOrderByCreatedAtDesc(employee.getId());
-        return ResponseEntity.ok(ApiResponse.success(notifications));
+        try {
+            Employee employee = authService.getCurrentEmployee();
+            List<Notification> notifications = notificationRepository.findByEmployeeIdOrderByCreatedAtDesc(employee.getId());
+            return ResponseEntity.ok(ApiResponse.success(notifications));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.success(java.util.Collections.emptyList()));
+        }
     }
 
     @PutMapping("/notifications/{id}/read")

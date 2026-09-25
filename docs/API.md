@@ -67,6 +67,40 @@ Get the currently authenticated user's info. Requires `Authorization: Bearer <to
 
 ---
 
+## Public Company Onboarding
+
+### POST `/api/public/companies/request`
+Public endpoint for prospective client companies to submit an application request.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `companyName` | string | ✓ | Name of company |
+| `registrationNumber` | string | ✓ | Official registration ID |
+| `email` | string | ✓ | Official business email |
+| `phone` | string | ✓ | Contact phone number |
+| `address` | string | ✓ | Physical address |
+| `website` | string | | Company website URL |
+| `industry` | string | ✓ | Industry sector |
+| `employeeCount` | integer | ✓ | Estimated workforce count |
+| `contactPersonName` | string | ✓ | Full name of applicant |
+| `contactPersonRole` | string | | Applicant designation |
+| `notes` | string | | Optional notes to Admin |
+
+**Response** (201):
+```json
+{
+  "success": true,
+  "message": "Company application request submitted successfully",
+  "data": {
+    "id": 12,
+    "companyName": "Acme Corp",
+    "status": "PENDING"
+  }
+}
+```
+
+---
+
 ## Employee Self-Service
 
 All endpoints require `Authorization: Bearer <token>` header.

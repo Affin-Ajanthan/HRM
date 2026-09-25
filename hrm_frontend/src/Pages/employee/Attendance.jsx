@@ -140,7 +140,7 @@ const Attendance = () => {
   const statusBadge = (s) => ({
     PRESENT: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
     ABSENT: "bg-red-50 text-red-700 ring-1 ring-red-200",
-    HALF_DAY: "bg-employee-50 text-employee-700 ring-1 ring-employee-200",
+    HALF_DAY: "bg-violet-50 text-violet-700 ring-1 ring-violet-200",
     LATE: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
   }[s] || "bg-slate-50 text-slate-600 ring-1 ring-slate-200");
 
@@ -180,9 +180,9 @@ const Attendance = () => {
         )}
 
         {/* Clock In/Out card */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <div className="bg-gradient-to-br from-white to-employee-50 rounded-xl border border-employee-100 shadow-sm p-6">
           <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-3 mb-5">
-            <span className="bg-employee-50 p-2 rounded-lg"><Timer className="text-employee-600" size={20} /></span>
+            <span className="bg-indigo-50 p-2 rounded-lg"><Timer className="text-indigo-600" size={20} /></span>
             Today's Attendance
           </h2>
           
@@ -197,9 +197,9 @@ const Attendance = () => {
                   { label: "Last Clock In",  value: formatTime(attendance?.clockInTime),  text: "text-slate-900" },
                   { label: "Last Clock Out", value: formatTime(attendance?.clockOutTime), text: "text-slate-900" },
                   { label: "Working Hours",  value: formatMinutes(attendance?.totalWorkingMinutes || 0, isClockedIn), text: "text-slate-900" },
-                  { label: "Status",         value: !attendance ? "Not Started" : attendance.isClockedIn ? "Clocked In" : "Clocked Out", text: "text-employee-700" },
+                  { label: "Status",         value: !attendance ? "Not Started" : attendance.isClockedIn ? "Clocked In" : "Clocked Out", text: "text-indigo-700" },
                 ].map(t => (
-                  <div key={t.label} className="bg-slate-50 border border-slate-100 rounded-lg p-4 text-center">
+                  <div key={t.label} className="bg-white/70 border border-employee-100 rounded-lg p-4 text-center">
                     <p className="text-slate-500 text-xs mb-2">{t.label}</p>
                     <p className={`text-2xl font-bold ${t.text}`}>{t.value}</p>
                   </div>
@@ -231,7 +231,7 @@ const Attendance = () => {
                 <div className="flex flex-wrap gap-3 mt-3">
                   {attendance?.clockInLocation && (
                     <a href={mapLink(attendance.clockInLocation)} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-xs font-medium text-employee-700 bg-employee-50 hover:bg-employee-100 border border-employee-100 px-3 py-1.5 rounded-lg transition-colors">
+                      className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg transition-colors">
                       <MapPin size={13} /> Clock-in location
                     </a>
                   )}
@@ -250,14 +250,14 @@ const Attendance = () => {
         {/* Monthly stat cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
           {[
-            { label: "Total Days",     value: stats.totalDays,        edge: "border-t-employee-500" },
+            { label: "Total Days",     value: stats.totalDays,        edge: "border-t-indigo-500" },
             { label: "Present",        value: stats.present,          edge: "border-t-emerald-600" },
             { label: "Absent",         value: stats.absent,           edge: "border-t-red-500" },
-            { label: "On Leave",       value: stats.leave,            edge: "border-t-employee-300" },
+            { label: "On Leave",       value: stats.leave,            edge: "border-t-violet-500" },
             { label: "Late",           value: stats.late,             edge: "border-t-amber-500" },
             { label: "Hours",          value: stats.workingHours+"h", edge: "border-t-slate-700" },
           ].map(s => (
-            <div key={s.label} className={`bg-white border border-slate-200 border-t-4 ${s.edge} p-5 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300`}>
+            <div key={s.label} className={`bg-gradient-to-br from-white to-employee-50 border border-employee-100 border-t-4 ${s.edge} p-5 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300`}>
               <p className="text-slate-500 text-xs font-medium mb-1">{s.label}</p>
               <p className="text-3xl font-bold text-slate-900">{s.value}</p>
             </div>
@@ -265,10 +265,10 @@ const Attendance = () => {
         </div>
 
         {/* History table */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between p-5 border-b border-slate-200">
+        <div className="bg-gradient-to-br from-white to-employee-50 rounded-xl border border-employee-100 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between p-5 border-b border-employee-100">
             <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-3">
-              <span className="bg-employee-50 p-2 rounded-lg"><Calendar size={20} className="text-employee-600" /></span> Attendance History
+              <span className="bg-indigo-50 p-2 rounded-lg"><Calendar size={20} className="text-indigo-600" /></span> Attendance History
             </h2>
             <div className="flex gap-3">
               <button className="flex items-center gap-1.5 border border-slate-300 bg-white px-3 py-1.5 rounded-lg text-sm hover:bg-slate-50 transition text-slate-700">
@@ -284,15 +284,15 @@ const Attendance = () => {
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wide">
+                  <tr className="bg-employee-50/80 border-b border-employee-100 text-slate-500 text-xs uppercase tracking-wide">
                     {["Date", "Day", "Check In", "Check Out", "Working Hours", "Location", "Status"].map(h => (
                       <th key={h} className="text-left px-5 py-3.5 font-semibold">{h}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-employee-100/70">
                   {attendanceHistory.map((r, i) => (
-                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                    <tr key={i} className="hover:bg-white/70 transition-colors">
                       <td className="px-5 py-3.5 font-medium text-slate-800">
                         {r.date}
                         {r.sessionCount > 1 && (
@@ -307,7 +307,7 @@ const Attendance = () => {
                         <div className="flex gap-2">
                           {r.clockInLocation && (
                             <a href={mapLink(r.clockInLocation)} target="_blank" rel="noopener noreferrer" title="Clock-in location"
-                              className="text-employee-600 hover:text-employee-800">
+                              className="text-emerald-600 hover:text-emerald-800">
                               <MapPin size={15} />
                             </a>
                           )}

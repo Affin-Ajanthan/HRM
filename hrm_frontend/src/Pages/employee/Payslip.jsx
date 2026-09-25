@@ -62,12 +62,12 @@ const Payslip = () => {
         {/* Summary cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
           {[
-            { label: "Last Salary",   value: `Rs. ${lastNet.toLocaleString()}`, icon: <CreditCard size={20} />, edge: "border-t-employee-500", chip: "bg-employee-50 text-employee-600", sub: payslips.length > 0 ? `${getMonthName(payslips[0].month)} ${payslips[0].year}` : "N/A" },
-            { label: "Avg. Monthly",  value: `Rs. ${avgNet.toLocaleString()}`, icon: <TrendingUp size={20} />, edge: "border-t-emerald-600", chip: "bg-emerald-50 text-emerald-700", sub: "All time" },
+            { label: "Last Salary",   value: `Rs. ${lastNet.toLocaleString()}`, icon: <CreditCard size={20} />, edge: "border-t-emerald-600", chip: "bg-emerald-50 text-emerald-700", sub: payslips.length > 0 ? `${getMonthName(payslips[0].month)} ${payslips[0].year}` : "N/A" },
+            { label: "Avg. Monthly",  value: `Rs. ${avgNet.toLocaleString()}`, icon: <TrendingUp size={20} />, edge: "border-t-teal-500", chip: "bg-teal-50 text-teal-700", sub: "All time" },
             { label: "Total Earnings",  value: `Rs. ${totalNet.toLocaleString()}`, icon: <DollarSign size={20} />, edge: "border-t-amber-500", chip: "bg-amber-50 text-amber-700", sub: "Year to date" },
             { label: "Total Payslips",value: payslips.length, icon: <FileText size={20} />, edge: "border-t-slate-700", chip: "bg-slate-100 text-slate-700", sub: "Available" },
           ].map(s => (
-            <div key={s.label} className={`bg-white border border-slate-200 border-t-4 ${s.edge} p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300`}>
+            <div key={s.label} className={`bg-gradient-to-br from-white to-employee-50 border border-employee-100 border-t-4 ${s.edge} p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300`}>
               <div className="flex items-start justify-between mb-3">
                 <p className="text-slate-500 text-sm font-medium">{s.label}</p>
                 <div className={`${s.chip} p-2.5 rounded-lg`}>{s.icon}</div>
@@ -79,16 +79,16 @@ const Payslip = () => {
         </div>
 
         {/* Payslip list */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <div className="bg-gradient-to-br from-white to-employee-50 rounded-xl border border-employee-100 shadow-sm p-6">
           <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-3 mb-5">
-            <span className="bg-employee-50 p-2 rounded-lg"><FileText size={20} className="text-employee-600" /></span> Payslip History
+            <span className="bg-emerald-50 p-2 rounded-lg"><FileText size={20} className="text-emerald-600" /></span> Payslip History
           </h2>
           <div className="space-y-4">
             {payslips.map(p => (
-              <div key={p.id} className="border border-slate-200 rounded-lg p-5 hover:border-employee-200 hover:bg-slate-50/50 transition-all">
+              <div key={p.id} className="bg-white/70 border border-employee-100 rounded-lg p-5 hover:border-employee-200 hover:bg-white transition-all">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-employee-50 rounded-lg flex items-center justify-center text-employee-600">
+                    <div className="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600">
                       <Calendar size={22} />
                     </div>
                     <div>
@@ -96,7 +96,7 @@ const Payslip = () => {
                       <p className="text-sm text-slate-500">Status: {p.status || "PAID"}</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm flex-1 md:ml-6 bg-slate-50 border border-slate-100 rounded-lg p-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm flex-1 md:ml-6 bg-employee-50/60 border border-employee-100 rounded-lg p-4">
                     <div><p className="text-slate-400 text-xs mb-0.5">Basic</p><p className="font-semibold text-slate-800">Rs. {p.basicSalary.toLocaleString()}</p></div>
                     <div><p className="text-slate-400 text-xs mb-0.5">Allowances</p><p className="font-semibold text-emerald-700">+{p.totalAllowances.toLocaleString()}</p></div>
                     <div><p className="text-slate-400 text-xs mb-0.5">Deductions</p><p className="font-semibold text-red-600">-{p.totalDeductions.toLocaleString()}</p></div>

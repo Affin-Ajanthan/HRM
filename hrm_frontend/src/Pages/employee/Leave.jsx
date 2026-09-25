@@ -5,7 +5,7 @@ import { PageLayout } from "../../components/PageLayout";
 import { employeeApi } from "../../services/api";
 
 // Top-edge colours for the per-type balance cards, in the order the API returns the types
-const BALANCE_EDGES = ["border-t-employee-500", "border-t-emerald-600", "border-t-amber-500"];
+const BALANCE_EDGES = ["border-t-violet-500", "border-t-teal-500", "border-t-indigo-500"];
 
 const Leave = () => {
   const navigate = useNavigate();
@@ -136,7 +136,7 @@ const Leave = () => {
               edge: "border-t-slate-700",
             },
           ].map(b => (
-            <div key={b.label} className={`bg-white border border-slate-200 border-t-4 ${b.edge} p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300`}>
+            <div key={b.label} className={`bg-gradient-to-br from-white to-employee-50 border border-employee-100 border-t-4 ${b.edge} p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300`}>
               <p className="text-slate-500 text-sm font-medium mb-1">{b.label}</p>
               <p className="text-3xl font-bold text-slate-900">{b.remaining}</p>
               <div className="flex items-center justify-between text-xs mt-2">
@@ -148,9 +148,9 @@ const Leave = () => {
         </div>
 
         {/* History */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <div className="bg-gradient-to-br from-white to-employee-50 rounded-xl border border-employee-100 shadow-sm p-6">
           <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-3 mb-5">
-            <span className="bg-employee-50 p-2 rounded-lg"><FileText size={20} className="text-employee-600" /></span> Leave History
+            <span className="bg-violet-50 p-2 rounded-lg"><FileText size={20} className="text-violet-600" /></span> Leave History
           </h2>
           <div className="space-y-3">
             {loading && (
@@ -162,7 +162,7 @@ const Leave = () => {
               <p className="text-center text-sm text-slate-500 py-8">No leave applications yet</p>
             )}
             {!loading && leaveHistory.map(leave => (
-              <div key={leave.id} className="border border-slate-200 rounded-lg p-5 hover:border-employee-200 hover:bg-slate-50/50 transition-all">
+              <div key={leave.id} className="bg-white/70 border border-employee-100 rounded-lg p-5 hover:border-employee-200 hover:bg-white transition-all">
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <div className="flex items-center gap-3 mb-2">
@@ -178,7 +178,7 @@ const Leave = () => {
                     </div>
                   </div>
                 </div>
-                <div className="bg-slate-50 border border-slate-100 rounded-lg px-4 py-2.5 text-sm text-slate-600">
+                <div className="bg-employee-50/60 border border-employee-100 rounded-lg px-4 py-2.5 text-sm text-slate-600">
                   <span className="font-medium text-slate-700">Reason: </span>{leave.reason}
                 </div>
                 {leave.status === "REJECTED" && leave.rejectionReason && (

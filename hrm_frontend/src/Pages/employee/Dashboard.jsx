@@ -160,13 +160,13 @@ const EmployeeDashboard = () => {
         {/* ── Stats Cards ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            { edge: "border-t-employee-500", chip: "bg-employee-50 text-employee-600", icon: <ClockIcon size={22} />,    label: "Present Days",   value: stats.presentDays,         sub: "This month"        },
-            { edge: "border-t-emerald-600",  chip: "bg-emerald-50 text-emerald-700",   icon: <Calendar size={22} />,     label: "Leave Balance",  value: stats.leaveBalance,        sub: "Days available"    },
+            { edge: "border-t-indigo-500",   chip: "bg-indigo-50 text-indigo-600",     icon: <ClockIcon size={22} />,    label: "Present Days",   value: stats.presentDays,         sub: "This month"        },
+            { edge: "border-t-violet-500",   chip: "bg-violet-50 text-violet-600",     icon: <Calendar size={22} />,     label: "Leave Balance",  value: stats.leaveBalance,        sub: "Days available"    },
             { edge: "border-t-amber-500",    chip: "bg-amber-50 text-amber-700",       icon: <CalendarDays size={22} />, label: "Pending Leaves", value: stats.pendingLeaves,       sub: "Awaiting approval" },
-            { edge: "border-t-slate-700",    chip: "bg-slate-100 text-slate-700",      icon: <DollarSign size={22} />,   label: "Last Salary",    value: `Rs. ${stats.lastSalary}`, sub: "January 2026"      },
+            { edge: "border-t-emerald-600",  chip: "bg-emerald-50 text-emerald-700",   icon: <DollarSign size={22} />,   label: "Last Salary",    value: `Rs. ${stats.lastSalary}`, sub: "January 2026"      },
           ].map(c => (
             <div key={c.label}
-              className={`bg-white p-6 rounded-xl border border-slate-200 border-t-4 ${c.edge} shadow-sm hover:shadow-md transition-shadow duration-300`}>
+              className={`bg-gradient-to-br from-white to-employee-50 p-6 rounded-xl border border-employee-100 border-t-4 ${c.edge} shadow-sm hover:shadow-md transition-shadow duration-300`}>
               <div className="flex items-start justify-between mb-4">
                 <p className="text-sm font-medium text-slate-500">{c.label}</p>
                 <div className={`${c.chip} p-2.5 rounded-lg`}>{c.icon}</div>
@@ -253,10 +253,10 @@ const EmployeeDashboard = () => {
         {/* ── Performance + Upcoming Events ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Performance */}
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <div className="bg-gradient-to-br from-white to-employee-50 p-6 rounded-xl border border-employee-100 shadow-sm">
             <h3 className="text-lg font-semibold mb-6 flex items-center text-slate-800">
-              <div className="bg-employee-50 p-2 rounded-lg mr-3">
-                <Target className="text-employee-600" size={20} />
+              <div className="bg-orange-50 p-2 rounded-lg mr-3">
+                <Target className="text-orange-600" size={20} />
               </div>
               My Performance
             </h3>
@@ -277,7 +277,7 @@ const EmployeeDashboard = () => {
                 </div>
               ))}
               <div className="mt-4 p-4 bg-employee-50 border border-employee-100 rounded-lg flex items-center gap-3">
-                <Award className="text-employee-600" size={22} />
+                <Award className="text-amber-500" size={22} />
                 <div>
                   <p className="font-semibold text-slate-800">Great Job!</p>
                   <p className="text-sm text-slate-600">You're performing above average</p>
@@ -287,21 +287,21 @@ const EmployeeDashboard = () => {
           </div>
 
           {/* Upcoming Events */}
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <div className="bg-gradient-to-br from-white to-employee-50 p-6 rounded-xl border border-employee-100 shadow-sm">
             <h3 className="text-lg font-semibold mb-6 flex items-center text-slate-800">
-              <div className="bg-employee-50 p-2 rounded-lg mr-3">
-                <Calendar className="text-employee-600" size={20} />
+              <div className="bg-amber-50 p-2 rounded-lg mr-3">
+                <Calendar className="text-amber-600" size={20} />
               </div>
               Upcoming Events
             </h3>
             <div className="space-y-3">
               {[
-                { icon: <Calendar size={18} />, title: "Team Meeting",        sub: "Tomorrow at 10:00 AM"    },
-                { icon: <Award size={18} />,    title: "Performance Review",  sub: "Jan 25, 2026 at 2:00 PM" },
-                { icon: <Gift size={18} />,     title: "Company Anniversary", sub: "Jan 28, 2026"            },
+                { icon: <Calendar size={18} />, tone: "bg-indigo-50 text-indigo-600", title: "Team Meeting",        sub: "Tomorrow at 10:00 AM"    },
+                { icon: <Award size={18} />,    tone: "bg-orange-50 text-orange-600", title: "Performance Review",  sub: "Jan 25, 2026 at 2:00 PM" },
+                { icon: <Gift size={18} />,     tone: "bg-rose-50 text-rose-500",     title: "Company Anniversary", sub: "Jan 28, 2026"            },
               ].map(e => (
-                <div key={e.title} className="flex items-start gap-3 p-3 border border-slate-100 hover:bg-slate-50 rounded-lg transition">
-                  <div className="bg-employee-50 text-employee-600 p-2 rounded-lg">{e.icon}</div>
+                <div key={e.title} className="flex items-start gap-3 p-3 border border-employee-100 bg-white/70 hover:bg-white rounded-lg transition">
+                  <div className={`${e.tone} p-2 rounded-lg`}>{e.icon}</div>
                   <div>
                     <p className="font-medium text-slate-800">{e.title}</p>
                     <p className="text-sm text-slate-500">{e.sub}</p>
@@ -313,17 +313,17 @@ const EmployeeDashboard = () => {
         </div>
 
         {/* ── Recent Notifications ── */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div className="bg-gradient-to-br from-white to-employee-50 p-6 rounded-xl border border-employee-100 shadow-sm">
           <h3 className="text-lg font-semibold mb-6 flex items-center text-slate-800">
-            <div className="bg-employee-50 p-2 rounded-lg mr-3">
-              <Bell className="text-employee-600" size={20} />
+            <div className="bg-rose-50 p-2 rounded-lg mr-3">
+              <Bell className="text-rose-500" size={20} />
             </div>
             Recent Notifications
           </h3>
           <div className="space-y-3">
             {notifications.map((n, i) => (
-              <div key={n.id || i} className="flex items-start gap-3 p-3 hover:bg-slate-50 rounded-lg transition">
-                <CheckCircle2 className={`${n.isRead ? "text-gray-300" : "text-employee-500"} mt-1`} size={20} />
+              <div key={n.id || i} className="flex items-start gap-3 p-3 hover:bg-white/70 rounded-lg transition">
+                <CheckCircle2 className={`${n.isRead ? "text-gray-300" : "text-rose-500"} mt-1`} size={20} />
                 <div className="flex-1">
                   <p className="font-medium text-slate-800">{n.title}</p>
                   <p className="text-sm text-gray-500">{n.message}</p>

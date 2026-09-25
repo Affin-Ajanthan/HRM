@@ -30,7 +30,7 @@ public interface LeaveApplicationRepository extends JpaRepository<LeaveApplicati
                                                   @Param("endDate") LocalDate endDate);
 
     @Query("SELECT COALESCE(SUM(la.numberOfDays), 0) FROM LeaveApplication la WHERE la.employee.id = :employeeId " +
-           "AND la.leaveType.id = :leaveTypeId AND la.status = 'PENDING' AND YEAR(la.startDate) = :year")
+           "AND la.leaveTypeId = :leaveTypeId AND la.status = 'PENDING' AND YEAR(la.startDate) = :year")
     int sumPendingDays(@Param("employeeId") Long employeeId,
                        @Param("leaveTypeId") Long leaveTypeId,
                        @Param("year") int year);

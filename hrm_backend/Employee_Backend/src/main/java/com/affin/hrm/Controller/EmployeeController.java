@@ -57,8 +57,7 @@ public class EmployeeController {
     @GetMapping("/leave/types")
     public ResponseEntity<ApiResponse<List<LeaveTypeDTO>>> getLeaveTypes() {
         Employee employee = authService.getCurrentEmployee();
-        Long companyId = employee.getCompany() != null ? employee.getCompany().getId() : null;
-        return ResponseEntity.ok(ApiResponse.success(leaveService.getLeaveTypes(companyId)));
+        return ResponseEntity.ok(ApiResponse.success(leaveService.getLeaveTypes(employee.getId())));
     }
 
     @PostMapping("/leave/apply")

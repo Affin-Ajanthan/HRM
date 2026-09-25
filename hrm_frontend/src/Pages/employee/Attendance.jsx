@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, Calendar, CheckCircle, XCircle, Download, Filter, MapPin } from "lucide-react";
+import { Clock, Calendar, CheckCircle, XCircle, Download, Filter, MapPin, Timer } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { employeeApi } from "../../services/api";
 import {
@@ -138,11 +138,11 @@ const Attendance = () => {
   };
 
   const statusBadge = (s) => ({
-    PRESENT: "bg-emerald-100 text-emerald-700",
-    ABSENT: "bg-red-100 text-red-700",
-    HALF_DAY: "bg-sky-100 text-sky-700",
-    LATE: "bg-amber-100 text-amber-700",
-  }[s] || "bg-gray-100 text-gray-600");
+    PRESENT: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+    ABSENT: "bg-red-50 text-red-700 ring-1 ring-red-200",
+    HALF_DAY: "bg-violet-50 text-violet-700 ring-1 ring-violet-200",
+    LATE: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
+  }[s] || "bg-slate-50 text-slate-600 ring-1 ring-slate-200");
 
   const statusLabel = (s) => ({
     PRESENT: "Present",
@@ -165,7 +165,7 @@ const Attendance = () => {
       title="Attendance"
       subtitle="Track your attendance and working hours"
       actions={
-        <button className="flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors">
+        <button className="flex items-center gap-2 bg-employee-600 hover:bg-employee-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
           <Download size={16} /> Export
         </button>
       }
@@ -180,64 +180,64 @@ const Attendance = () => {
         )}
 
         {/* Clock In/Out card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2 mb-5">
-            <span className="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center">⏱</span>
+        <div className="bg-gradient-to-br from-white to-employee-50 rounded-xl border border-employee-100 shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-3 mb-5">
+            <span className="bg-indigo-50 p-2 rounded-lg"><Timer className="text-indigo-600" size={20} /></span>
             Today's Attendance
           </h2>
           
           {loading ? (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-employee-500"></div>
             </div>
           ) : (
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
                 {[
-                  { label: "Last Clock In",  value: formatTime(attendance?.clockInTime), bg: "bg-sky-50",    text: "text-sky-600" },
-                  { label: "Last Clock Out", value: formatTime(attendance?.clockOutTime), bg: "bg-orange-50", text: "text-orange-600" },
-                  { label: "Working Hours",  value: formatMinutes(attendance?.totalWorkingMinutes || 0, isClockedIn), bg: "bg-emerald-50",text: "text-emerald-600" },
-                  { label: "Status",         value: !attendance ? "Not Started" : attendance.isClockedIn ? "Clocked In" : "Clocked Out", bg: "bg-violet-50", text: "text-violet-600" },
+                  { label: "Last Clock In",  value: formatTime(attendance?.clockInTime),  text: "text-slate-900" },
+                  { label: "Last Clock Out", value: formatTime(attendance?.clockOutTime), text: "text-slate-900" },
+                  { label: "Working Hours",  value: formatMinutes(attendance?.totalWorkingMinutes || 0, isClockedIn), text: "text-slate-900" },
+                  { label: "Status",         value: !attendance ? "Not Started" : attendance.isClockedIn ? "Clocked In" : "Clocked Out", text: "text-indigo-700" },
                 ].map(t => (
-                  <div key={t.label} className={`${t.bg} rounded-xl p-4 text-center`}>
-                    <p className="text-gray-500 text-xs mb-2">{t.label}</p>
+                  <div key={t.label} className="bg-white/70 border border-employee-100 rounded-lg p-4 text-center">
+                    <p className="text-slate-500 text-xs mb-2">{t.label}</p>
                     <p className={`text-2xl font-bold ${t.text}`}>{t.value}</p>
                   </div>
                 ))}
               </div>
               {attendance?.sessions?.length > 1 && (
-                <p className="text-xs text-gray-400 mb-3">{attendance.sessions.length} sessions today</p>
+                <p className="text-xs text-slate-400 mb-3">{attendance.sessions.length} sessions today</p>
               )}
               <div className="flex gap-3">
                 <button
                   onClick={handleClockIn}
                   disabled={clockInLoading || attendance?.isClockedIn}
-                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-white py-3 rounded-xl flex items-center justify-center gap-2 font-semibold text-sm transition-colors"
+                  className="flex-1 bg-employee-600 hover:bg-employee-700 text-white disabled:opacity-40 disabled:cursor-not-allowed py-3 rounded-lg flex items-center justify-center gap-2 font-semibold text-sm transition-colors"
                 >
                   <CheckCircle size={18} /> {clockInLoading ? "Getting location..." : "Clock In"}
                 </button>
                 <button
                   onClick={handleClockOut}
                   disabled={clockOutLoading || !attendance?.isClockedIn}
-                  className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white py-3 rounded-xl flex items-center justify-center gap-2 font-semibold text-sm transition-colors"
+                  className="flex-1 bg-slate-800 hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed text-white py-3 rounded-lg flex items-center justify-center gap-2 font-semibold text-sm transition-colors"
                 >
                   <XCircle size={18} /> {clockOutLoading ? "Getting location..." : "Clock Out"}
                 </button>
               </div>
-              <p className="text-xs text-gray-400 mt-3 flex items-center gap-1.5">
+              <p className="text-xs text-slate-400 mt-3 flex items-center gap-1.5">
                 <MapPin size={12} /> Your GPS location is captured at clock-in and clock-out. You can clock in and out as many times as needed during the day.
               </p>
               {(attendance?.clockInLocation || attendance?.clockOutLocation) && (
                 <div className="flex flex-wrap gap-3 mt-3">
                   {attendance?.clockInLocation && (
                     <a href={mapLink(attendance.clockInLocation)} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-xs font-medium text-sky-600 bg-sky-50 hover:bg-sky-100 px-3 py-1.5 rounded-lg transition-colors">
+                      className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg transition-colors">
                       <MapPin size={13} /> Clock-in location
                     </a>
                   )}
                   {attendance?.clockOutLocation && (
                     <a href={mapLink(attendance.clockOutLocation)} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-xs font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-lg transition-colors">
+                      className="flex items-center gap-1.5 text-xs font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg transition-colors">
                       <MapPin size={13} /> Clock-out location
                     </a>
                   )}
@@ -250,74 +250,74 @@ const Attendance = () => {
         {/* Monthly stat cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
           {[
-            { label: "Total Days",     value: stats.totalDays,     gradient: "from-sky-400 to-blue-500" },
-            { label: "Present",        value: stats.present,       gradient: "from-emerald-400 to-green-500" },
-            { label: "Absent",         value: stats.absent,        gradient: "from-red-400 to-rose-500" },
-            { label: "On Leave",       value: stats.leave,         gradient: "from-violet-400 to-purple-500" },
-            { label: "Late",           value: stats.late,          gradient: "from-amber-400 to-orange-500" },
-            { label: "Hours",          value: stats.workingHours+"h", gradient: "from-indigo-400 to-indigo-600" },
+            { label: "Total Days",     value: stats.totalDays,        edge: "border-t-indigo-500" },
+            { label: "Present",        value: stats.present,          edge: "border-t-emerald-600" },
+            { label: "Absent",         value: stats.absent,           edge: "border-t-red-500" },
+            { label: "On Leave",       value: stats.leave,            edge: "border-t-violet-500" },
+            { label: "Late",           value: stats.late,             edge: "border-t-amber-500" },
+            { label: "Hours",          value: stats.workingHours+"h", edge: "border-t-slate-700" },
           ].map(s => (
-            <div key={s.label} className={`bg-gradient-to-br ${s.gradient} p-5 rounded-xl text-white hover:-translate-y-1 hover:shadow-lg transition-all duration-300`}>
-              <p className="text-white/80 text-xs mb-1">{s.label}</p>
-              <p className="text-3xl font-bold">{s.value}</p>
+            <div key={s.label} className={`bg-gradient-to-br from-white to-employee-50 border border-employee-100 border-t-4 ${s.edge} p-5 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300`}>
+              <p className="text-slate-500 text-xs font-medium mb-1">{s.label}</p>
+              <p className="text-3xl font-bold text-slate-900">{s.value}</p>
             </div>
           ))}
         </div>
 
         {/* History table */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="flex items-center justify-between p-5 border-b border-gray-100">
-            <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
-              <Calendar size={18} className="text-violet-500" /> Attendance History
+        <div className="bg-gradient-to-br from-white to-employee-50 rounded-xl border border-employee-100 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between p-5 border-b border-employee-100">
+            <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-3">
+              <span className="bg-indigo-50 p-2 rounded-lg"><Calendar size={20} className="text-indigo-600" /></span> Attendance History
             </h2>
             <div className="flex gap-3">
-              <button className="flex items-center gap-1.5 border border-gray-200 px-3 py-1.5 rounded-lg text-sm hover:bg-gray-50 transition text-gray-600">
+              <button className="flex items-center gap-1.5 border border-slate-300 bg-white px-3 py-1.5 rounded-lg text-sm hover:bg-slate-50 transition text-slate-700">
                 <Filter size={14} /> Filter
               </button>
             </div>
           </div>
           <div className="overflow-x-auto">
             {attendanceHistory.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
+              <div className="p-8 text-center text-slate-500">
                 No attendance records found for this period
               </div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gradient-to-r from-sky-500 to-blue-600 text-white text-xs">
+                  <tr className="bg-employee-50/80 border-b border-employee-100 text-slate-500 text-xs uppercase tracking-wide">
                     {["Date", "Day", "Check In", "Check Out", "Working Hours", "Location", "Status"].map(h => (
                       <th key={h} className="text-left px-5 py-3.5 font-semibold">{h}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-employee-100/70">
                   {attendanceHistory.map((r, i) => (
-                    <tr key={i} className="hover:bg-sky-50/40 transition-colors">
-                      <td className="px-5 py-3.5 font-medium text-gray-800">
+                    <tr key={i} className="hover:bg-white/70 transition-colors">
+                      <td className="px-5 py-3.5 font-medium text-slate-800">
                         {r.date}
                         {r.sessionCount > 1 && (
-                          <span className="ml-1.5 text-xs font-semibold text-violet-500 bg-violet-50 px-1.5 py-0.5 rounded-full align-middle">×{r.sessionCount}</span>
+                          <span className="ml-1.5 text-xs font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded-full align-middle">×{r.sessionCount}</span>
                         )}
                       </td>
-                      <td className="px-5 py-3.5 text-gray-500">{getDayName(r.date)}</td>
-                      <td className="px-5 py-3.5 text-gray-600">{formatTime(r.clockInTime)}</td>
-                      <td className="px-5 py-3.5 text-gray-600">{formatTime(r.clockOutTime)}</td>
-                      <td className="px-5 py-3.5 font-semibold text-gray-800">{formatMinutes(r.totalWorkingMinutes)}</td>
+                      <td className="px-5 py-3.5 text-slate-500">{getDayName(r.date)}</td>
+                      <td className="px-5 py-3.5 text-slate-600">{formatTime(r.clockInTime)}</td>
+                      <td className="px-5 py-3.5 text-slate-600">{formatTime(r.clockOutTime)}</td>
+                      <td className="px-5 py-3.5 font-semibold text-slate-800">{formatMinutes(r.totalWorkingMinutes)}</td>
                       <td className="px-5 py-3.5">
                         <div className="flex gap-2">
                           {r.clockInLocation && (
                             <a href={mapLink(r.clockInLocation)} target="_blank" rel="noopener noreferrer" title="Clock-in location"
-                              className="text-sky-500 hover:text-sky-700">
+                              className="text-emerald-600 hover:text-emerald-800">
                               <MapPin size={15} />
                             </a>
                           )}
                           {r.clockOutLocation && (
                             <a href={mapLink(r.clockOutLocation)} target="_blank" rel="noopener noreferrer" title="Clock-out location"
-                              className="text-orange-500 hover:text-orange-700">
+                              className="text-slate-500 hover:text-slate-700">
                               <MapPin size={15} />
                             </a>
                           )}
-                          {!r.clockInLocation && !r.clockOutLocation && <span className="text-gray-300 text-xs">—</span>}
+                          {!r.clockInLocation && !r.clockOutLocation && <span className="text-slate-300 text-xs">—</span>}
                         </div>
                       </td>
                       <td className="px-5 py-3.5">

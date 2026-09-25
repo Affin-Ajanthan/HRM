@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = {"employee", "leaveType"})
+@ToString(exclude = "employee")
 @EqualsAndHashCode(of = "id")
 public class LeaveBalance {
 
@@ -27,9 +27,12 @@ public class LeaveBalance {
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "leave_type_id", nullable = false)
-    private LeaveType leaveType;
+    /** leave_types.id in hrm_db_hr — leave types are owned by HR_Backend. */
+    @Column(name = "leave_type_id", nullable = false)
+    private Long leaveTypeId;
+
+    /** Leave type name when this row was saved, so it still reads correctly if HR renames or removes the type. */
+    private String leaveTypeName;
 
     @Column(nullable = false)
     private Integer year;

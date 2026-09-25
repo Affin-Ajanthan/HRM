@@ -2,6 +2,7 @@ package com.affin.hrm.service;
 
 import com.affin.hrm.dto.EmploymentTypeDTO;
 import com.affin.hrm.dto.LeaveAllocationDTO;
+import com.affin.hrm.dto.LeaveEntitlementDTO;
 import com.affin.hrm.dto.LeaveTypeDTO;
 import com.affin.hrm.exception.BusinessException;
 import com.affin.hrm.exception.ResourceNotFoundException;
@@ -183,7 +184,48 @@ public class LeaveConfigService {
         return saved;
     }
 
+    // ── Employee entitlements ────────────────────────────────────
+
+    /**
+     * Leave an employee gets: the allocations of the job role in their department whose title matches
+     * their designation, for their employment type. Worked out from the current allocations on every
+     * call, so assigning or changing leave for a job role reaches all of its employees straight away.
+     */
+    @Transactional(readOnly = true)
+    public List<LeaveEntitlementDTO> getEntitlements(Employee employee) {
+        String jobTitle = normalize(employee.getDesignation());
+        String employmentType = normalize(employee.getEmploymentType());
+        if (jobTitle.isEmpty() || employmentType.isEmpty()
+                || employee.getCompany() == null || employee.getDepartment() == null) {
+            return List.of();
+        }
+        return allocationRepository
+                .findByCompanyIdAndDepartmentIdOrderByUpdatedAtDesc(employee.getCompany().getId(), employee.getDepartment().getId())
+                .stream()
+                .filter(a -> !Boolean.FALSE.equals(a.getJobRole().getActive()))
+                .filter(a -> normalize(title(a.getJobRole())).equals(jobTitle))
+                .filter(a -> normalize(a.getEmploymentType().getName()).equals(employmentType))
+                .filter(a -> Boolean.TRUE.equals(a.getLeaveType().getActive()))
+                .sorted(Comparator.comparing(a -> a.getLeaveType().getId()))
+                .map(a -> new LeaveEntitlementDTO(a.getLeaveType().getId(), a.getLeaveType().getName(),
+                        a.getPeriod().name(), a.getDays(), daysPerYear(a)))
+                .collect(Collectors.toList());
+    }
+
     // ── helpers ──────────────────────────────────────────────────
+
+    private static String normalize(String value) {
+        return value == null ? "" : value.trim().replaceAll("\\s+", " ").toLowerCase();
+    }
+
+    private static int daysPerYear(JobRoleLeaveAllocation a) {
+        int periodsPerYear = switch (a.getPeriod()) {
+            case ANNUAL -> 1;
+            case MONTHLY -> 12;
+            case WEEKLY -> 52;
+        };
+        return (int) Math.floor(a.getDays() * periodsPerYear);
+    }
 
     private List<LeaveType> activeLeaveTypes(Long companyId) {
         List<LeaveType> types = new ArrayList<>(leaveTypeRepository.findByCompanyIdAndActive(companyId, true));

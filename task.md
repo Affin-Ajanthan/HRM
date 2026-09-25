@@ -11,4 +11,4 @@
 - [x] **Commit 7**: Admin Rejection Logic with Rejection Reason Email (`AdminService.rejectCompany`)
 - [x] **Commit 8**: Frontend Hero Section "Request for Your Company" CTA Button (`hero.jsx`)
 - [x] **Commit 9**: Frontend Public Company Registration Request Modal (`CompanyRequestModal.jsx`)
-- [ ] **Commit 10**: Frontend Admin Dashboard Integration & Real-time Approval/Rejection (`Companies.jsx` & header notification bell)
+- [x] **Commit 10**: Frontend Admin Dashboard Integration & Real-time Approval/Rejection (`Companies.jsx` & header notification bell)

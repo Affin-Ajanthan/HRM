@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { DollarSign, Download, Eye, Calendar, TrendingUp, FileText, CreditCard, X, Filter, Search, Wallet } from "lucide-react";
+import { DollarSign, Download, Eye, Calendar, TrendingUp, FileText, CreditCard, X, Filter, Search, Wallet, Plus } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { employeeApi } from "../../services/api";
 import {
-  SearchBar, FilterSelect, ShowingCount, TableCard, TableHeaderRow, TableHeader, TableRows, TableRow, LoadingState, EmptyState,
+  EmpButton, SearchBar, FilterSelect, ShowingCount, TableCard, TableHeaderRow, TableHeader, TableRows, TableRow, LoadingState, EmptyState,
 } from "../../components/EmployeeUI";
 import { EMP_GRADIENT, useSort } from "../../components/employeeTheme";
+import AllowanceRequests from "./AllowanceRequests";
 
 const PAYSLIP_COLS = "grid-cols-[1.4fr_1.1fr_1fr_1fr_1.1fr_0.8fr_150px]";
 
@@ -24,6 +25,7 @@ const Payslip = () => {
   const [paySheet, setPaySheet] = useState(null);
   const [paySheetLoading, setPaySheetLoading] = useState(false);
   const [paySheetError, setPaySheetError] = useState("");
+  const [showAllowanceForm, setShowAllowanceForm] = useState(false);
 
   useEffect(() => {
     const s = localStorage.getItem("user");
@@ -122,6 +124,11 @@ const Payslip = () => {
       activePage="Payslip"
       title="Payslip"
       subtitle="View and download your salary payslips"
+      actions={
+        <EmpButton onClick={() => setShowAllowanceForm(true)}>
+          <Plus size={17} strokeWidth={2.5} /> Request for Allowance
+        </EmpButton>
+      }
     >
       <div className="space-y-6">
         {/* Summary cards */}
@@ -293,6 +300,9 @@ const Payslip = () => {
             </TableRows>
           )}
         </TableCard>
+
+        {/* Allowance requests to HR: history table + "Request for Allowance" popup */}
+        <AllowanceRequests showForm={showAllowanceForm} onCloseForm={() => setShowAllowanceForm(false)} />
       </div>
 
       {/* Detail Modal */}

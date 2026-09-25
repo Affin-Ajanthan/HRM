@@ -1,0 +1,16 @@
+package com.affin.hrm.repository;
+
+import com.affin.hrm.model.AllowanceRequest;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.Collection;
+import java.util.List;
+
+@Repository
+public interface AllowanceRequestRepository extends JpaRepository<AllowanceRequest, Long> {
+
+    List<AllowanceRequest> findByEmployeeIdOrderByCreatedAtDesc(Long employeeId);
+
+    List<AllowanceRequest> findByEmployeeEmailInOrderByCreatedAtDesc(Collection<String> employeeEmails);
+}

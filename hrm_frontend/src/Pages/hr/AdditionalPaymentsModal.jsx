@@ -22,7 +22,7 @@ const fieldCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm foc
  *   initialEmail    employee to open with (row action); omitted when opened from the page header
  *   onClose, onSaved
  */
-const AdditionalPaymentsModal = ({ employees, initialEmail, onClose, onSaved }) => {
+const AdditionalPaymentsModal = ({ employees, initialEmail, prefillItem, onClose, onSaved }) => {
   const [email, setEmail] = useState(initialEmail || "");
   const [rows, setRows] = useState([newRow()]);
   const [saving, setSaving] = useState(false);
@@ -31,14 +31,16 @@ const AdditionalPaymentsModal = ({ employees, initialEmail, onClose, onSaved }) 
   const employee = employees.find(e => e.email === email);
   const sheet = employee?.sheet;
 
-  // Start from what the employee already has
+  // Start from what the employee already has, plus the approved allowance request when opened for one
   useEffect(() => {
-    const items = sheet?.additionalItems || [];
-    setRows(items.length
-      ? items.map(i => ({ key: `existing-${i.id}`, name: i.name, type: i.type, amount: String(i.amount ?? "") }))
-      : [newRow()]);
+    const items = (sheet?.additionalItems || [])
+      .map(i => ({ key: `existing-${i.id}`, name: i.name, type: i.type, amount: String(i.amount ?? "") }));
+    if (prefillItem && email === initialEmail) {
+      items.push({ ...newRow(), name: prefillItem.name, type: prefillItem.type || "ALLOWANCE", amount: String(prefillItem.amount ?? "") });
+    }
+    setRows(items.length ? items : [newRow()]);
     setFormError("");
-  }, [email, sheet]);
+  }, [email, sheet, prefillItem, initialEmail]);
 
   const updateRow = (key, field, value) => setRows(prev => prev.map(r => (r.key === key ? { ...r, [field]: value } : r)));
   const removeRow = (key) => setRows(prev => {
@@ -101,6 +103,12 @@ const AdditionalPaymentsModal = ({ employees, initialEmail, onClose, onSaved }) 
               ))}
             </select>
           </div>
+
+          {prefillItem && email === initialEmail && (
+            <div className="text-xs rounded-xl px-4 py-3 bg-emerald-50 border border-emerald-100 text-emerald-700">
+              Approved allowance request <b>{prefillItem.name}</b> ({money(prefillItem.amount)}) is added as the last row. Click <b>Save</b> to apply it to this employee's pay.
+            </div>
+          )}
 
           {employee && (
             <div className={`text-xs rounded-xl px-4 py-3 ${sheet?.configured ? "bg-gray-50 text-gray-600" : "bg-amber-50 border border-amber-100 text-amber-700"}`}>

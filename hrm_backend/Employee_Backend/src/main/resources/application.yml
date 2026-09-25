@@ -33,6 +33,12 @@ spring:
         format_sql: true
     open-in-view: false
 
+  # ── File uploads (allowance request PDFs, max 5 MB) ──
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+
 # ── Server ─────────────────────────────────
 server:
   port: ${EMPLOYEE_SERVICE_PORT:5006}

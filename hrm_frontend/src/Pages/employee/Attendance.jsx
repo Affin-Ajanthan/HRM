@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, Calendar, CheckCircle, XCircle, Download, Filter, MapPin, Timer } from "lucide-react";
+import { Clock, Calendar, CheckCircle, XCircle, Download, Filter, MapPin, Timer, Search } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { employeeApi } from "../../services/api";
+import {
+  EmpButton, SearchBar, FilterSelect, ShowingCount, TableCard, TableHeaderRow, TableHeader, TableRows, TableRow, LoadingState, EmptyState,
+} from "../../components/EmployeeUI";
+import { EMP_GRADIENT, useSort } from "../../components/employeeTheme";
 import {
   getCurrentPosition, formatMinutes, summarizeSessions, groupSessionsByDate, toLocalDateString, useNow,
 } from "../../utils/attendance";
@@ -139,7 +143,7 @@ const Attendance = () => {
 
   const statusBadge = (s) => ({
     PRESENT: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
-    ABSENT: "bg-red-50 text-red-700 ring-1 ring-red-200",
+    ABSENT: "bg-yellow-50 text-red-700 ring-1 ring-red-200",
     HALF_DAY: "bg-violet-50 text-violet-700 ring-1 ring-violet-200",
     LATE: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
   }[s] || "bg-slate-50 text-slate-600 ring-1 ring-slate-200");
@@ -156,7 +160,48 @@ const Attendance = () => {
     return date.toLocaleDateString("en-US", { weekday: "long" });
   };
 
+  // History search / filter / sort
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  const filteredHistory = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return attendanceHistory.filter((r) => {
+      if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
+      if (!q) return true;
+      return (r.date || "").toLowerCase().includes(q) || getDayName(r.date).toLowerCase().includes(q);
+    });
+  }, [attendanceHistory, searchTerm, statusFilter]);
+
+  const { sorted: sortedHistory, headerProps } = useSort(filteredHistory, (r, key) =>
+    key === "hours" ? String(r.totalWorkingMinutes || 0).padStart(6, "0") : r[key] || ""
+  );
+
   if (!user) return null;
+
+  const isFiltering = searchTerm || statusFilter !== "ALL";
+
+  const locationLinks = (r) => (
+    <div className="flex gap-2">
+      {r.clockInLocation && (
+        <a href={mapLink(r.clockInLocation)} target="_blank" rel="noopener noreferrer" title="Clock-in location"
+          className="h-7 w-7 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 flex items-center justify-center transition-colors">
+          <MapPin size={14} />
+        </a>
+      )}
+      {r.clockOutLocation && (
+        <a href={mapLink(r.clockOutLocation)} target="_blank" rel="noopener noreferrer" title="Clock-out location"
+          className="h-7 w-7 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center transition-colors">
+          <MapPin size={14} />
+        </a>
+      )}
+      {!r.clockInLocation && !r.clockOutLocation && <span className="text-slate-300 text-xs">—</span>}
+    </div>
+  );
+
+  const statusPill = (s) => (
+    <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge(s)}`}>{statusLabel(s)}</span>
+  );
 
   return (
     <PageLayout
@@ -165,13 +210,12 @@ const Attendance = () => {
       title="Attendance"
       subtitle="Track your attendance and working hours"
       actions={
-        <button className="flex items-center gap-2 bg-employee-600 hover:bg-employee-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
-          <Download size={16} /> Export
-        </button>
+        <EmpButton>
+          <Download size={17} strokeWidth={2.5} /> Export
+        </EmpButton>
       }
     >
       <div className="space-y-6">
-        
         {/* Message Alert */}
         {message && (
           <div className={`p-4 rounded-lg text-white ${message.startsWith("✓") ? "bg-green-500" : "bg-red-500"}`}>
@@ -185,7 +229,7 @@ const Attendance = () => {
             <span className="bg-indigo-50 p-2 rounded-lg"><Timer className="text-indigo-600" size={20} /></span>
             Today's Attendance
           </h2>
-          
+
           {loading ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-employee-500"></div>
@@ -219,7 +263,7 @@ const Attendance = () => {
                 <button
                   onClick={handleClockOut}
                   disabled={clockOutLoading || !attendance?.isClockedIn}
-                  className="flex-1 bg-slate-800 hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed text-white py-3 rounded-lg flex items-center justify-center gap-2 font-semibold text-sm transition-colors"
+                  className="flex-1 bg-red-700 hover:bg-red-800 disabled:opacity-40 disabled:cursor-not-allowed text-white py-3 rounded-lg flex items-center justify-center gap-2 font-semibold text-sm transition-colors"
                 >
                   <XCircle size={18} /> {clockOutLoading ? "Getting location..." : "Clock Out"}
                 </button>
@@ -252,7 +296,7 @@ const Attendance = () => {
           {[
             { label: "Total Days",     value: stats.totalDays,        edge: "border-t-indigo-500" },
             { label: "Present",        value: stats.present,          edge: "border-t-emerald-600" },
-            { label: "Absent",         value: stats.absent,           edge: "border-t-red-500" },
+            { label: "Absent",         value: stats.absent,           edge: "border-t-yellow-500" },
             { label: "On Leave",       value: stats.leave,            edge: "border-t-violet-500" },
             { label: "Late",           value: stats.late,             edge: "border-t-amber-500" },
             { label: "Hours",          value: stats.workingHours+"h", edge: "border-t-slate-700" },
@@ -264,77 +308,102 @@ const Attendance = () => {
           ))}
         </div>
 
-        {/* History table */}
-        <div className="bg-gradient-to-br from-white to-employee-50 rounded-xl border border-employee-100 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between p-5 border-b border-employee-100">
-            <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-3">
-              <span className="bg-indigo-50 p-2 rounded-lg"><Calendar size={20} className="text-indigo-600" /></span> Attendance History
-            </h2>
-            <div className="flex gap-3">
-              <button className="flex items-center gap-1.5 border border-slate-300 bg-white px-3 py-1.5 rounded-lg text-sm hover:bg-slate-50 transition text-slate-700">
-                <Filter size={14} /> Filter
-              </button>
-            </div>
+        {/* =====================================================
+            SEARCH & FILTER CONTROLS
+        ====================================================== */}
+        <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder="Search history by date (e.g. 2026-09) or day...">
+          <div className="flex items-center gap-2">
+            <Filter size={15} className="text-slate-400" />
+            <FilterSelect value={statusFilter} onChange={setStatusFilter}>
+              <option value="ALL">All Statuses</option>
+              <option value="PRESENT">Present</option>
+              <option value="ABSENT">Absent</option>
+              <option value="HALF_DAY">Leave</option>
+              <option value="LATE">Late</option>
+            </FilterSelect>
           </div>
-          <div className="overflow-x-auto">
-            {attendanceHistory.length === 0 ? (
-              <div className="p-8 text-center text-slate-500">
-                No attendance records found for this period
-              </div>
-            ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-employee-50/80 border-b border-employee-100 text-slate-500 text-xs uppercase tracking-wide">
-                    {["Date", "Day", "Check In", "Check Out", "Working Hours", "Location", "Status"].map(h => (
-                      <th key={h} className="text-left px-5 py-3.5 font-semibold">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-employee-100/70">
-                  {attendanceHistory.map((r, i) => (
-                    <tr key={i} className="hover:bg-white/70 transition-colors">
-                      <td className="px-5 py-3.5 font-medium text-slate-800">
-                        {r.date}
-                        {r.sessionCount > 1 && (
-                          <span className="ml-1.5 text-xs font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded-full align-middle">×{r.sessionCount}</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-500">{getDayName(r.date)}</td>
-                      <td className="px-5 py-3.5 text-slate-600">{formatTime(r.clockInTime)}</td>
-                      <td className="px-5 py-3.5 text-slate-600">{formatTime(r.clockOutTime)}</td>
-                      <td className="px-5 py-3.5 font-semibold text-slate-800">{formatMinutes(r.totalWorkingMinutes)}</td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex gap-2">
-                          {r.clockInLocation && (
-                            <a href={mapLink(r.clockInLocation)} target="_blank" rel="noopener noreferrer" title="Clock-in location"
-                              className="text-emerald-600 hover:text-emerald-800">
-                              <MapPin size={15} />
-                            </a>
-                          )}
-                          {r.clockOutLocation && (
-                            <a href={mapLink(r.clockOutLocation)} target="_blank" rel="noopener noreferrer" title="Clock-out location"
-                              className="text-slate-500 hover:text-slate-700">
-                              <MapPin size={15} />
-                            </a>
-                          )}
-                          {!r.clockInLocation && !r.clockOutLocation && <span className="text-slate-300 text-xs">—</span>}
+          <ShowingCount shown={sortedHistory.length} total={attendanceHistory.length} />
+        </SearchBar>
+
+        {/* =====================================================
+            ATTENDANCE HISTORY TABLE
+        ====================================================== */}
+        <TableCard>
+          <TableHeaderRow cols={HISTORY_COLS}>
+            <TableHeader {...headerProps("date")}>Date</TableHeader>
+            <TableHeader>Day</TableHeader>
+            <TableHeader {...headerProps("clockInTime")}>Check In</TableHeader>
+            <TableHeader {...headerProps("clockOutTime")}>Check Out</TableHeader>
+            <TableHeader {...headerProps("hours")}>Working Hours</TableHeader>
+            <TableHeader>Location</TableHeader>
+            <TableHeader {...headerProps("status")}>Status</TableHeader>
+          </TableHeaderRow>
+
+          {loading ? (
+            <LoadingState title="Loading attendance history..." subtitle="Fetching latest records from database" />
+          ) : sortedHistory.length === 0 ? (
+            <EmptyState
+              icon={isFiltering ? <Search size={28} /> : <Calendar size={28} />}
+              title={isFiltering ? "No matching records" : "No attendance records yet"}
+              subtitle={isFiltering
+                ? "Try clearing your search or choosing another status."
+                : "Your attendance history for this month will appear here."}
+            />
+          ) : (
+            <TableRows>
+              {sortedHistory.map((r, i) => (
+                <TableRow
+                  key={r.date || i}
+                  cols={HISTORY_COLS}
+                  mobile={
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">{r.date}</p>
+                          <p className="text-xs text-slate-400">{getDayName(r.date)}</p>
                         </div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge(r.status)}`}>
-                          {statusLabel(r.status)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
+                        {statusPill(r.status)}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                        <span>In: {formatTime(r.clockInTime)}</span>
+                        <span>Out: {formatTime(r.clockOutTime)}</span>
+                        <span className="font-semibold text-slate-800">{formatMinutes(r.totalWorkingMinutes)}</span>
+                        {locationLinks(r)}
+                      </div>
+                    </div>
+                  }
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`h-10 w-10 flex-shrink-0 rounded-xl ${EMP_GRADIENT} text-white font-bold text-sm flex items-center justify-center shadow-sm`}>
+                      {new Date(r.date).getDate() || "—"}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 truncate">{r.date}</p>
+                      {r.sessionCount > 1 && (
+                        <p className="text-xs text-slate-400 mt-0.5">{r.sessionCount} sessions</p>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-sm text-slate-600">{getDayName(r.date)}</span>
+                  <span className="flex items-center gap-1.5 text-xs text-slate-600">
+                    <Clock size={13} className="text-slate-400" /> {formatTime(r.clockInTime)}
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs text-slate-600">
+                    <Clock size={13} className="text-slate-400" /> {formatTime(r.clockOutTime)}
+                  </span>
+                  <span className="text-sm font-semibold text-slate-800">{formatMinutes(r.totalWorkingMinutes)}</span>
+                  {locationLinks(r)}
+                  <div>{statusPill(r.status)}</div>
+                </TableRow>
+              ))}
+            </TableRows>
+          )}
+        </TableCard>
       </div>
     </PageLayout>
   );
 };
+
+const HISTORY_COLS = "grid-cols-[1.4fr_1fr_1fr_1fr_1.1fr_0.8fr_0.9fr]";
 
 export default Attendance;

@@ -25,17 +25,20 @@ public class EmployeeController {
     private final AuthService authService;
     private final PayrollService payrollService;
     private final NotificationRepository notificationRepository;
+    private final HrServiceClient hrServiceClient;
 
     public EmployeeController(EmployeeService employeeService,
                               LeaveService leaveService,
                               AuthService authService,
                               PayrollService payrollService,
-                              NotificationRepository notificationRepository) {
+                              NotificationRepository notificationRepository,
+                              HrServiceClient hrServiceClient) {
         this.employeeService = employeeService;
         this.leaveService = leaveService;
         this.authService = authService;
         this.payrollService = payrollService;
         this.notificationRepository = notificationRepository;
+        this.hrServiceClient = hrServiceClient;
     }
 
     @GetMapping("/profile")
@@ -91,25 +94,35 @@ public class EmployeeController {
 
     // ── Payslip / Payroll Endpoints ──────────────────────────────
 
-    @GetMapping("/payslips")
-    public ResponseEntity<ApiResponse<List<Payslip>>> getMyPayslips() {
+    /**
+     * The logged-in employee's current salary as HR has set it: job role basic payment
+     * (hrm_db_hr basic_payments) plus individual allowances / deductions (additional_payments).
+     */
+    @GetMapping("/pay-sheet")
+    public ResponseEntity<ApiResponse<PaySheetDTO>> getMyPaySheet() {
         Employee employee = authService.getCurrentEmployee();
-        List<Payslip> payslips = payrollService.getEmployeePayslips(employee.getId());
+        return ResponseEntity.ok(ApiResponse.success(hrServiceClient.getPaySheet(employee.getEmail())));
+    }
+
+    @GetMapping("/payslips")
+    public ResponseEntity<ApiResponse<List<PayslipDTO>>> getMyPayslips() {
+        Employee employee = authService.getCurrentEmployee();
+        List<PayslipDTO> payslips = payrollService.getEmployeePayslipDTOs(employee.getId());
         return ResponseEntity.ok(ApiResponse.success(payslips));
     }
 
     @GetMapping("/payslips/{id}")
-    public ResponseEntity<ApiResponse<Payslip>> getPayslipDetails(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<PayslipDTO>> getPayslipDetails(@PathVariable Long id) {
         Employee employee = authService.getCurrentEmployee();
         try {
-            Payslip actual = payrollService.getEmployeePayslips(employee.getId()).stream()
+            PayslipDTO actual = payrollService.getEmployeePayslipDTOs(employee.getId()).stream()
                     .filter(p -> p.getId().equals(id))
                     .findFirst()
                     .orElseThrow(() -> new RuntimeException("Payslip not found: " + id));
             return ResponseEntity.ok(ApiResponse.success(actual));
         } catch (Exception e) {
             // fallback
-            Payslip payslip = payrollService.getOrCreatePayslip(employee.getId(), java.time.LocalDate.now().getMonthValue(), java.time.LocalDate.now().getYear());
+            PayslipDTO payslip = payrollService.getOrCreatePayslipDTO(employee.getId(), java.time.LocalDate.now().getMonthValue(), java.time.LocalDate.now().getYear());
             return ResponseEntity.ok(ApiResponse.success(payslip));
         }
     }

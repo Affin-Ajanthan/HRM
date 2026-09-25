@@ -134,6 +134,8 @@ export const employeeApi = {
   // Payslips
   getPayslips:        () => request("GET", `${EMPLOYEE_URL}/employee/payslips`),
   getPayslipDetails:  (id) => request("GET", `${EMPLOYEE_URL}/employee/payslips/${id}`),
+  // Current salary from HR (job role basic payment + individual allowances / deductions)
+  getPaySheet:        () => request("GET", `${EMPLOYEE_URL}/employee/pay-sheet`),
 
   // Notifications
   getNotifications:   () => request("GET", `${EMPLOYEE_URL}/employee/notifications`),
@@ -208,6 +210,15 @@ export const hrApi = {
   getEmployeeSalary:  (id) => request("GET", `${BASE_URL}/hr/salaries/employee/${id}`),
   saveSalary:         (data) => request("POST", `${BASE_URL}/hr/salaries`, data),
   generatePayroll:    (month, year) => request("POST", `${BASE_URL}/hr/payroll/generate?month=${month}&year=${year}`),
+
+  // Job role salaries (hrm_db_hr.basic_payments)
+  getBasicPayments:   (departmentId) => request("GET", `${BASE_URL}/hr/basic-payments${departmentId ? `?departmentId=${departmentId}` : ""}`),
+  saveBasicPayments:  (jobRoleId, payments) => request("POST", `${BASE_URL}/hr/basic-payments`, { jobRoleId, payments }),
+  // Individual allowances / deductions (hrm_db_hr.additional_payments)
+  getAdditionalPayments:  (employeeEmail) => request("GET", `${BASE_URL}/hr/additional-payments${employeeEmail ? `?employeeEmail=${encodeURIComponent(employeeEmail)}` : ""}`),
+  saveAdditionalPayments: (data) => request("POST", `${BASE_URL}/hr/additional-payments`, data),
+  // Pay sheets for the given employees: [{ email, employeeCode, fullName, departmentName, designation, employmentType }]
+  getPaySheets:       (employees) => request("POST", `${BASE_URL}/hr/payroll/sheet`, employees),
 
   // Reports & Analytics
   getHRDashboardStats:() => request("GET", `${BASE_URL}/hr/dashboard/stats`),

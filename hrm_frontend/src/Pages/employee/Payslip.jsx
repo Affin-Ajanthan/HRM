@@ -1,16 +1,29 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { DollarSign, Download, Eye, Calendar, TrendingUp, FileText, CreditCard, X } from "lucide-react";
+import { DollarSign, Download, Eye, Calendar, TrendingUp, FileText, CreditCard, X, Filter, Search, Wallet } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { employeeApi } from "../../services/api";
+import {
+  SearchBar, FilterSelect, ShowingCount, TableCard, TableHeaderRow, TableHeader, TableRows, TableRow, LoadingState, EmptyState,
+} from "../../components/EmployeeUI";
+import { EMP_GRADIENT, useSort } from "../../components/employeeTheme";
+
+const PAYSLIP_COLS = "grid-cols-[1.4fr_1.1fr_1fr_1fr_1.1fr_0.8fr_150px]";
+
+const money = (n) => (Number(n) || 0).toLocaleString();
+
+const PERIOD_LABELS = { MONTHLY: "Monthly", WEEKLY: "Weekly", ANNUAL: "Annual" };
 
 const Payslip = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  const [selectedYear, setSelectedYear] = useState("2026");
+  const [selectedYear, setSelectedYear] = useState("ALL");
   const [viewingPayslip, setViewingPayslip] = useState(null);
   const [payslips, setPayslips] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [paySheet, setPaySheet] = useState(null);
+  const [paySheetLoading, setPaySheetLoading] = useState(false);
+  const [paySheetError, setPaySheetError] = useState("");
 
   useEffect(() => {
     const s = localStorage.getItem("user");
@@ -32,6 +45,21 @@ const Payslip = () => {
         }
       };
       getMyPayslips();
+
+      // Current salary from HR: job role basic payment + individual allowances / deductions
+      const getMyPaySheet = async () => {
+        setPaySheetLoading(true);
+        setPaySheetError("");
+        try {
+          const response = await employeeApi.getPaySheet();
+          setPaySheet(response.data || null);
+        } catch (e) {
+          setPaySheetError((e.message || "Failed to load your salary").replace(/^\d{3}:\s*/, ""));
+        } finally {
+          setPaySheetLoading(false);
+        }
+      };
+      getMyPaySheet();
     }
   }, [user]);
 
@@ -39,11 +67,54 @@ const Payslip = () => {
 
   const getMonthName = (m) => ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][m] || "";
 
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const years = useMemo(
+    () => [...new Set(payslips.map((p) => String(p.year)))].sort().reverse(),
+    [payslips]
+  );
+
+  const filteredPayslips = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return payslips.filter((p) => {
+      if (selectedYear !== "ALL" && String(p.year) !== selectedYear) return false;
+      if (!q) return true;
+      return `${getMonthName(p.month)} ${p.year} ${p.status || "PAID"}`.toLowerCase().includes(q);
+    });
+  }, [payslips, searchTerm, selectedYear]);
+
+  const { sorted: sortedPayslips, headerProps } = useSort(filteredPayslips, (p, key) => {
+    if (key === "period") return `${p.year}-${String(p.month).padStart(2, "0")}`;
+    if (key === "status") return p.status || "PAID";
+    return String(Math.round(p[key] || 0)).padStart(12, "0");
+  });
+
   if (!user) return null;
 
   const lastNet = payslips.length > 0 ? payslips[0].netSalary : 0;
   const totalNet = payslips.reduce((acc, p) => acc + p.netSalary, 0);
   const avgNet = payslips.length > 0 ? Math.round(totalNet / payslips.length) : 0;
+
+  const isFiltering = searchTerm || selectedYear !== "ALL";
+
+  const statusPill = (status) => (
+    <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
+      {status || "PAID"}
+    </span>
+  );
+
+  const rowActions = (p) => (
+    <div className="flex items-center justify-end gap-2">
+      <button onClick={() => setViewingPayslip(p)} title="View"
+        className="h-8 w-8 rounded-lg bg-sky-50 text-blue-600 hover:bg-sky-100 flex items-center justify-center transition-colors">
+        <Eye size={15} />
+      </button>
+      <button onClick={() => handleDownload(p)} title="Download PDF"
+        className={`h-8 px-3 rounded-lg ${EMP_GRADIENT} text-white text-xs font-semibold flex items-center gap-1.5 hover:opacity-90 transition-opacity`}>
+        <Download size={13} /> PDF
+      </button>
+    </div>
+  );
 
   return (
     <PageLayout
@@ -51,12 +122,6 @@ const Payslip = () => {
       activePage="Payslip"
       title="Payslip"
       subtitle="View and download your salary payslips"
-      actions={
-        <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)}
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-employee-500 bg-white">
-          <option>2026</option><option>2025</option><option>2024</option>
-        </select>
-      }
     >
       <div className="space-y-6">
         {/* Summary cards */}
@@ -78,48 +143,156 @@ const Payslip = () => {
           ))}
         </div>
 
-        {/* Payslip list */}
+        {/* =====================================================
+            CURRENT SALARY (pay sheet set by HR)
+        ====================================================== */}
         <div className="bg-gradient-to-br from-white to-employee-50 rounded-xl border border-employee-100 shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-3 mb-5">
-            <span className="bg-emerald-50 p-2 rounded-lg"><FileText size={20} className="text-emerald-600" /></span> Payslip History
-          </h2>
-          <div className="space-y-4">
-            {payslips.map(p => (
-              <div key={p.id} className="bg-white/70 border border-employee-100 rounded-lg p-5 hover:border-employee-200 hover:bg-white transition-all">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600">
-                      <Calendar size={22} />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-slate-800">{getMonthName(p.month)} {p.year}</h3>
-                      <p className="text-sm text-slate-500">Status: {p.status || "PAID"}</p>
+          <div className="flex items-center justify-between gap-3 mb-5">
+            <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-3">
+              <span className="bg-emerald-50 p-2 rounded-lg"><Wallet size={20} className="text-emerald-600" /></span> My Current Salary
+            </h2>
+            {paySheet?.configured && paySheet.period && (
+              <span className="text-xs font-semibold text-employee-700 bg-employee-50 border border-employee-100 px-2.5 py-1 rounded-lg">
+                {PERIOD_LABELS[paySheet.period] || paySheet.period}
+              </span>
+            )}
+          </div>
+          {paySheetLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-employee-500"></div>
+            </div>
+          ) : paySheetError ? (
+            <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{paySheetError}</p>
+          ) : paySheet && (
+            <div className="space-y-5">
+              {!paySheet.configured && (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+                  HR has not set a salary for your job role{paySheet.designation ? ` (${paySheet.designation})` : ""} yet.
+                </p>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                {[["Department", paySheet.departmentName], ["Designation", paySheet.designation], ["Employment Type", paySheet.employmentType]].map(([l, v]) => (
+                  <div key={l} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-slate-400 text-xs">{l}</p>
+                    <p className="mt-1 font-semibold text-slate-800 truncate">{v || "—"}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
+                <div>
+                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">Earnings</h3>
+                  <div className="space-y-2">
+                    {[["Basic Salary", paySheet.basicSalary], ["Job Role Allowance", paySheet.roleAllowance],
+                      ...(paySheet.additionalItems || []).filter(i => i.type === "ALLOWANCE").map(i => [i.name, i.amount])].map(([l, v], idx) => (
+                      <div key={`${l}-${idx}`} className="flex justify-between py-2 border-b border-slate-100">
+                        <span className="text-slate-600">{l}</span><span className="font-semibold">Rs. {money(v)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between py-2.5 px-3 bg-emerald-50 border border-emerald-100 rounded-xl font-semibold text-emerald-700">
+                      <span>Total Earnings</span><span>Rs. {money(Number(paySheet.basicSalary || 0) + Number(paySheet.totalAllowance || 0))}</span>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm flex-1 md:ml-6 bg-employee-50/60 border border-employee-100 rounded-lg p-4">
-                    <div><p className="text-slate-400 text-xs mb-0.5">Basic</p><p className="font-semibold text-slate-800">Rs. {p.basicSalary.toLocaleString()}</p></div>
-                    <div><p className="text-slate-400 text-xs mb-0.5">Allowances</p><p className="font-semibold text-emerald-700">+{p.totalAllowances.toLocaleString()}</p></div>
-                    <div><p className="text-slate-400 text-xs mb-0.5">Deductions</p><p className="font-semibold text-red-600">-{p.totalDeductions.toLocaleString()}</p></div>
-                    <div><p className="text-slate-400 text-xs mb-0.5">Net</p><p className="font-bold text-employee-700 text-base">Rs. {p.netSalary.toLocaleString()}</p></div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setViewingPayslip(p)} className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-semibold transition-colors">
-                      <Eye size={14} /> View
-                    </button>
-                    <button onClick={() => handleDownload(p)} className="flex items-center gap-1.5 px-4 py-2 bg-employee-600 hover:bg-employee-700 text-white rounded-lg text-sm font-semibold transition-colors">
-                      <Download size={14} /> PDF
-                    </button>
+                </div>
+                <div>
+                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">Deductions</h3>
+                  <div className="space-y-2">
+                    {[["Job Role Deduction", paySheet.roleDeduction],
+                      ...(paySheet.additionalItems || []).filter(i => i.type === "DEDUCTION").map(i => [i.name, i.amount])].map(([l, v], idx) => (
+                      <div key={`${l}-${idx}`} className="flex justify-between py-2 border-b border-slate-100">
+                        <span className="text-slate-600">{l}</span><span className="font-semibold">Rs. {money(v)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between py-2.5 px-3 bg-red-50 border border-red-100 rounded-xl font-semibold text-red-600">
+                      <span>Total Deductions</span><span>Rs. {money(paySheet.totalDeduction)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            ))}
-            {payslips.length === 0 && (
-              <div className="text-center py-10 text-slate-400">
-                No payslips found for this period.
+              <div className="bg-employee-700 text-white p-5 rounded-lg flex justify-between items-center">
+                <span className="text-lg font-bold">Net Salary</span>
+                <span className="text-2xl font-bold">Rs. {money(paySheet.netTotal)}</span>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
+
+        {/* =====================================================
+            SEARCH & FILTER CONTROLS
+        ====================================================== */}
+        <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder="Search by month (e.g. March) or year...">
+          <div className="flex items-center gap-2">
+            <Filter size={15} className="text-slate-400" />
+            <FilterSelect value={selectedYear} onChange={setSelectedYear}>
+              <option value="ALL">All Years</option>
+              {years.map((y) => <option key={y} value={y}>{y}</option>)}
+            </FilterSelect>
+          </div>
+          <ShowingCount shown={sortedPayslips.length} total={payslips.length} />
+        </SearchBar>
+
+        {/* =====================================================
+            PAYSLIP TABLE
+        ====================================================== */}
+        <TableCard>
+          <TableHeaderRow cols={PAYSLIP_COLS}>
+            <TableHeader {...headerProps("period")}>Period</TableHeader>
+            <TableHeader {...headerProps("basicSalary")}>Basic</TableHeader>
+            <TableHeader {...headerProps("totalAllowances")}>Allowances</TableHeader>
+            <TableHeader {...headerProps("totalDeductions")}>Deductions</TableHeader>
+            <TableHeader {...headerProps("netSalary")}>Net Salary</TableHeader>
+            <TableHeader {...headerProps("status")}>Status</TableHeader>
+            <TableHeader className="text-right">Actions</TableHeader>
+          </TableHeaderRow>
+
+          {isLoading ? (
+            <LoadingState title="Loading payslips..." subtitle="Fetching latest records from database" />
+          ) : sortedPayslips.length === 0 ? (
+            <EmptyState
+              icon={isFiltering ? <Search size={28} /> : <FileText size={28} />}
+              title={isFiltering ? "No payslips found" : "No payslips yet"}
+              subtitle={isFiltering
+                ? "Try clearing your search or choosing another year."
+                : "Your payslips will appear here once payroll is processed."}
+            />
+          ) : (
+            <TableRows>
+              {sortedPayslips.map((p) => (
+                <TableRow
+                  key={p.id}
+                  cols={PAYSLIP_COLS}
+                  mobile={
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-slate-800">{getMonthName(p.month)} {p.year}</p>
+                        {statusPill(p.status)}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <span className="text-slate-500">Basic: <b className="text-slate-800">Rs. {money(p.basicSalary)}</b></span>
+                        <span className="text-slate-500">Net: <b className="text-blue-700">Rs. {money(p.netSalary)}</b></span>
+                        <span className="text-emerald-700">+{money(p.totalAllowances)}</span>
+                        <span className="text-red-600">-{money(p.totalDeductions)}</span>
+                      </div>
+                      {rowActions(p)}
+                    </div>
+                  }
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`h-10 w-10 flex-shrink-0 rounded-xl ${EMP_GRADIENT} text-white flex items-center justify-center shadow-sm`}>
+                      <Calendar size={18} />
+                    </div>
+                    <p className="text-sm font-semibold text-slate-800 truncate">{getMonthName(p.month)} {p.year}</p>
+                  </div>
+                  <span className="text-sm text-slate-700 font-medium">Rs. {money(p.basicSalary)}</span>
+                  <span className="text-sm font-semibold text-emerald-700">+{money(p.totalAllowances)}</span>
+                  <span className="text-sm font-semibold text-red-600">-{money(p.totalDeductions)}</span>
+                  <span className="text-sm font-bold text-blue-700">Rs. {money(p.netSalary)}</span>
+                  <div>{statusPill(p.status)}</div>
+                  {rowActions(p)}
+                </TableRow>
+              ))}
+            </TableRows>
+          )}
+        </TableCard>
       </div>
 
       {/* Detail Modal */}

@@ -4,7 +4,7 @@
 
 - [x] **Commit 1**: Backend Model Updates (`Company.java`, `CompanyDTO.java`, `CompanyRequestDTO.java` across backend services)
 - [x] **Commit 2**: Public Company Request Controller & Repository in Backend (`PublicCompanyController.java` & save to DB as `PENDING`)
-- [ ] **Commit 3**: Admin In-App Notification System for New Applications (`NotificationService` trigger for system admins)
+- [x] **Commit 3**: Admin In-App Notification System for New Applications (`NotificationService` trigger for system admins)
 - [ ] **Commit 4**: Email Service Implementation (`EmailService.java` for sending HTML/Text emails with SMTP & fallback logger)
 - [ ] **Commit 5**: Admin Approval Logic & HR Account Auto-Provisioning (`AdminService.approveCompany` generating `HR_MANAGER` account)
 - [ ] **Commit 6**: User Database (`hrm_db_user`) Synchronization with `companyId` & `companyName` (`SyncService` inter-service sync)

@@ -13,6 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.affin.hrm.service.NotificationService;
+
 /**
  * Public controller for unauthenticated prospective company requests.
  */
@@ -23,9 +25,12 @@ public class PublicCompanyController {
     private static final Logger log = LoggerFactory.getLogger(PublicCompanyController.class);
 
     private final CompanyRepository companyRepository;
+    private final NotificationService notificationService;
 
-    public PublicCompanyController(CompanyRepository companyRepository) {
+    public PublicCompanyController(CompanyRepository companyRepository,
+                                   NotificationService notificationService) {
         this.companyRepository = companyRepository;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -61,6 +66,9 @@ public class PublicCompanyController {
 
         Company saved = companyRepository.save(company);
         log.info("Company registration request saved with ID: {}, Status: PENDING", saved.getId());
+
+        // Trigger in-app notification for system admins
+        notificationService.notifyAdminsForCompanyRequest(saved);
 
         CompanyDTO responseDto = mapToDTO(saved);
 

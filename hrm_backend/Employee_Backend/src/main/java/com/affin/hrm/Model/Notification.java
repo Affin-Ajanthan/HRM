@@ -49,6 +49,6 @@ public class Notification {
     private LocalDateTime createdAt;
 
     public enum NotificationType {
-        LEAVE_APPROVAL, LEAVE_REJECTION, ATTENDANCE, PAYROLL, GENERAL
+        LEAVE_APPROVAL, LEAVE_REJECTION, ATTENDANCE, PAYROLL, GENERAL, COMPANY_REQUEST
     }
 }

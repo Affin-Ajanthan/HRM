@@ -401,6 +401,12 @@ const AdminCompanies = () => {
             <p className="text-xs text-gray-600">
               Please state the reason for rejecting <span className="font-semibold text-gray-800">{rejectingCompany.companyName || rejectingCompany.name}</span>. This reason will be emailed to the client.
             </p>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs flex items-center gap-2">
+                <AlertCircle size={16} className="shrink-0 text-red-500" />
+                <span>{error}</span>
+              </div>
+            )}
             <form onSubmit={handleRejectSubmit} className="space-y-4">
               <textarea
                 required

@@ -163,9 +163,6 @@ public class AdminService {
         CompanyDTO updated = restTemplate.postForObject(
                 employeeServiceUrl + "/api/internal/companies/" + id + "/reject?reason=" + (reason != null ? reason : ""), null, CompanyDTO.class);
         logAction("REJECT_COMPANY", "Company", id, "Rejected company. Reason: " + reason);
-        if (updated != null) {
-            syncCompanyToHRBackend(updated);
-        }
         return updated;
     }
 
@@ -278,11 +275,13 @@ public class AdminService {
 
     // ── Private Helpers ──────────────────────────────────────────
 
-    private void logAction(String action, String entity, Long entityId, String description) {
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void logAction(String action, String entity, Long entityId, String description) {
         try {
             AuditLog auditLog = new AuditLog();
             auditLog.setAction(action);
-            auditLog.setEntity(entity);
+            auditLog.setEntity(entity != null ? entity : "SYSTEM");
+            auditLog.setEntityType(entity != null ? entity : "SYSTEM");
             auditLog.setEntityId(entityId);
             auditLog.setDescription(description);
             auditLogRepository.save(auditLog);

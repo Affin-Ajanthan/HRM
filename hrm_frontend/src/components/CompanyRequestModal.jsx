@@ -44,10 +44,16 @@ const CompanyRequestModal = ({ onClose }) => {
         }),
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (e) {
+        data = { message: text || response.statusText };
+      }
 
       if (!response.ok || data.success === false) {
-        throw new Error(data.message || "Failed to submit company registration request.");
+        throw new Error(data.message || `Server returned ${response.status}: ${response.statusText}`);
       }
 
       setSubmitted(true);

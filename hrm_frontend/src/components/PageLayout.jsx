@@ -22,6 +22,7 @@ import {
   Settings, Activity,
 } from "lucide-react";
 import logo from "../assets/logo.jpg";
+import NotificationPopup from "./NotificationPopup";
 
 // ─── Nav configs per role ────────────────────────────────────────────────────
 const NAV = {
@@ -64,6 +65,8 @@ const ACCENT = {
 
 export const PageLayout = ({ role = "employee", activePage, title, subtitle, actions, children }) => {
   const [collapsed, setCollapsed] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const navigate = useNavigate();
   const accent = ACCENT[role];
   const navItems = NAV[role] || [];
@@ -157,9 +160,17 @@ export const PageLayout = ({ role = "employee", activePage, title, subtitle, act
           </div>
           <div className="flex items-center gap-3">
             {actions}
-            <button className={`relative p-2 rounded-xl text-gray-500 ${accent.hover} transition-colors`}>
+            <button
+              onClick={() => setIsNotificationsOpen(v => !v)}
+              className={`relative p-2 rounded-xl text-gray-500 ${accent.hover} transition-colors`}
+              title="Notifications"
+            >
               <Bell size={20} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 min-w-[16px] h-[16px] px-1 bg-red-500 text-white font-bold text-[9px] rounded-full flex items-center justify-center shadow-xs animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
             </button>
             <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${accent.avatarFrom} ${accent.avatarTo} flex items-center justify-center text-white text-xs font-bold shadow`}>
               {initials}
@@ -172,6 +183,13 @@ export const PageLayout = ({ role = "employee", activePage, title, subtitle, act
           {children}
         </main>
       </div>
+
+      {/* Notification Popup Drawer */}
+      <NotificationPopup
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        onUnreadCountChange={setUnreadCount}
+      />
     </div>
   );
 };

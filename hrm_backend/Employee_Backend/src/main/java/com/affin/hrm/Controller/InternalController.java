@@ -67,6 +67,7 @@ public class InternalController {
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalEmployees", employeeRepository.count());
         stats.put("totalCompanies", companyRepository.count());
+        stats.put("pendingCompanies", companyRepository.countByStatus(Company.CompanyStatus.PENDING));
         stats.put("totalDepartments", departmentRepository.count());
         stats.put("presentToday", attendanceRepository.countPresentByCompanyIdAndDate(null, LocalDate.now()));
         stats.put("pendingLeaves", leaveApplicationRepository.countByCompanyIdAndStatus(null, LeaveApplication.LeaveStatus.PENDING));
@@ -260,19 +261,41 @@ public class InternalController {
     // ── Private Helpers ──────────────────────────────────────────
 
     private EmployeeDTO convertToEmployeeDTO(Employee employee) {
-        EmployeeDTO dto = modelMapper.map(employee, EmployeeDTO.class);
-        dto.setPassword(null);
-        if (employee.getCompany() != null) {
-            dto.setCompanyId(employee.getCompany().getId());
-            dto.setCompanyName(employee.getCompany().getCompanyName());
-        }
-        if (employee.getDepartment() != null) {
-            dto.setDepartmentId(employee.getDepartment().getId());
-            dto.setDepartmentName(employee.getDepartment().getName());
-        }
+        if (employee == null) return null;
+        EmployeeDTO dto = new EmployeeDTO();
+        dto.setId(employee.getId());
+        dto.setEmployeeId(employee.getEmployeeId());
+        dto.setFullName(employee.getFullName());
+        dto.setEmail(employee.getEmail());
+        dto.setPhone(employee.getPhone());
+        dto.setNic(employee.getNic());
+        dto.setDob(employee.getDob());
+        dto.setAddress(employee.getAddress());
+        dto.setDesignation(employee.getDesignation());
+        dto.setJoiningDate(employee.getJoiningDate());
+        dto.setTerminationDate(employee.getTerminationDate());
         if (employee.getGender() != null) dto.setGender(employee.getGender().name());
         if (employee.getRole() != null) dto.setRole(employee.getRole().name());
         if (employee.getStatus() != null) dto.setStatus(employee.getStatus().name());
+
+        try {
+            if (employee.getCompany() != null) {
+                dto.setCompanyId(employee.getCompany().getId());
+                dto.setCompanyName(employee.getCompany().getCompanyName());
+            }
+        } catch (Exception e) {
+            log.warn("Could not lazily fetch company for employee {}: {}", employee.getId(), e.getMessage());
+        }
+
+        try {
+            if (employee.getDepartment() != null) {
+                dto.setDepartmentId(employee.getDepartment().getId());
+                dto.setDepartmentName(employee.getDepartment().getName());
+            }
+        } catch (Exception e) {
+            log.warn("Could not lazily fetch department for employee {}: {}", employee.getId(), e.getMessage());
+        }
+
         return dto;
     }
 

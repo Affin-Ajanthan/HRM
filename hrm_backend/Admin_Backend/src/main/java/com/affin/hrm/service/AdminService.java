@@ -63,6 +63,7 @@ public class AdminService {
             DashboardStatsDTO stats = new DashboardStatsDTO();
             stats.setTotalEmployees(toLong(data.get("totalEmployees")));
             stats.setTotalCompanies(toLong(data.get("totalCompanies")));
+            stats.setPendingCompanies(toLong(data.get("pendingCompanies")));
             stats.setTotalDepartments(toLong(data.get("totalDepartments")));
             stats.setPresentToday(toLong(data.get("presentToday")));
             stats.setPendingLeaves(toLong(data.get("pendingLeaves")));

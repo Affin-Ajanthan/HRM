@@ -281,21 +281,23 @@ public class EmployeeService {
                 .orElseGet(() -> {
                     Employee newHr = new Employee();
                     newHr.setEmail(email);
-                    newHr.setFullName(savedCompany.getContactPersonName() != null ? savedCompany.getContactPersonName() : (savedCompany.getCompanyName() + " HR Manager"));
-                    newHr.setPassword(passwordEncoder.encode(tempPassword));
-                    newHr.setRole(Employee.Role.HR_MANAGER);
-                    newHr.setCompany(savedCompany);
-                    newHr.setStatus(Employee.EmployeeStatus.ACTIVE);
                     newHr.setEmployeeId("HR-" + savedCompany.getId() + "-001");
                     newHr.setJoiningDate(LocalDate.now());
-                    return employeeRepository.save(newHr);
+                    return newHr;
                 });
+
+        hrUser.setFullName(savedCompany.getContactPersonName() != null ? savedCompany.getContactPersonName() : (savedCompany.getCompanyName() + " HR Manager"));
+        hrUser.setPassword(passwordEncoder.encode(tempPassword));
+        hrUser.setRole(Employee.Role.HR_MANAGER);
+        hrUser.setCompany(savedCompany);
+        hrUser.setStatus(Employee.EmployeeStatus.ACTIVE);
+        Employee savedHrUser = employeeRepository.save(hrUser);
 
         // Send approval welcome email with credentials
         emailService.sendApprovalEmail(email, savedCompany.getContactPersonName(), savedCompany.getCompanyName(), tempPassword);
 
         // Sync approved company & HR Manager account to User_Backend (hrm_db_user)
-        syncToUserBackend(savedCompany, hrUser);
+        syncToUserBackend(savedCompany, savedHrUser);
 
         log.info("Approved company '{}' (ID: {}) and provisioned HR Manager account ({})", savedCompany.getCompanyName(), savedCompany.getId(), email);
 

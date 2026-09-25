@@ -53,8 +53,8 @@ const AdminCompanies = () => {
       const list = responseData.data || responseData || [];
       setCompanies(list);
     } catch (err) {
-      console.warn("Failed to fetch real company list from Admin_Backend, using fallback demo dataset if empty", err);
-      setError("Unable to connect to Admin_Backend service. Ensure port 5007 is running.");
+      console.warn("Failed to fetch company list from Admin_Backend", err);
+      setError(err.message || "Unable to fetch company list from Admin_Backend.");
     } finally {
       setLoading(false);
     }

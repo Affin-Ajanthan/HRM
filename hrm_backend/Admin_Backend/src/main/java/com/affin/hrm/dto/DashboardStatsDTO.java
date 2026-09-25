@@ -14,6 +14,7 @@ public class DashboardStatsDTO {
 
     private long totalEmployees;
     private long totalCompanies;
+    private long pendingCompanies;
     private long presentToday;
     private long onLeave;
     private long pendingLeaves;

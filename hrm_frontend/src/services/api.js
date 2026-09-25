@@ -162,11 +162,14 @@ export const hrApi = {
   deactivateEmployee: (id) => request("POST", `${BASE_URL}/hr/employees/${id}/deactivate`),
   deleteEmployee:   (id) => request("DELETE", `${BASE_URL}/hr/employees/${id}`).catch(() => request("POST", `${BASE_URL}/hr/employees/${id}/deactivate`)),
 
-  // Attendance
-  getDailyAttendance: (date) => request("GET", `${BASE_URL}/hr/attendance/daily${date ? '?date=' + date : ''}`),
-  getPendingAdjustments: () => request("GET", `${BASE_URL}/hr/attendance/adjustments`),
-  approveAdjustment: (id) => request("POST", `${BASE_URL}/hr/attendance/adjustments/${id}/approve`),
-  rejectAdjustment: (id) => request("POST", `${BASE_URL}/hr/attendance/adjustments/${id}/reject`),
+  // Attendance — served by Employee_Backend (hrm_db_employee is the source of
+  // truth for clock-in/out records; HR_Backend's own attendance table is never
+  // written to, so daily/range attendance must be read from EMPLOYEE_URL).
+  getDailyAttendance: (date) => request("GET", `${EMPLOYEE_URL}/hr/attendance/daily${date ? '?date=' + date : ''}`),
+  getAttendanceRange: (startDate, endDate) => request("GET", `${EMPLOYEE_URL}/hr/attendance/range?startDate=${startDate}&endDate=${endDate}`),
+  getPendingAdjustments: () => request("GET", `${EMPLOYEE_URL}/hr/attendance/adjustments`),
+  approveAdjustment: (id) => request("POST", `${EMPLOYEE_URL}/hr/attendance/adjustments/${id}/approve`),
+  rejectAdjustment: (id) => request("POST", `${EMPLOYEE_URL}/hr/attendance/adjustments/${id}/reject`),
 
   // Leave
   getPendingLeaves: () => request("GET", `${BASE_URL}/hr/leave/pending`),

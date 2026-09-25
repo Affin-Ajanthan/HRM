@@ -89,6 +89,15 @@ public class HRController {
         return ResponseEntity.ok(ApiResponse.success(attendance));
     }
 
+    @GetMapping("/attendance/range")
+    public ResponseEntity<ApiResponse<List<AttendanceDTO>>> getAttendanceRange(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        Employee hr = authService.getCurrentEmployee();
+        List<AttendanceDTO> attendance = attendanceService.getAttendanceRange(hr.getCompany().getId(), startDate, endDate);
+        return ResponseEntity.ok(ApiResponse.success(attendance));
+    }
+
     @GetMapping("/attendance/adjustments")
     public ResponseEntity<ApiResponse<List<AttendanceDTO>>> getPendingAdjustments() {
         Employee hr = authService.getCurrentEmployee();

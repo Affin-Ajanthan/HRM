@@ -20,6 +20,7 @@ public class AttendanceDTO {
     private Long employeeId;
     private String employeeName;
     private String employeeIdNumber;
+    private String departmentName;
 
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate date;

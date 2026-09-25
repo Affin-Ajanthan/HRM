@@ -9,6 +9,6 @@
 - [x] **Commit 5**: Admin Approval Logic & HR Account Auto-Provisioning (`AdminService.approveCompany` generating `HR_MANAGER` account)
 - [x] **Commit 6**: User Database (`hrm_db_user`) Synchronization with `companyId` & `companyName` (`SyncService` inter-service sync)
 - [x] **Commit 7**: Admin Rejection Logic with Rejection Reason Email (`AdminService.rejectCompany`)
-- [ ] **Commit 8**: Frontend Hero Section "Request for Your Company" CTA Button (`hero.jsx`)
+- [x] **Commit 8**: Frontend Hero Section "Request for Your Company" CTA Button (`hero.jsx`)
 - [ ] **Commit 9**: Frontend Public Company Registration Request Modal (`CompanyRequestModal.jsx`)
 - [ ] **Commit 10**: Frontend Admin Dashboard Integration & Real-time Approval/Rejection (`Companies.jsx` & header notification bell)

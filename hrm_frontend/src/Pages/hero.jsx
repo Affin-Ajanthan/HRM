@@ -1,10 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import heroImg from "../assets/hrm-hero-illustration.png";
 import { useNavigate } from 'react-router-dom';
+import { Building2 } from "lucide-react";
+import CompanyRequestModal from "../components/CompanyRequestModal";
 
 const Hero = () => {
 
   const navigate = useNavigate();
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
 
   return (
     <section className="relative bg-gray-50">
@@ -22,7 +25,7 @@ const Hero = () => {
       {/* Navbar */}
       <nav className="relative flex justify-between items-center px-10 py-6 z-10 text-white">
         <h1 className="text-lg font-semibold">HumanResources</h1>
-        <ul className="flex gap-8 text-sm font-medium">
+        <ul className="flex gap-8 text-sm font-medium items-center">
           <li className="hover:text-blue-400 cursor-pointer">Home</li>
           <li 
             onClick={() => navigate('/about')} 
@@ -48,6 +51,14 @@ const Hero = () => {
           >
             Contact
           </li>
+          <li>
+            <button
+              onClick={() => setIsRequestModalOpen(true)}
+              className="bg-emerald-500/90 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow"
+            >
+              <Building2 size={14} /> Request for Your Company
+            </button>
+          </li>
         </ul>
       </nav>
 
@@ -58,16 +69,22 @@ const Hero = () => {
           <span className="text-blue-400">Human Resource</span>
         </h2>
         <p className="text-gray-200 mb-8">
-          Far away, behind the word mountains, far from the countries Vokalia
-          and Consonantia, there live the blind texts.
+          Streamline workforce operations, employee onboarding, attendance tracking, and payroll with our multi-tenant cloud HRM platform.
         </p>
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-4">
+          <button 
+            onClick={() => setIsRequestModalOpen(true)}
+            className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-emerald-500/30 transition-all duration-300 flex items-center gap-2 transform hover:-translate-y-0.5"
+          >
+            <Building2 size={18} />
+            Request for Your Company
+          </button>
           <button onClick={() => navigate('/login')}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg shadow"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-xl shadow transition-all duration-300"
           >
             Get Started
           </button>
-          <button className="bg-white/90 hover:bg-white text-gray-800 font-medium px-6 py-3 rounded-lg shadow">
+          <button className="bg-white/90 hover:bg-white text-gray-800 font-medium px-6 py-3 rounded-xl shadow transition-all duration-300">
             Learn More
           </button>
         </div>
@@ -107,6 +124,11 @@ const Hero = () => {
           </div>
         ))}
       </div>
+
+      {/* Company Registration Request Modal */}
+      {isRequestModalOpen && (
+        <CompanyRequestModal onClose={() => setIsRequestModalOpen(false)} />
+      )}
     </section>
   );
 };

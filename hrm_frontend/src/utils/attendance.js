@@ -95,6 +95,37 @@ export const groupSessionsByDate = (sessions, now) => {
     });
 };
 
+// Raw session rows for a company/day (possibly several per employee, e.g. multiple
+// clock-in/out pairs) -> one summary row per employee. Used by the HR attendance page.
+export const groupSessionsByEmployee = (sessions, now) => {
+  const byEmployee = {};
+  (sessions || []).forEach((s) => {
+    const key = s.employeeId ?? s.employeeIdNumber ?? s.employeeName;
+    if (!byEmployee[key]) byEmployee[key] = [];
+    byEmployee[key].push(s);
+  });
+  return Object.values(byEmployee).map((empSessions) => {
+    const sorted = [...empSessions].sort(byClockIn);
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    return {
+      employeeId: first.employeeId,
+      empId: first.employeeIdNumber,
+      name: first.employeeName,
+      department: first.departmentName,
+      date: first.date,
+      status: last.status,
+      clockInTime: first.clockInTime,
+      clockOutTime: last.clockOutTime,
+      clockInLocation: first.clockInLocation,
+      clockOutLocation: last.clockOutLocation,
+      totalWorkingMinutes: sorted.reduce((sum, s) => sum + sessionMinutes(s, now), 0),
+      sessionCount: sorted.length,
+      isClockedIn: !last.clockOutTime,
+    };
+  });
+};
+
 // Current time, re-rendering every `intervalMs` while `active` (e.g. only while clocked in).
 export const useNow = (active, intervalMs = 1000) => {
   const [now, setNow] = useState(() => new Date());

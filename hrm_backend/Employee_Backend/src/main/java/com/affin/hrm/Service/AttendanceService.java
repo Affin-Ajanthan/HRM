@@ -134,6 +134,12 @@ public class AttendanceService {
     }
 
     @Transactional(readOnly = true)
+    public List<AttendanceDTO> getAttendanceRange(Long companyId, LocalDate startDate, LocalDate endDate) {
+        return attendanceRepository.findByCompanyIdAndDateBetween(companyId, startDate, endDate)
+                .stream().map(this::convertToDTO).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public List<AttendanceDTO> getTodayAttendance(Long employeeId) {
         return attendanceRepository.findByEmployeeIdAndDateOrderByClockInTimeAsc(employeeId, LocalDate.now())
                 .stream().map(this::convertToDTO).collect(Collectors.toList());
@@ -188,6 +194,9 @@ public class AttendanceService {
             dto.setEmployeeId(attendance.getEmployee().getId());
             dto.setEmployeeName(attendance.getEmployee().getFullName());
             dto.setEmployeeIdNumber(attendance.getEmployee().getEmployeeId());
+            if (attendance.getEmployee().getDepartment() != null) {
+                dto.setDepartmentName(attendance.getEmployee().getDepartment().getName());
+            }
         }
         if (attendance.getAttendanceType() != null) dto.setAttendanceType(attendance.getAttendanceType().name());
         if (attendance.getStatus() != null) dto.setStatus(attendance.getStatus().name());

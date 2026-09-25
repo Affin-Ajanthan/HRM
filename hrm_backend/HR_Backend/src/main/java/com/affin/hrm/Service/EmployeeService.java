@@ -228,6 +228,7 @@ public class EmployeeService {
             existing.setRole(employee.getRole());
             existing.setStatus(employee.getStatus());
             existing.setDesignation(employee.getDesignation());
+            existing.setEmploymentType(employee.getEmploymentType());
             existing.setJoiningDate(employee.getJoiningDate());
             existing.setCompany(company);
             existing.setDepartment(department);

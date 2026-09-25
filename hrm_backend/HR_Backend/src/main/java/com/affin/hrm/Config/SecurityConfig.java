@@ -72,6 +72,7 @@ public class SecurityConfig {
                     "/api/auth/check-user/**"
                 ).permitAll()
                 .requestMatchers("/api/sync/**").permitAll()
+                .requestMatchers("/api/internal/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/api/auth/**").authenticated()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")

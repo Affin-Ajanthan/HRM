@@ -2,6 +2,7 @@ package com.affin.hrm.service;
 
 import com.affin.hrm.dto.LeaveApplicationDTO;
 import com.affin.hrm.dto.LeaveBalanceDTO;
+import com.affin.hrm.dto.LeaveEntitlementDTO;
 import com.affin.hrm.dto.LeaveTypeDTO;
 import com.affin.hrm.exception.BusinessException;
 import com.affin.hrm.exception.ResourceNotFoundException;
@@ -16,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -32,7 +32,7 @@ public class LeaveService {
 
     private final LeaveApplicationRepository leaveApplicationRepository;
     private final LeaveBalanceRepository leaveBalanceRepository;
-    private final LeaveTypeRepository leaveTypeRepository;
+    private final HrServiceClient hrServiceClient;
     private final EmployeeRepository employeeRepository;
     private final NotificationRepository notificationRepository;
     private final ModelMapper modelMapper;
@@ -40,14 +40,14 @@ public class LeaveService {
 
     public LeaveService(LeaveApplicationRepository leaveApplicationRepository,
                         LeaveBalanceRepository leaveBalanceRepository,
-                        LeaveTypeRepository leaveTypeRepository,
+                        HrServiceClient hrServiceClient,
                         EmployeeRepository employeeRepository,
                         NotificationRepository notificationRepository,
                         ModelMapper modelMapper,
                         AuditService auditService) {
         this.leaveApplicationRepository = leaveApplicationRepository;
         this.leaveBalanceRepository = leaveBalanceRepository;
-        this.leaveTypeRepository = leaveTypeRepository;
+        this.hrServiceClient = hrServiceClient;
         this.employeeRepository = employeeRepository;
         this.notificationRepository = notificationRepository;
         this.modelMapper = modelMapper;
@@ -57,9 +57,10 @@ public class LeaveService {
     public LeaveApplicationDTO applyLeave(LeaveApplicationDTO dto, Long employeeId) {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
-        LeaveType leaveType = leaveTypeRepository.findById(dto.getLeaveTypeId())
-                .filter(t -> Boolean.TRUE.equals(t.getActive()))
-                .orElseThrow(() -> new ResourceNotFoundException("LeaveType", "id", dto.getLeaveTypeId()));
+        LeaveEntitlementDTO leaveType = hrServiceClient.getLeaveEntitlements(employee.getEmail()).stream()
+                .filter(t -> t.getLeaveTypeId().equals(dto.getLeaveTypeId()))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException("This leave type has not been assigned to your job role"));
 
         if (dto.getEndDate().isBefore(dto.getStartDate())) {
             throw new BusinessException("End date cannot be before start date");
@@ -76,21 +77,20 @@ public class LeaveService {
         }
 
         int currentYear = LocalDate.now().getYear();
-        LeaveBalance balance = leaveBalanceRepository.findByEmployeeIdAndLeaveTypeIdAndYear(
-                employeeId, dto.getLeaveTypeId(), currentYear)
-                .orElseGet(() -> createLeaveBalance(employee, leaveType, currentYear));
+        LeaveBalance balance = currentBalance(employee, leaveType, currentYear);
 
         // Days already requested but not yet approved are reserved against the balance too
         int available = balance.getRemainingDays()
-                - leaveApplicationRepository.sumPendingDays(employeeId, leaveType.getId(), currentYear);
+                - leaveApplicationRepository.sumPendingDays(employeeId, leaveType.getLeaveTypeId(), currentYear);
         if (available < numberOfDays) {
-            throw new BusinessException("Insufficient " + leaveType.getName() + " balance. Available: "
+            throw new BusinessException("Insufficient " + leaveType.getLeaveTypeName() + " balance. Available: "
                     + Math.max(available, 0) + " day(s), requested: " + numberOfDays);
         }
 
         LeaveApplication leave = new LeaveApplication();
         leave.setEmployee(employee);
-        leave.setLeaveType(leaveType);
+        leave.setLeaveTypeId(leaveType.getLeaveTypeId());
+        leave.setLeaveTypeName(leaveType.getLeaveTypeName());
         leave.setStartDate(dto.getStartDate());
         leave.setEndDate(dto.getEndDate());
         leave.setNumberOfDays(numberOfDays);
@@ -99,11 +99,11 @@ public class LeaveService {
 
         LeaveApplication saved = leaveApplicationRepository.save(leave);
         createNotification(employee.getCompany(), null, "New Leave Request",
-                employee.getFullName() + " has applied for " + leaveType.getName(),
+                employee.getFullName() + " has applied for " + leaveType.getLeaveTypeName(),
                 Notification.NotificationType.LEAVE_APPROVAL);
         auditService.logAction("APPLY_LEAVE", "LeaveApplication", saved.getId(),
                 "Applied for leave", employee.getCompany().getId());
-        log.info("Employee {} applied for {} leave ({} days)", employeeId, leaveType.getName(), numberOfDays);
+        log.info("Employee {} applied for {} leave ({} days)", employeeId, leaveType.getLeaveTypeName(), numberOfDays);
         return convertToDTO(saved);
     }
 
@@ -123,7 +123,7 @@ public class LeaveService {
 
         int currentYear = LocalDate.now().getYear();
         LeaveBalance balance = leaveBalanceRepository.findByEmployeeIdAndLeaveTypeIdAndYear(
-                leave.getEmployee().getId(), leave.getLeaveType().getId(), currentYear)
+                leave.getEmployee().getId(), leave.getLeaveTypeId(), currentYear)
                 .orElseThrow(() -> new ResourceNotFoundException("LeaveBalance not found"));
 
         balance.setUsedDays(balance.getUsedDays() + leave.getNumberOfDays());
@@ -184,16 +184,13 @@ public class LeaveService {
                 .map(this::convertToDTO).collect(Collectors.toList());
     }
 
-    /** Leave types an employee of this company can apply for: the global defaults plus company-specific ones. */
+    /** Leave types the employee can apply for — the ones HR has assigned to their job role (hrm_db_hr). */
     @Transactional(readOnly = true)
-    public List<LeaveTypeDTO> getLeaveTypes(Long companyId) {
-        List<LeaveType> types = new ArrayList<>(leaveTypeRepository.findByCompanyIdIsNullAndActive(true));
-        if (companyId != null) {
-            types.addAll(leaveTypeRepository.findByCompanyIdAndActive(companyId, true));
-        }
-        return types.stream()
-                .sorted(Comparator.comparing(LeaveType::getId))
-                .map(t -> modelMapper.map(t, LeaveTypeDTO.class))
+    public List<LeaveTypeDTO> getLeaveTypes(Long employeeId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
+        return hrServiceClient.getLeaveEntitlements(employee.getEmail()).stream()
+                .map(e -> new LeaveTypeDTO(e.getLeaveTypeId(), e.getLeaveTypeName(), null, e.getDaysPerYear(), false, 0, true))
                 .collect(Collectors.toList());
     }
 
@@ -203,39 +200,40 @@ public class LeaveService {
                 .map(this::convertToDTO).collect(Collectors.toList());
     }
 
-    /** This year's balance for every leave type the employee can use, creating any that are missing. */
+    /**
+     * This year's balance for every leave type assigned to the employee's job role. Totals follow HR's
+     * current assignment, so a change on the HR side shows up here for everyone in that job role.
+     * Balances of leave types no longer assigned are kept (with their used days) but not shown.
+     */
     public List<LeaveBalanceDTO> getEmployeeLeaveBalances(Long employeeId) {
         int currentYear = LocalDate.now().getYear();
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
-        Long companyId = employee.getCompany() != null ? employee.getCompany().getId() : null;
-
-        List<LeaveBalance> balances = new ArrayList<>(leaveBalanceRepository.findByEmployeeIdAndYear(employeeId, currentYear));
-        java.util.Set<Long> typesWithBalance = balances.stream()
-                .map(b -> b.getLeaveType().getId())
-                .collect(Collectors.toSet());
-        for (LeaveTypeDTO type : getLeaveTypes(companyId)) {
-            if (!typesWithBalance.contains(type.getId())) {
-                balances.add(createLeaveBalance(employee, leaveTypeRepository.getReferenceById(type.getId()), currentYear));
-            }
-        }
-
-        return balances.stream()
-                .sorted(Comparator.comparing(b -> b.getLeaveType().getId()))
+        return hrServiceClient.getLeaveEntitlements(employee.getEmail()).stream()
+                .map(entitlement -> currentBalance(employee, entitlement, currentYear))
+                .sorted(Comparator.comparing(LeaveBalance::getLeaveTypeId))
                 .map(this::convertBalanceToDTO)
                 .collect(Collectors.toList());
     }
 
     // ── Private helpers ──────────────────────────────────────────
 
-    private LeaveBalance createLeaveBalance(Employee employee, LeaveType leaveType, int year) {
-        LeaveBalance balance = new LeaveBalance();
-        balance.setEmployee(employee);
-        balance.setLeaveType(leaveType);
-        balance.setYear(year);
-        balance.setTotalDays(leaveType.getDefaultDaysPerYear());
-        balance.setUsedDays(0);
-        balance.setRemainingDays(leaveType.getDefaultDaysPerYear());
+    /** The employee's balance for the year, created if missing, with its total set to HR's current assignment. */
+    private LeaveBalance currentBalance(Employee employee, LeaveEntitlementDTO entitlement, int year) {
+        LeaveBalance balance = leaveBalanceRepository
+                .findByEmployeeIdAndLeaveTypeIdAndYear(employee.getId(), entitlement.getLeaveTypeId(), year)
+                .orElseGet(() -> {
+                    LeaveBalance b = new LeaveBalance();
+                    b.setEmployee(employee);
+                    b.setLeaveTypeId(entitlement.getLeaveTypeId());
+                    b.setYear(year);
+                    b.setUsedDays(0);
+                    return b;
+                });
+        int total = entitlement.getDaysPerYear() != null ? entitlement.getDaysPerYear() : 0;
+        balance.setLeaveTypeName(entitlement.getLeaveTypeName());
+        balance.setTotalDays(total);
+        balance.setRemainingDays(total - balance.getUsedDays());
         return leaveBalanceRepository.save(balance);
     }
 
@@ -270,10 +268,8 @@ public class LeaveService {
             dto.setEmployeeName(leave.getEmployee().getFullName());
             dto.setEmployeeIdNumber(leave.getEmployee().getEmployeeId());
         }
-        if (leave.getLeaveType() != null) {
-            dto.setLeaveTypeId(leave.getLeaveType().getId());
-            dto.setLeaveTypeName(leave.getLeaveType().getName());
-        }
+        dto.setLeaveTypeId(leave.getLeaveTypeId());
+        dto.setLeaveTypeName(leave.getLeaveTypeName());
         if (leave.getStatus() != null) dto.setStatus(leave.getStatus().name());
         if (leave.getApprovedBy() != null) {
             dto.setApprovedBy(leave.getApprovedBy().getId());
@@ -288,10 +284,8 @@ public class LeaveService {
             dto.setEmployeeId(balance.getEmployee().getId());
             dto.setEmployeeName(balance.getEmployee().getFullName());
         }
-        if (balance.getLeaveType() != null) {
-            dto.setLeaveTypeId(balance.getLeaveType().getId());
-            dto.setLeaveTypeName(balance.getLeaveType().getName());
-        }
+        dto.setLeaveTypeId(balance.getLeaveTypeId());
+        dto.setLeaveTypeName(balance.getLeaveTypeName());
         return dto;
     }
 }

@@ -178,9 +178,9 @@ const EmployeeDashboard = () => {
           ))}
         </div>
 
-        {/* ── Today's Attendance + Quick Actions ── */}
+        {/* ── Today's Attendance + Quick Actions ──
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Today's Attendance */}
+          
           <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
             <h3 className="text-xl font-bold mb-6 flex items-center text-gray-800">
               <div className="bg-blue-100 p-2 rounded-lg mr-3">
@@ -226,7 +226,7 @@ const EmployeeDashboard = () => {
             )}
           </div>
 
-          {/* Quick Actions */}
+          
           <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
             <h3 className="text-xl font-bold mb-6 flex items-center text-gray-800">
               <div className="bg-gray-100 p-2 rounded-lg mr-3">
@@ -249,7 +249,7 @@ const EmployeeDashboard = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* ── Performance + Upcoming Events ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

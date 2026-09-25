@@ -45,6 +45,7 @@ jwt:
 # ── Other services ─────────────────────────
 service:
   user-url: ${USER_SERVICE_URL:http://localhost:5004}
+  hr-url: ${HR_SERVICE_URL:http://localhost:5005}
 
 # ── CORS ───────────────────────────────────
 cors:

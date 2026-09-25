@@ -69,6 +69,10 @@ public class Employee {
     private Role role = Role.EMPLOYEE;
 
     private String designation;
+
+    /** Employment type name (Full-Time, Intern, ...) as set in User_Backend; picks the job role's leave entitlements. */
+    @Column(name = "employment_type", length = 100)
+    private String employmentType;
     private LocalDate joiningDate;
     private LocalDate terminationDate;
 

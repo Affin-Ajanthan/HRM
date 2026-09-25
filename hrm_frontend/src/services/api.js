@@ -55,6 +55,52 @@ async function request(method, url, body = null) {
   }
 }
 
+// Error text from a failed response, in the same "<status>: <message>" form as request()
+async function responseError(res) {
+  let errMsg = res.statusText;
+  try {
+    const contentType = res.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      const err = await res.json();
+      errMsg = err.message || err.error || res.statusText;
+    } else {
+      errMsg = (await res.text()) || res.statusText;
+    }
+  } catch {
+    // Failed to parse error body
+  }
+  return new Error(`${res.status}: ${errMsg}`);
+}
+
+async function authorizedFetch(url, opts = {}) {
+  const token = localStorage.getItem("token");
+  try {
+    const res = await fetch(url, {
+      ...opts,
+      headers: { ...(opts.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+    if (!res.ok) throw await responseError(res);
+    return res;
+  } catch (error) {
+    if (error.message && error.message.startsWith("Failed to fetch")) {
+      throw new Error("Unable to connect to server. Please check if the backend is running.");
+    }
+    throw error;
+  }
+}
+
+// Multipart upload (e.g. a PDF); the browser sets the multipart Content-Type itself
+async function requestForm(method, url, formData) {
+  const res = await authorizedFetch(url, { method, body: formData });
+  return res.json();
+}
+
+// File download (e.g. a PDF) as a Blob
+async function requestBlob(url) {
+  const res = await authorizedFetch(url, { method: "GET" });
+  return res.blob();
+}
+
 // ─── AUTH ────────────────────────────────────────────────────
 export const authApi = {
   /** Login — returns { token, email, fullName, role, companyId, id } */
@@ -136,6 +182,11 @@ export const employeeApi = {
   getPayslipDetails:  (id) => request("GET", `${EMPLOYEE_URL}/employee/payslips/${id}`),
   // Current salary from HR (job role basic payment + individual allowances / deductions)
   getPaySheet:        () => request("GET", `${EMPLOYEE_URL}/employee/pay-sheet`),
+
+  // Allowance requests (hrm_db_employee.allowance_requests); formData: name, amount, description, document (PDF)
+  getAllowanceRequests:   () => request("GET", `${EMPLOYEE_URL}/employee/allowance-requests`),
+  requestAllowance:       (formData) => requestForm("POST", `${EMPLOYEE_URL}/employee/allowance-requests`, formData),
+  getAllowanceDocument:   (id) => requestBlob(`${EMPLOYEE_URL}/employee/allowance-requests/${id}/document`),
 
   // Notifications
   getNotifications:   () => request("GET", `${EMPLOYEE_URL}/employee/notifications`),
@@ -219,6 +270,11 @@ export const hrApi = {
   saveAdditionalPayments: (data) => request("POST", `${BASE_URL}/hr/additional-payments`, data),
   // Pay sheets for the given employees: [{ email, employeeCode, fullName, departmentName, designation, employmentType }]
   getPaySheets:       (employees) => request("POST", `${BASE_URL}/hr/payroll/sheet`, employees),
+  // Employees' allowance requests (stored by Employee_Backend), reviewed by HR
+  getAllowanceRequests:    () => request("GET", `${BASE_URL}/hr/allowance-requests`),
+  getAllowanceDocument:    (id) => requestBlob(`${BASE_URL}/hr/allowance-requests/${id}/document`),
+  approveAllowanceRequest: (id, comment) => request("POST", `${BASE_URL}/hr/allowance-requests/${id}/approve`, { comment }),
+  rejectAllowanceRequest:  (id, comment) => request("POST", `${BASE_URL}/hr/allowance-requests/${id}/reject`, { comment }),
 
   // Reports & Analytics
   getHRDashboardStats:() => request("GET", `${BASE_URL}/hr/dashboard/stats`),

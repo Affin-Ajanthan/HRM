@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Download, Eye, Send, Calendar, X, DollarSign, Plus, SlidersHorizontal } from "lucide-react";
+import { Search, Download, Eye, Send, Calendar, X, DollarSign, Plus, SlidersHorizontal, Inbox } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { hrApi, userHrApi } from "../../services/api";
 import AdditionalPaymentsModal from "./AdditionalPaymentsModal";
+import AllowanceRequestsModal from "./AllowanceRequestsModal";
 
 const num = (v) => (v === "" || v == null || isNaN(Number(v)) ? 0 : Number(v));
 const money = (v) => `Rs.${num(v).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
@@ -26,6 +27,9 @@ const HRPayslip = () => {
   const [message, setMessage] = useState("");
   // null = closed; "" = opened from the header (pick an employee); email = opened for that employee
   const [adjustEmail, setAdjustEmail] = useState(null);
+  const [showAllowanceRequests, setShowAllowanceRequests] = useState(false);
+  // Approved allowance request to add as a row in the Individual Allowance & Deduction popup
+  const [approvedAllowance, setApprovedAllowance] = useState(null);
 
   useEffect(() => {
     const s = localStorage.getItem("user");
@@ -133,9 +137,24 @@ const HRPayslip = () => {
 
   const onAdjustSaved = (msg) => {
     setAdjustEmail(null);
+    setApprovedAllowance(null);
     setMessage(msg);
     setTimeout(() => setMessage(""), 3000);
     loadData();
+  };
+
+  // An approved allowance request goes straight into the employee's individual allowances
+  const onAllowanceApproved = (request) => {
+    setShowAllowanceRequests(false);
+    const email = (request.employeeEmail || "").toLowerCase();
+    const row = payrollData.find(p => p.email.toLowerCase() === email);
+    if (!row) {
+      setMessage(`✓ Request approved, but ${request.employeeName || request.employeeEmail} is not in the payroll list. Add the allowance manually.`);
+      setTimeout(() => setMessage(""), 6000);
+      return;
+    }
+    setApprovedAllowance({ name: request.name, type: "ALLOWANCE", amount: request.amount });
+    setAdjustEmail(row.email);
   };
 
   if (!user) return null;
@@ -149,6 +168,9 @@ const HRPayslip = () => {
           </button>
           <button onClick={() => setAdjustEmail("")} className={headerBtn}>
             <SlidersHorizontal size={16} /> Individual Allowance & Deduction
+          </button>
+          <button onClick={() => setShowAllowanceRequests(true)} className={headerBtn}>
+            <Inbox size={16} /> See Allowance Requests
           </button>
           <button onClick={handleGenerateAll} className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors">
             <Send size={15} /> Generate All
@@ -299,8 +321,16 @@ const HRPayslip = () => {
         <AdditionalPaymentsModal
           employees={payrollData}
           initialEmail={adjustEmail || undefined}
-          onClose={() => setAdjustEmail(null)}
+          prefillItem={approvedAllowance}
+          onClose={() => { setAdjustEmail(null); setApprovedAllowance(null); }}
           onSaved={onAdjustSaved}
+        />
+      )}
+
+      {showAllowanceRequests && (
+        <AllowanceRequestsModal
+          onClose={() => setShowAllowanceRequests(false)}
+          onApproved={onAllowanceApproved}
         />
       )}
     </PageLayout>

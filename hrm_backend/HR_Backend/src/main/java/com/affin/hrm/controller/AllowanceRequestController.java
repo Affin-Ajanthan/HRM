@@ -1,0 +1,73 @@
+package com.affin.hrm.controller;
+
+import com.affin.hrm.dto.AllowanceRequestDTO;
+import com.affin.hrm.dto.ApiResponse;
+import com.affin.hrm.model.Employee;
+import com.affin.hrm.service.AllowanceRequestClient;
+import com.affin.hrm.service.AuthService;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * HR review of employees' allowance requests (stored by Employee_Backend). Approving one is
+ * followed in the UI by adding it to the employee's individual allowances (additional_payments).
+ */
+@RestController
+@RequestMapping("/api/hr/allowance-requests")
+@PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER')")
+public class AllowanceRequestController {
+
+    private final AllowanceRequestClient allowanceRequestClient;
+    private final AuthService authService;
+
+    public AllowanceRequestController(AllowanceRequestClient allowanceRequestClient, AuthService authService) {
+        this.allowanceRequestClient = allowanceRequestClient;
+        this.authService = authService;
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<AllowanceRequestDTO>>> getRequests() {
+        Employee hr = authService.getCurrentEmployee();
+        return ResponseEntity.ok(ApiResponse.success(allowanceRequestClient.getRequests(hr)));
+    }
+
+    @GetMapping("/{id}/document")
+    public ResponseEntity<byte[]> getDocument(@PathVariable Long id) {
+        Employee hr = authService.getCurrentEmployee();
+        AllowanceRequestDTO request = allowanceRequestClient.getRequest(id, hr);
+        byte[] pdf = allowanceRequestClient.getDocument(id);
+        String fileName = request.getDocumentName() == null ? "document.pdf" : request.getDocumentName();
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.inline().filename(fileName, StandardCharsets.UTF_8).build().toString())
+                .header("X-Content-Type-Options", "nosniff")
+                .body(pdf);
+    }
+
+    /** Body (optional): { "comment": "..." } */
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<ApiResponse<AllowanceRequestDTO>> approve(@PathVariable Long id,
+                                                                    @RequestBody(required = false) Map<String, String> body) {
+        Employee hr = authService.getCurrentEmployee();
+        AllowanceRequestDTO reviewed = allowanceRequestClient.review(id, "APPROVED", body == null ? null : body.get("comment"), hr);
+        return ResponseEntity.ok(ApiResponse.success(reviewed, "Allowance request approved"));
+    }
+
+    /** Body: { "comment": "reason for rejecting" } */
+    @PostMapping("/{id}/reject")
+    public ResponseEntity<ApiResponse<AllowanceRequestDTO>> reject(@PathVariable Long id,
+                                                                   @RequestBody(required = false) Map<String, String> body) {
+        Employee hr = authService.getCurrentEmployee();
+        AllowanceRequestDTO reviewed = allowanceRequestClient.review(id, "REJECTED", body == null ? null : body.get("comment"), hr);
+        return ResponseEntity.ok(ApiResponse.success(reviewed, "Allowance request rejected"));
+    }
+}

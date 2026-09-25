@@ -9,7 +9,7 @@ import {
   Download, Filter, Calendar, UserX, ArrowUpDown, ChevronUp, ChevronDown,
 } from "lucide-react";
 import logo from "../../assets/logo.jpg";
-import { BASE_URL, AUTH_URL } from "../../services/api";
+import { BASE_URL, AUTH_URL, hrApi } from "../../services/api";
 
 // ─── API helper layer ─────────────────────────────────────────────────────────
 const _headers = () => {
@@ -729,6 +729,19 @@ const AddEmployeePanel = ({ open, onClose, onSuccess, toast }) => {
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
   const resetForm = () => setForm({ employeeId: "", fullName: "", email: "", password: "", nic: "", dob: "", address: "", phone: "", gender: "", department: "", role: "EMPLOYEE", designation: "", joiningDate: new Date().toISOString().split("T")[0], employmentType: "" });
 
+  // Employment types HR has defined (hrm_db_hr.employment_types) — fetched fresh
+  // every time the panel opens, so adds/renames/deletes made on the Employment
+  // Types page are reflected here instead of a hardcoded list.
+  const [employmentTypes, setEmploymentTypes] = useState([]);
+  const [employmentTypesError, setEmploymentTypesError] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    hrApi.getEmploymentTypes()
+      .then((res) => { setEmploymentTypes(res.data || []); setEmploymentTypesError(""); })
+      .catch(() => setEmploymentTypesError("Could not load employment types"));
+  }, [open]);
+
   const handleSubmit = async (e) => {
     e?.preventDefault();
     if (!form.employeeId || !form.fullName || !form.email || !form.password) {
@@ -783,9 +796,14 @@ const AddEmployeePanel = ({ open, onClose, onSuccess, toast }) => {
             <div><label className={lc}>Employment Type <span className="text-red-500">*</span></label>
               <select name="employmentType" value={form.employmentType} onChange={handleChange} className={ic}>
                 <option value="">Select type</option>
-                <option value="FULL_TIME">Full Time</option><option value="PART_TIME">Part Time</option>
-                <option value="CONTRACT">Contract</option><option value="INTERNSHIP">Internship</option><option value="FREELANCE">Freelance</option>
+                {employmentTypes.map((t) => (
+                  <option key={t.id} value={t.name}>{t.name}</option>
+                ))}
               </select>
+              {employmentTypesError && <p className="text-red-500 text-xs mt-1">{employmentTypesError}</p>}
+              {!employmentTypesError && employmentTypes.length === 0 && (
+                <p className="text-gray-400 text-xs mt-1">No employment types yet. Add them in Leave Management → Add Employment Type.</p>
+              )}
             </div>
             <div><label className={lc}>Joining Date</label><input name="joiningDate" type="date" value={form.joiningDate} onChange={handleChange} className={ic} /></div>
             <div className="col-span-2"><label className={lc}>Address</label><input name="address" value={form.address} onChange={handleChange} placeholder="123 Main St, City" className={ic} /></div>

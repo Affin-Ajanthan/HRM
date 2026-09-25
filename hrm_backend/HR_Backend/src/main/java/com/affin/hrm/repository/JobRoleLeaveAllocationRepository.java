@@ -19,4 +19,6 @@ public interface JobRoleLeaveAllocationRepository extends JpaRepository<JobRoleL
 
     Optional<JobRoleLeaveAllocation> findByJobRoleIdAndEmploymentTypeIdAndLeaveTypeId(
             Long jobRoleId, Long employmentTypeId, Long leaveTypeId);
+
+    long countByEmploymentTypeId(Long employmentTypeId);
 }

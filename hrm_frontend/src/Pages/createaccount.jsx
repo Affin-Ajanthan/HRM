@@ -79,6 +79,15 @@ const CreateAccount = () => {
       .catch(() => setEmploymentTypesError("Could not load employment types"));
   }, []);
 
+  // Work locations HR has defined (hrm_db_hr.work_locations)
+  const [workLocations, setWorkLocations] = useState([]);
+  const [workLocationsError, setWorkLocationsError] = useState("");
+  useEffect(() => {
+    hrApi.getWorkLocations()
+      .then(res => setWorkLocations((res.data || []).map(t => t.name)))
+      .catch(() => setWorkLocationsError("Could not load work locations"));
+  }, []);
+
   // New: User roles with descriptions and permissions
   const userRoles = [
     {
@@ -682,10 +691,9 @@ const CreateAccount = () => {
                     className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 transition-all duration-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white/80"
                   >
                     <option value="">Select work location</option>
-                    <option value="Head Office">Head Office</option>
-                    <option value="Branch Office">Branch Office</option>
-                    <option value="Remote">Remote</option>
-                    <option value="Hybrid">Hybrid</option>
+                    {workLocations.map(loc => (
+                      <option key={loc} value={loc}>{loc}</option>
+                    ))}
                   </select>
                 </div>
                 {errors.workLocation && (
@@ -693,6 +701,12 @@ const CreateAccount = () => {
                     <X className="w-4 h-4" />
                     {errors.workLocation}
                   </p>
+                )}
+                {workLocationsError && (
+                  <p className="text-red-500 text-sm">{workLocationsError}</p>
+                )}
+                {!workLocationsError && workLocations.length === 0 && (
+                  <p className="text-amber-600 text-xs">No work locations yet. HR can add them from the Employees page → Add Work Location.</p>
                 )}
               </div>
             </div>

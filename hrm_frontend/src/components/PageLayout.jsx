@@ -57,9 +57,9 @@ const NAV = {
 
 // ─── Role accent colours ──────────────────────────────────────────────────────
 const ACCENT = {
-  employee: { from: "rgba(14,165,233,0.7)",  to: "rgba(6,182,212,0.5)",  shadow: "rgba(14,165,233,0.3)",  avatarFrom: "from-sky-400",   avatarTo: "to-blue-500",   label: "Employee" },
-  hr:       { from: "rgba(20,184,166,0.75)", to: "rgba(13,148,136,0.55)",shadow: "rgba(20,184,166,0.3)", avatarFrom: "from-teal-400",  avatarTo: "to-emerald-500",label: "HR Manager" },
-  admin:    { from: "rgba(99,102,241,0.8)",  to: "rgba(79,70,229,0.6)",  shadow: "rgba(99,102,241,0.35)",avatarFrom: "from-indigo-500",avatarTo: "to-violet-600", label: "Administrator" },
+  employee: { from: "rgba(14,165,233,0.7)",  to: "rgba(6,182,212,0.5)",  shadow: "rgba(14,165,233,0.3)",  avatarFrom: "from-sky-400",   avatarTo: "to-blue-500",   label: "Employee", surface: "bg-slate-50", topbar: "border-slate-200", title: "text-slate-900", hover: "hover:bg-employee-50" },
+  hr:       { from: "rgba(20,184,166,0.75)", to: "rgba(13,148,136,0.55)",shadow: "rgba(20,184,166,0.3)", avatarFrom: "from-teal-400",  avatarTo: "to-emerald-500",label: "HR Manager",    surface: "bg-gray-50", topbar: "border-gray-100", title: "text-gray-900", hover: "hover:bg-gray-100" },
+  admin:    { from: "rgba(99,102,241,0.8)",  to: "rgba(79,70,229,0.6)",  shadow: "rgba(99,102,241,0.35)",avatarFrom: "from-indigo-500",avatarTo: "to-violet-600", label: "Administrator", surface: "bg-gray-50", topbar: "border-gray-100", title: "text-gray-900", hover: "hover:bg-gray-100" },
 };
 
 export const PageLayout = ({ role = "employee", activePage, title, subtitle, actions, children }) => {
@@ -79,7 +79,7 @@ export const PageLayout = ({ role = "employee", activePage, title, subtitle, act
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className={`flex h-screen ${accent.surface} overflow-hidden`}>
       {/* ── Premium Navy Sidebar ── */}
       <nav
         className={`flex flex-col flex-shrink-0 shadow-2xl transition-all duration-300 ${collapsed ? "w-20" : "w-64"}`}
@@ -150,14 +150,14 @@ export const PageLayout = ({ role = "employee", activePage, title, subtitle, act
       {/* ── Main Content ── */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Topbar */}
-        <header className="flex-shrink-0 h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 shadow-sm">
+        <header className={`flex-shrink-0 h-16 bg-white border-b ${accent.topbar} flex items-center justify-between px-6 shadow-sm`}>
           <div>
-            <h1 className="text-lg font-bold text-gray-900">{title}</h1>
+            <h1 className={`text-lg font-bold ${accent.title}`}>{title}</h1>
             {subtitle && <p className="text-xs text-gray-400 hidden md:block">{subtitle}</p>}
           </div>
           <div className="flex items-center gap-3">
             {actions}
-            <button className="relative p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors">
+            <button className={`relative p-2 rounded-xl text-gray-500 ${accent.hover} transition-colors`}>
               <Bell size={20} />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
             </button>

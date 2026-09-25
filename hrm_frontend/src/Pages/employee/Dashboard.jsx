@@ -137,7 +137,7 @@ const EmployeeDashboard = () => {
 
   if (!user) return (
     <div className="flex items-center justify-center h-screen">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-employee-500" />
     </div>
   );
 
@@ -160,20 +160,19 @@ const EmployeeDashboard = () => {
         {/* ── Stats Cards ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            { gradient: "from-blue-500 to-blue-600",     icon: <ClockIcon size={28} />,    tint: "text-blue-100",   label: "Present Days",   value: stats.presentDays,         sub: "This month"        },
-            { gradient: "from-green-500 to-emerald-600", icon: <Calendar size={28} />,     tint: "text-green-100",  label: "Leave Balance",  value: stats.leaveBalance,        sub: "Days available"    },
-            { gradient: "from-yellow-500 to-orange-500", icon: <CalendarDays size={28} />, tint: "text-yellow-100", label: "Pending Leaves", value: stats.pendingLeaves,       sub: "Awaiting approval" },
-            { gradient: "from-purple-500 to-pink-600",   icon: <DollarSign size={28} />,   tint: "text-purple-100", label: "Last Salary",    value: `Rs. ${stats.lastSalary}`, sub: "January 2026"      },
+            { edge: "border-t-employee-500", chip: "bg-employee-50 text-employee-600", icon: <ClockIcon size={22} />,    label: "Present Days",   value: stats.presentDays,         sub: "This month"        },
+            { edge: "border-t-emerald-600",  chip: "bg-emerald-50 text-emerald-700",   icon: <Calendar size={22} />,     label: "Leave Balance",  value: stats.leaveBalance,        sub: "Days available"    },
+            { edge: "border-t-amber-500",    chip: "bg-amber-50 text-amber-700",       icon: <CalendarDays size={22} />, label: "Pending Leaves", value: stats.pendingLeaves,       sub: "Awaiting approval" },
+            { edge: "border-t-slate-700",    chip: "bg-slate-100 text-slate-700",      icon: <DollarSign size={22} />,   label: "Last Salary",    value: `Rs. ${stats.lastSalary}`, sub: "January 2026"      },
           ].map(c => (
             <div key={c.label}
-              className={`bg-gradient-to-br ${c.gradient} p-6 rounded-xl shadow-xl text-white hover:scale-105 hover:shadow-2xl transition-all duration-300 cursor-pointer relative overflow-hidden`}>
-              <div className="absolute top-0 right-0 w-24 h-24 bg-white opacity-10 rounded-full -mr-12 -mt-12" />
-              <div className="mb-3 relative z-10">
-                <div className="bg-white bg-opacity-20 p-3 rounded-lg w-fit">{c.icon}</div>
+              className={`bg-white p-6 rounded-xl border border-slate-200 border-t-4 ${c.edge} shadow-sm hover:shadow-md transition-shadow duration-300`}>
+              <div className="flex items-start justify-between mb-4">
+                <p className="text-sm font-medium text-slate-500">{c.label}</p>
+                <div className={`${c.chip} p-2.5 rounded-lg`}>{c.icon}</div>
               </div>
-              <p className={`${c.tint} text-sm font-medium mb-1 relative z-10`}>{c.label}</p>
-              <h3 className="text-4xl font-bold relative z-10">{c.value}</h3>
-              <p className={`text-sm ${c.tint} mt-2 relative z-10`}>{c.sub}</p>
+              <h3 className="text-3xl font-bold text-slate-900">{c.value}</h3>
+              <p className="text-xs text-slate-400 mt-2">{c.sub}</p>
             </div>
           ))}
         </div>
@@ -254,58 +253,58 @@ const EmployeeDashboard = () => {
         {/* ── Performance + Upcoming Events ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Performance */}
-          <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
-            <h3 className="text-xl font-bold mb-6 flex items-center text-gray-800">
-              <div className="bg-green-100 p-2 rounded-lg mr-3">
-                <Target className="text-green-600" size={24} />
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <h3 className="text-lg font-semibold mb-6 flex items-center text-slate-800">
+              <div className="bg-employee-50 p-2 rounded-lg mr-3">
+                <Target className="text-employee-600" size={20} />
               </div>
               My Performance
             </h3>
             <div className="space-y-4">
               {[
-                { label: "Attendance Rate",    pct: 95, color: "from-green-500 to-emerald-500",  text: "text-green-600"  },
-                { label: "Task Completion",    pct: 88, color: "from-blue-500 to-cyan-500",       text: "text-blue-600"   },
-                { label: "Team Collaboration", pct: 92, color: "from-purple-500 to-pink-500",     text: "text-purple-600" },
+                { label: "Attendance Rate",    pct: 95 },
+                { label: "Task Completion",    pct: 88 },
+                { label: "Team Collaboration", pct: 92 },
               ].map(m => (
                 <div key={m.label}>
                   <div className="flex justify-between mb-2">
-                    <span className="text-sm font-medium">{m.label}</span>
-                    <span className={`text-sm font-bold ${m.text}`}>{m.pct}%</span>
+                    <span className="text-sm text-slate-600">{m.label}</span>
+                    <span className="text-sm font-semibold text-slate-800">{m.pct}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div className={`bg-gradient-to-r ${m.color} h-3 rounded-full`} style={{ width: `${m.pct}%` }} />
+                  <div className="w-full bg-slate-100 rounded-full h-2">
+                    <div className="bg-employee-500 h-2 rounded-full" style={{ width: `${m.pct}%` }} />
                   </div>
                 </div>
               ))}
-              <div className="mt-4 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg flex items-center gap-2">
-                <Award className="text-yellow-600" size={24} />
+              <div className="mt-4 p-4 bg-employee-50 border border-employee-100 rounded-lg flex items-center gap-3">
+                <Award className="text-employee-600" size={22} />
                 <div>
-                  <p className="font-semibold text-yellow-800">Great Job!</p>
-                  <p className="text-sm text-yellow-700">You're performing above average</p>
+                  <p className="font-semibold text-slate-800">Great Job!</p>
+                  <p className="text-sm text-slate-600">You're performing above average</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Upcoming Events */}
-          <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
-            <h3 className="text-xl font-bold mb-6 flex items-center text-gray-800">
-              <div className="bg-orange-100 p-2 rounded-lg mr-3">
-                <Calendar className="text-orange-600" size={24} />
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <h3 className="text-lg font-semibold mb-6 flex items-center text-slate-800">
+              <div className="bg-employee-50 p-2 rounded-lg mr-3">
+                <Calendar className="text-employee-600" size={20} />
               </div>
               Upcoming Events
             </h3>
             <div className="space-y-3">
               {[
-                { bg: "bg-blue-50",   iconBg: "bg-blue-500",   icon: <Calendar size={20} />, title: "Team Meeting",        sub: "Tomorrow at 10:00 AM"    },
-                { bg: "bg-purple-50", iconBg: "bg-purple-500", icon: <Award size={20} />,    title: "Performance Review",  sub: "Jan 25, 2026 at 2:00 PM" },
-                { bg: "bg-green-50",  iconBg: "bg-green-500",  icon: <Gift size={20} />,     title: "Company Anniversary", sub: "Jan 28, 2026"            },
+                { icon: <Calendar size={18} />, title: "Team Meeting",        sub: "Tomorrow at 10:00 AM"    },
+                { icon: <Award size={18} />,    title: "Performance Review",  sub: "Jan 25, 2026 at 2:00 PM" },
+                { icon: <Gift size={18} />,     title: "Company Anniversary", sub: "Jan 28, 2026"            },
               ].map(e => (
-                <div key={e.title} className={`flex items-start gap-3 p-3 ${e.bg} rounded-lg`}>
-                  <div className={`${e.iconBg} text-white p-2 rounded`}>{e.icon}</div>
+                <div key={e.title} className="flex items-start gap-3 p-3 border border-slate-100 hover:bg-slate-50 rounded-lg transition">
+                  <div className="bg-employee-50 text-employee-600 p-2 rounded-lg">{e.icon}</div>
                   <div>
-                    <p className="font-semibold">{e.title}</p>
-                    <p className="text-sm text-gray-600">{e.sub}</p>
+                    <p className="font-medium text-slate-800">{e.title}</p>
+                    <p className="text-sm text-slate-500">{e.sub}</p>
                   </div>
                 </div>
               ))}
@@ -314,19 +313,19 @@ const EmployeeDashboard = () => {
         </div>
 
         {/* ── Recent Notifications ── */}
-        <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
-          <h3 className="text-xl font-bold mb-6 flex items-center text-gray-800">
-            <div className="bg-red-100 p-2 rounded-lg mr-3">
-              <Bell className="text-red-600" size={24} />
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h3 className="text-lg font-semibold mb-6 flex items-center text-slate-800">
+            <div className="bg-employee-50 p-2 rounded-lg mr-3">
+              <Bell className="text-employee-600" size={20} />
             </div>
             Recent Notifications
           </h3>
           <div className="space-y-3">
             {notifications.map((n, i) => (
-              <div key={n.id || i} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition">
-                <CheckCircle2 className={`${n.isRead ? "text-gray-400" : "text-sky-500"} mt-1`} size={20} />
+              <div key={n.id || i} className="flex items-start gap-3 p-3 hover:bg-slate-50 rounded-lg transition">
+                <CheckCircle2 className={`${n.isRead ? "text-gray-300" : "text-employee-500"} mt-1`} size={20} />
                 <div className="flex-1">
-                  <p className="font-medium">{n.title}</p>
+                  <p className="font-medium text-slate-800">{n.title}</p>
                   <p className="text-sm text-gray-500">{n.message}</p>
                   <p className="text-xs text-gray-400 mt-1">{n.createdAt ? n.createdAt.replace("T", " ").substring(0, 16) : ""}</p>
                 </div>

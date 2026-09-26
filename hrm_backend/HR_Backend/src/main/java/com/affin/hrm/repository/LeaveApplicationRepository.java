@@ -30,4 +30,6 @@ public interface LeaveApplicationRepository extends JpaRepository<LeaveApplicati
 
     @Query("SELECT COUNT(la) FROM LeaveApplication la WHERE la.employee.company.id = :companyId AND la.status = :status")
     long countByCompanyIdAndStatus(@Param("companyId") Long companyId, @Param("status") LeaveApplication.LeaveStatus status);
+
+    long countByLeaveTypeId(Long leaveTypeId);
 }

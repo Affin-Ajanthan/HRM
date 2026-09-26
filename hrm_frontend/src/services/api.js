@@ -237,12 +237,15 @@ export const hrApi = {
   // Leave configuration — leave types and per-job-role entitlements (hrm_db_hr)
   getLeaveTypes:        () => request("GET", `${BASE_URL}/hr/leave-types`),
   createLeaveTypes:     (names) => request("POST", `${BASE_URL}/hr/leave-types`, { names }),
+  updateLeaveType:      (id, name) => request("PUT", `${BASE_URL}/hr/leave-types/${id}`, { name }),
+  deleteLeaveType:      (id) => request("DELETE", `${BASE_URL}/hr/leave-types/${id}`),
   getEmploymentTypes:   () => request("GET", `${BASE_URL}/hr/employment-types`),
   createEmploymentTypes: (names) => request("POST", `${BASE_URL}/hr/employment-types`, { names }),
   updateEmploymentType: (id, name) => request("PUT", `${BASE_URL}/hr/employment-types/${id}`, { name }),
   deleteEmploymentType: (id) => request("DELETE", `${BASE_URL}/hr/employment-types/${id}`),
   getLeaveAllocations:  (departmentId) => request("GET", `${BASE_URL}/hr/leave-allocations${departmentId ? `?departmentId=${departmentId}` : ""}`),
   saveLeaveAllocations: (jobRoleId, allocations) => request("POST", `${BASE_URL}/hr/leave-allocations`, { jobRoleId, allocations }),
+  deleteLeaveAllocation: (id) => request("DELETE", `${BASE_URL}/hr/leave-allocations/${id}`),
 
   // Work locations (hrm_db_hr.work_locations)
   getWorkLocations:    () => request("GET", `${BASE_URL}/hr/work-locations`),
@@ -270,6 +273,7 @@ export const hrApi = {
   // Job role salaries (hrm_db_hr.basic_payments)
   getBasicPayments:   (departmentId) => request("GET", `${BASE_URL}/hr/basic-payments${departmentId ? `?departmentId=${departmentId}` : ""}`),
   saveBasicPayments:  (jobRoleId, payments) => request("POST", `${BASE_URL}/hr/basic-payments`, { jobRoleId, payments }),
+  deleteBasicPayment: (id) => request("DELETE", `${BASE_URL}/hr/basic-payments/${id}`),
   // Individual allowances / deductions (hrm_db_hr.additional_payments)
   getAdditionalPayments:  (employeeEmail) => request("GET", `${BASE_URL}/hr/additional-payments${employeeEmail ? `?employeeEmail=${encodeURIComponent(employeeEmail)}` : ""}`),
   saveAdditionalPayments: (data) => request("POST", `${BASE_URL}/hr/additional-payments`, data),

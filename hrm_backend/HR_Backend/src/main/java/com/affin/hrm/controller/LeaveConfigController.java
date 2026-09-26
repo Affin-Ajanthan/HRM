@@ -46,6 +46,22 @@ public class LeaveConfigController {
                 .body(ApiResponse.success(created, created.size() + " leave type(s) added"));
     }
 
+    /** Body: { "name": "Sick Leave" } */
+    @PutMapping("/leave-types/{id}")
+    public ResponseEntity<ApiResponse<LeaveTypeDTO>> updateLeaveType(
+            @PathVariable Long id, @RequestBody Map<String, String> body) {
+        Employee hr = authService.getCurrentEmployee();
+        LeaveTypeDTO updated = leaveConfigService.updateLeaveType(id, body.get("name"), hr);
+        return ResponseEntity.ok(ApiResponse.success(updated, "Leave type updated successfully"));
+    }
+
+    @DeleteMapping("/leave-types/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteLeaveType(@PathVariable Long id) {
+        Employee hr = authService.getCurrentEmployee();
+        leaveConfigService.deleteLeaveType(id, hr);
+        return ResponseEntity.ok(ApiResponse.success(null, "Leave type deleted successfully"));
+    }
+
     @GetMapping("/employment-types")
     public ResponseEntity<ApiResponse<List<EmploymentTypeDTO>>> getEmploymentTypes() {
         Employee hr = authService.getCurrentEmployee();
@@ -91,5 +107,12 @@ public class LeaveConfigController {
         Employee hr = authService.getCurrentEmployee();
         List<LeaveAllocationDTO> saved = leaveConfigService.saveAllocations(request, hr);
         return ResponseEntity.ok(ApiResponse.success(saved, saved.size() + " leave(s) assigned"));
+    }
+
+    @DeleteMapping("/leave-allocations/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteAllocation(@PathVariable Long id) {
+        Employee hr = authService.getCurrentEmployee();
+        leaveConfigService.deleteAllocation(id, hr);
+        return ResponseEntity.ok(ApiResponse.success(null, "Leave entitlement removed successfully"));
     }
 }

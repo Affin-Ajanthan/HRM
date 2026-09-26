@@ -46,6 +46,13 @@ public class SalaryConfigController {
         return ResponseEntity.ok(ApiResponse.success(saved, saved.size() + " salary row(s) saved"));
     }
 
+    @DeleteMapping("/basic-payments/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteBasicPayment(@PathVariable Long id) {
+        Employee hr = authService.getCurrentEmployee();
+        salaryConfigService.deleteBasicPayment(id, hr);
+        return ResponseEntity.ok(ApiResponse.success(null, "Salary row deleted successfully"));
+    }
+
     @GetMapping("/additional-payments")
     public ResponseEntity<ApiResponse<List<AdditionalPaymentDTO>>> getAdditionalPayments(
             @RequestParam(required = false) String employeeEmail) {

@@ -23,10 +23,12 @@ public class SyncController {
 
     private final CompanyRepo companyRepo;
     private final EmployeeRepo employeeRepo;
+    private final com.affin.hrm.Repo.UserRepo userRepo;
 
-    public SyncController(CompanyRepo companyRepo, EmployeeRepo employeeRepo) {
+    public SyncController(CompanyRepo companyRepo, EmployeeRepo employeeRepo, com.affin.hrm.Repo.UserRepo userRepo) {
         this.companyRepo = companyRepo;
         this.employeeRepo = employeeRepo;
+        this.userRepo = userRepo;
     }
 
     @PostMapping("/company")
@@ -136,6 +138,23 @@ public class SyncController {
         Employee saved = employeeRepo.save(employee);
         log.info("[USER_BACKEND SYNC SUCCESS] Employee synced to hrm_db_user ID: {}, Email: {}, Company: {}",
                 saved.getId(), saved.getEmail(), saved.getCompany() != null ? saved.getCompany().getCompanyName() : "None");
+
+        // Also update legacy users table if present
+        try {
+            com.affin.hrm.Model.User legacyUser = userRepo.findByEmailIgnoreCase(email).orElseGet(() -> {
+                com.affin.hrm.Model.User u = new com.affin.hrm.Model.User();
+                u.setEmail(email);
+                return u;
+            });
+            if (fullName != null) legacyUser.setFullName(fullName);
+            if (password != null) legacyUser.setPassword(password);
+            if (employeeIdStr != null) legacyUser.setEmployeeId(employeeIdStr);
+            if (roleStr != null) legacyUser.setRole(roleStr);
+            userRepo.save(legacyUser);
+            log.info("[USER_BACKEND SYNC SUCCESS] Legacy user synced to hrm_db_user users table for {}", email);
+        } catch (Exception e) {
+            log.warn("Failed to sync legacy users table for {}: {}", email, e.getMessage());
+        }
 
         return ResponseEntity.ok("Employee synced to hrm_db_user successfully");
     }

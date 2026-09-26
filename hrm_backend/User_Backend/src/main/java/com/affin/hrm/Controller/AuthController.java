@@ -143,6 +143,19 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/change-password")
+    public ResponseEntity<ApiResponse<String>> changePassword(@RequestBody Map<String, String> body) {
+        try {
+            var employee = authService.getCurrentEmployee();
+            String oldPassword = body.get("oldPassword");
+            String newPassword = body.get("newPassword");
+            authService.changePassword(employee.getEmail(), oldPassword, newPassword);
+            return ResponseEntity.ok(ApiResponse.success(null, "Password changed successfully."));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
     @PostMapping("/refresh-token")
     public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(@RequestBody Map<String, String> body) {
         try {

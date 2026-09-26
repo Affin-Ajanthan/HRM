@@ -98,6 +98,15 @@ public class SyncController {
             } catch (Exception ignored) {}
         }
 
+        if (payload.containsKey("mustChangePassword")) {
+            Object val = payload.get("mustChangePassword");
+            if (val instanceof Boolean) {
+                employee.setMustChangePassword((Boolean) val);
+            } else if (val != null) {
+                employee.setMustChangePassword(Boolean.parseBoolean(val.toString()));
+            }
+        }
+
         // Link company if present in payload
         if (payload.containsKey("company") && payload.get("company") instanceof Map) {
             @SuppressWarnings("unchecked")

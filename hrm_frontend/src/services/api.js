@@ -138,6 +138,11 @@ export const authApi = {
     return request("POST", `${AUTH_URL}/auth/reset-password`, { token, password });
   },
 
+  /** Change password — updates current temporary password to a new password */
+  changePassword: async (oldPassword, newPassword) => {
+    return request("POST", `${AUTH_URL}/auth/change-password`, { oldPassword, newPassword });
+  },
+
   /** Validate session */
   validateSession: async (userId) => {
     return request("GET", `${AUTH_URL}/auth/session?userId=${userId}`);

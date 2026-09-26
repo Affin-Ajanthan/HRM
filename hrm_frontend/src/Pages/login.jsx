@@ -50,6 +50,16 @@ const Login = () => {
   // HR managers are also employees — after a successful HR login, hold off
   // navigating and ask which dashboard they want instead of guessing.
   const [hrChoicePending, setHrChoicePending] = useState(false);
+  const [showFirstTimeModal, setShowFirstTimeModal] = useState(false);
+  const [tempPassword, setTempPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [changePassError, setChangePassError] = useState("");
+  const [changePassLoading, setChangePassLoading] = useState(false);
+  const [pendingUserData, setPendingUserData] = useState(null);
+
   const navigate = useNavigate();
 
   useEffect(() => { const t = setTimeout(() => setReady(true), 80); return () => clearTimeout(t); }, []);
@@ -63,6 +73,15 @@ const Login = () => {
       const data = resp.data ?? resp;
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data));
+
+      if (data.mustChangePassword) {
+        setPendingUserData(data);
+        setTempPassword(password);
+        setShowFirstTimeModal(true);
+        setIsLoading(false);
+        return;
+      }
+
       if (data.role === "ADMIN") {
         navigate("/admin/dashboard");
       } else if (data.role === "HR_MANAGER") {
@@ -75,6 +94,46 @@ const Login = () => {
       if      (err.response) setError(err.response.data?.message || "Invalid email or password.");
       else if (err.request)  setError("Cannot connect to server. Please ensure the backend is running.");
       else                   setError(err.message || "An unexpected error occurred.");
+    }
+  };
+
+  const handleFirstTimeChangeSubmit = async (e) => {
+    e.preventDefault();
+    setChangePassError("");
+
+    if (newPassword.length < 6) {
+      setChangePassError("New password must be at least 6 characters long.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setChangePassError("New password and confirmation do not match.");
+      return;
+    }
+
+    setChangePassLoading(true);
+    try {
+      await authApi.changePassword(tempPassword, newPassword);
+
+      if (pendingUserData) {
+        const updatedUser = { ...pendingUserData, mustChangePassword: false };
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      }
+
+      setShowFirstTimeModal(false);
+
+      const userRole = pendingUserData?.role;
+      if (userRole === "ADMIN") {
+        navigate("/admin/dashboard");
+      } else if (userRole === "HR_MANAGER") {
+        navigate("/hr/dashboard");
+      } else {
+        navigate("/employee/dashboard");
+      }
+    } catch (err) {
+      setChangePassError(err.message || "Failed to update password. Please check credentials and try again.");
+    } finally {
+      setChangePassLoading(false);
     }
   };
 
@@ -415,6 +474,105 @@ const Login = () => {
                 <ArrowRight size={16} className="text-slate-300 group-hover:text-indigo-500 transition-colors" />
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── First-Time Password Change Modal ── */}
+      {showFirstTimeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 border border-indigo-100 animate-fade-in">
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-indigo-300/40 bg-gradient-to-br from-indigo-500 to-violet-600">
+                <Lock size={26} className="text-white" />
+              </div>
+              <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider">
+                First-Time Security Action
+              </span>
+              <h2 className="text-xl font-extrabold text-slate-900 mt-2">Change Temporary Password</h2>
+              <p className="text-xs text-slate-500 mt-1">
+                You logged in with an auto-generated temporary password. Please set a new secure password to activate your account.
+              </p>
+            </div>
+
+            {changePassError && (
+              <div className="flex gap-2 items-start bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl mb-4 text-xs">
+                <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                <span>{changePassError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleFirstTimeChangeSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Temporary Password</label>
+                <input
+                  type="password"
+                  disabled
+                  value={tempPassword}
+                  className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">New Password</label>
+                <div className="relative">
+                  <input
+                    type={showNewPass ? "text" : "password"}
+                    required
+                    minLength={6}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password (min. 6 chars)"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPass(!showNewPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showNewPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Confirm New Password</label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPass ? "text" : "password"}
+                    required
+                    minLength={6}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter new password"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPass(!showConfirmPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showConfirmPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={changePassLoading || !newPassword || !confirmPassword}
+                className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold rounded-xl text-xs shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+              >
+                {changePassLoading ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    Updating Password...
+                  </>
+                ) : (
+                  "Set Password & Proceed to Dashboard"
+                )}
+              </button>
+            </form>
           </div>
         </div>
       )}

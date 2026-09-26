@@ -29,6 +29,7 @@ import { PageLayout } from "../../components/PageLayout";
 import { NameListModal } from "../../components/NameListModal";
 import { hrApi, userHrApi } from "../../services/api";
 import AddEmployeeModal from "./AddEmployeeModal";
+import { groupSessionsByEmployee, toLocalDateString } from "../../utils/attendance";
 
 const Employee = () => {
   const navigate = useNavigate();
@@ -37,6 +38,7 @@ const Employee = () => {
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [presentToday, setPresentToday] = useState(0);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDeptFilter, setSelectedDeptFilter] = useState("ALL");
@@ -103,6 +105,33 @@ const Employee = () => {
     }
   };
 
+  // ---------------------------------------------------------
+  // TODAY'S ATTENDANCE — drives the "Active Employees" summary
+  // card with a live present-today count from the HR attendance
+  // table (same source the Attendance page uses).
+  // ---------------------------------------------------------
+  const fetchTodayAttendance = async () => {
+    try {
+      const today = toLocalDateString(new Date());
+      const res = await hrApi.getDailyAttendance(today);
+      const sessions = Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray(res)
+        ? res
+        : [];
+
+      const perEmployee = groupSessionsByEmployee(sessions);
+      const present = perEmployee.filter(
+        (row) => row.status === "PRESENT"
+      ).length;
+
+      setPresentToday(present);
+    } catch (err) {
+      console.error("Failed to load today's attendance:", err);
+      setPresentToday(0);
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
 
@@ -112,6 +141,7 @@ const Employee = () => {
       await Promise.all([
         fetchEmployees(),
         fetchDepartments(),
+        fetchTodayAttendance(),
       ]);
 
       setLoading(false);
@@ -282,13 +312,6 @@ const Employee = () => {
   const totalEmployees =
     employees.length;
 
-  const activeEmployees =
-    employees.filter(
-      (e) =>
-        (e.status || "").toUpperCase() ===
-        "ACTIVE"
-    ).length;
-
   const totalDeptsRepresented =
     departments.length;
 
@@ -376,22 +399,19 @@ const Employee = () => {
             description="Registered in organization"
             className="
               bg-gradient-to-br
-              from-emerald-400
-              to-teal-500
+              from-green-400
+              to-emerald-500
             "
           />
 
-          {/* ORANGE - ACTIVE EMPLOYEES */}
+          {/* YELLOW - ACTIVE EMPLOYEES (present today, from attendance) */}
           <SummaryCard
             icon={<UserCheck size={20} />}
             title="Active Employees"
-            value={activeEmployees}
-            description="Currently in active status"
-            className="
-              bg-gradient-to-br
-              from-amber-400
-              to-orange-500
-            "
+            value={presentToday}
+            description="Present today · click to view attendance"
+            onClick={() => navigate("/hr/attendance")}
+            className="bg-yellow-500"
           />
 
           {/* PURPLE - DEPARTMENTS */}
@@ -399,12 +419,9 @@ const Employee = () => {
             icon={<Building2 size={20} />}
             title="Departments"
             value={totalDeptsRepresented}
-            description="Active database departments"
-            className="
-              bg-gradient-to-br
-              from-indigo-400
-              to-violet-500
-            "
+            description="Active database departments · click to view"
+            onClick={() => navigate("/hr/departments")}
+            className="bg-purple-600"
           />
         </div>
 
@@ -1272,8 +1289,8 @@ const Employee = () => {
             <div className="
               p-6
               bg-gradient-to-br
-              from-blue-600
-              to-indigo-700
+              from-teal-500
+              to-emerald-600
               text-white
               relative
             ">
@@ -1328,7 +1345,7 @@ const Employee = () => {
                   </h2>
 
                   <p className="
-                    text-blue-100
+                    text-teal-100
                     text-sm
                     mt-0.5
                   ">
@@ -1512,8 +1529,11 @@ const Employee = () => {
                 className="
                   px-4 py-2
                   rounded-xl
-                  bg-blue-600
-                  hover:bg-blue-700
+                  bg-gradient-to-br
+                  from-teal-400
+                  to-emerald-500
+                  hover:from-teal-500
+                  hover:to-emerald-600
                   text-white
                   text-sm
                   font-semibold
@@ -1751,18 +1771,30 @@ const SummaryCard = ({
   value,
   description,
   className = "",
+  onClick,
 }) => (
   <div
+    onClick={onClick}
+    role={onClick ? "button" : undefined}
+    tabIndex={onClick ? 0 : undefined}
+    onKeyDown={
+      onClick
+        ? (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onClick();
+            }
+          }
+        : undefined
+    }
     className={`
-      bg-gradient-to-br
-      from-teal-400
-      to-emerald-500
       rounded-2xl
       p-5
       text-white
       shadow-sm
       hover:shadow-md
       transition-shadow
+      ${onClick ? "cursor-pointer hover:-translate-y-0.5 transition-transform duration-200" : ""}
       ${className}
     `}
   >

@@ -16,11 +16,12 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
+  Filter,
 } from "lucide-react";
 
 import { PageLayout } from "../../components/PageLayout";
 import NotificationPopup from "../../components/NotificationPopup.jsx";
-import { hrApi } from "../../services/api";
+import { hrApi, userHrApi } from "../../services/api";
 
 // Strips the "400: " style status prefix that the API helper adds to messages.
 const cleanError = (error) =>
@@ -35,7 +36,13 @@ const Department = () => {
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Real employee list (same source Employee.jsx uses) — used to compute
+  // accurate, always-current per-department employee counts instead of
+  // trusting the department record's own (often stale/unsynced) count.
+  const [employees, setEmployees] = useState([]);
+
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedDeptFilter, setSelectedDeptFilter] = useState("ALL");
   const [showAddForm, setShowAddForm] = useState(false);
 
   const [editingDepartment, setEditingDepartment] = useState(null);
@@ -107,10 +114,56 @@ const Department = () => {
     }
   };
 
+  // Real, current employee list — this is what Employee.jsx's Add/Edit
+  // Employee form actually writes to, so it is the source of truth for
+  // "how many employees does this department have right now".
+  const fetchEmployees = async () => {
+    try {
+      const response = await userHrApi.getEmployees();
+      const list = response?.data || response || [];
+
+      setEmployees(Array.isArray(list) ? list : []);
+    } catch (error) {
+      console.error("Failed to load employees:", error);
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
     fetchDepartments();
+    fetchEmployees();
   }, [user]);
+
+  // ---------------------------------------------------------
+  // LIVE EMPLOYEE COUNTS PER DEPARTMENT
+  // ---------------------------------------------------------
+  // Built from the real employee list so that adding, editing, or
+  // reassigning an employee's department on the Employee page is
+  // instantly reflected here the next time this page loads/refreshes.
+  const employeeCountByDept = useMemo(() => {
+    const map = {};
+
+    employees.forEach((emp) => {
+      const deptName = (
+        emp.departmentName ||
+        emp.department ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!deptName) return;
+
+      map[deptName] = (map[deptName] || 0) + 1;
+    });
+
+    return map;
+  }, [employees]);
+
+  const getEmployeeCount = (department) => {
+    const key = (department?.name || "").trim().toLowerCase();
+    return employeeCountByDept[key] || 0;
+  };
 
   // ---------------------------------------------------------
   // FORM HELPERS
@@ -371,9 +424,16 @@ const Department = () => {
   const filteredDepartments = useMemo(() => {
     const search = searchTerm.toLowerCase().trim();
 
-    if (!search) return departments;
-
     return departments.filter((department) => {
+      if (
+        selectedDeptFilter !== "ALL" &&
+        department.name !== selectedDeptFilter
+      ) {
+        return false;
+      }
+
+      if (!search) return true;
+
       const name =
         department.name?.toLowerCase() || "";
 
@@ -393,7 +453,7 @@ const Department = () => {
         description.includes(search)
       );
     });
-  }, [departments, searchTerm]);
+  }, [departments, searchTerm, selectedDeptFilter]);
 
   // ---------------------------------------------------------
   // SUMMARY DATA
@@ -401,11 +461,9 @@ const Department = () => {
 
   const totalDepartments = departments.length;
 
-  const totalEmployees = departments.reduce(
-    (total, department) =>
-      total + (department.employeeCount || 0),
-    0
-  );
+  // Real total — count of actual employees, not the (potentially stale)
+  // sum of each department's own employeeCount field.
+  const totalEmployees = employees.length;
 
   const totalJobRoles = departments.reduce(
     (total, department) => {
@@ -463,21 +521,21 @@ const Department = () => {
 
           {/* Total Departments */}
           <SummaryCard
-              title="Total Departments"
-              value={totalDepartments}
-              className="bg-gradient-to-br from-green-400 to-emerald-500 text-white" />
+            title="Total Departments"
+            value={totalDepartments}
+            className="bg-gradient-to-br from-green-400 to-emerald-500 text-white" />
 
           {/* Total Job Roles */}
           <SummaryCard
-              title="Total Job Roles"
-              value={totalJobRoles}
-              className="bg-gradient-to-br from-orange-400 to-amber-500 text-white" />
+            title="Total Job Roles"
+            value={totalJobRoles}
+            className="bg-gradient-to-br from-orange-400 to-amber-500 text-white" />
 
           {/* Total Employees */}
           <SummaryCard
-              title="Total Employees"
-              value={totalEmployees}
-              className="bg-gradient-to-br from-purple-500 to-indigo-600 text-white" />
+            title="Total Employees"
+            value={totalEmployees}
+            className="bg-gradient-to-br from-purple-500 to-indigo-600 text-white" />
 
         </div>
 
@@ -544,6 +602,48 @@ const Department = () => {
                   </button>
                 )}
 
+              </div>
+
+              {/* Department Filter */}
+              <div className="flex items-center gap-2">
+                <Filter
+                  size={15}
+                  className="text-slate-400"
+                />
+
+                <select
+                  value={selectedDeptFilter}
+                  onChange={(e) =>
+                    setSelectedDeptFilter(e.target.value)
+                  }
+                  className="
+                    px-3 py-2
+                    bg-slate-50
+                    border border-slate-200
+                    rounded-xl
+                    text-xs font-semibold
+                    text-slate-700
+                    focus:outline-none
+                    focus:bg-white
+                    focus:border-teal-500
+                  "
+                >
+                  <option value="ALL">
+                    All Departments
+                  </option>
+
+                  {departments.map((d) => (
+                    <option
+                      key={d.id}
+                      value={d.name}
+                    >
+                      {d.name}{" "}
+                      {d.shortCode
+                        ? `(${d.shortCode})`
+                        : ""}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="text-sm text-slate-500">
@@ -663,7 +763,7 @@ const Department = () => {
                   0;
 
                 const employeeCount =
-                  department.employeeCount || 0;
+                  getEmployeeCount(department);
 
                 return (
                   <div
@@ -913,10 +1013,9 @@ const Department = () => {
                               rounded-lg
                               flex items-center justify-center
                               transition-colors
-                              ${
-                                openMenu === department.id
-                                  ? "text-blue-600 bg-blue-50"
-                                  : "text-slate-400 hover:bg-slate-100"
+                              ${openMenu === department.id
+                                ? "text-blue-600 bg-blue-50"
+                                : "text-slate-400 hover:bg-slate-100"
                               }
                             `}
                           >
@@ -1080,15 +1179,22 @@ const Department = () => {
             {/* Modal Header */}
             <div className="
               px-6 py-5
-              border-b border-slate-200
+              bg-gradient-to-r from-teal-500 to-emerald-600
               flex items-center justify-between
             ">
 
-              <h2 className="text-lg font-bold text-slate-900">
-                {editingDepartment
-                  ? "Edit Department"
-                  : "Add Department"}
-              </h2>
+              <div>
+                <h2 className="text-lg font-bold text-white">
+                  {editingDepartment
+                    ? "Edit Department"
+                    : "Add Department"}
+                </h2>
+                <p className="text-xs text-white/80 mt-0.5">
+                  {editingDepartment
+                    ? "Update this department's details and job roles"
+                    : "Set up a new department for your organization"}
+                </p>
+              </div>
 
               <button
                 onClick={closeForm}
@@ -1096,9 +1202,9 @@ const Department = () => {
                   h-9 w-9
                   rounded-lg
                   flex items-center justify-center
-                  text-slate-400
-                  hover:bg-slate-100
-                  hover:text-slate-700
+                  text-white/80
+                  hover:bg-white/15
+                  hover:text-white
                   transition-colors
                 "
               >
@@ -1489,13 +1595,13 @@ const Department = () => {
                   className="
                     px-5 py-2.5
                     rounded-xl
-                    bg-blue-600
-                    hover:bg-blue-700
+                    bg-gradient-to-br from-teal-400 to-emerald-500
+                    hover:from-teal-500 hover:to-emerald-600
                     text-white
                     text-sm
                     font-semibold
                     shadow-sm
-                    shadow-blue-600/20
+                    shadow-teal-500/20
                     disabled:opacity-60
                     disabled:cursor-not-allowed
                     flex items-center
@@ -1538,6 +1644,7 @@ const Department = () => {
       {selectedDepartment && (
         <DepartmentDetailsModal
           department={selectedDepartment}
+          employeeCount={getEmployeeCount(selectedDepartment)}
           onClose={() =>
             setSelectedDepartment(null)
           }
@@ -1599,9 +1706,9 @@ const Department = () => {
                   job role(s) and cannot be undone.
                 </p>
 
-                {(deleteDepartment.employeeCount || 0) > 0 && (
+                {getEmployeeCount(deleteDepartment) > 0 && (
                   <p className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                    {deleteDepartment.employeeCount} employee(s) are still
+                    {getEmployeeCount(deleteDepartment)} employee(s) are still
                     assigned to this department. Reassign or remove them first,
                     then delete the department.
                   </p>
@@ -1636,7 +1743,7 @@ const Department = () => {
 
               <button
                 onClick={handleDelete}
-                disabled={(deleteDepartment.employeeCount || 0) > 0}
+                disabled={getEmployeeCount(deleteDepartment) > 0}
                 className="
                   disabled:opacity-40
                   disabled:cursor-not-allowed
@@ -1783,7 +1890,7 @@ const SectionTitle = ({
         h-8 w-8
         flex-shrink-0
         rounded-lg
-        bg-blue-600
+        bg-gradient-to-br from-teal-400 to-emerald-500
         text-white
         flex items-center
         justify-center
@@ -1830,10 +1937,9 @@ const DepartmentMenu = ({
 }) => {
   return (
     <div className={`
-      ${
-        mobile
-          ? "absolute right-0 top-11 w-48"
-          : `absolute right-0 ${openUpwards ? "bottom-10" : "top-10"} w-48`
+      ${mobile
+        ? "absolute right-0 top-11 w-48"
+        : `absolute right-0 ${openUpwards ? "bottom-10" : "top-10"} w-48`
       }
       z-50
       bg-white
@@ -1911,6 +2017,7 @@ const DepartmentMenu = ({
 
 const DepartmentDetailsModal = ({
   department,
+  employeeCount: employeeCountProp,
   onClose,
   onEdit,
 }) => {
@@ -1922,7 +2029,9 @@ const DepartmentDetailsModal = ({
     0;
 
   const employeeCount =
-    department.employeeCount || 0;
+    employeeCountProp ??
+    department.employeeCount ??
+    0;
 
   return (
     <div className="
@@ -1947,8 +2056,8 @@ const DepartmentDetailsModal = ({
         <div className="
           p-6
           bg-gradient-to-br
-          from-blue-600
-          to-blue-700
+          from-teal-500
+          to-emerald-600
           text-white
         ">
 
@@ -1980,7 +2089,7 @@ const DepartmentDetailsModal = ({
                 </h2>
 
                 <p className="
-                  text-blue-100
+                  text-teal-100
                   text-sm
                   mt-0.5
                 ">
@@ -2012,7 +2121,7 @@ const DepartmentDetailsModal = ({
           {department.description && (
             <p className="
               text-sm
-              text-blue-100
+              text-teal-100
               mt-5
               max-w-2xl
               leading-relaxed
@@ -2237,8 +2346,8 @@ const DepartmentDetailsModal = ({
             className="
               px-4 py-2.5
               rounded-xl
-              bg-blue-600
-              hover:bg-blue-700
+              bg-gradient-to-br from-teal-400 to-emerald-500
+              hover:from-teal-500 hover:to-emerald-600
               text-white
               text-sm
               font-semibold

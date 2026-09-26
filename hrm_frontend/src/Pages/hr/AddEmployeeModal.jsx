@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Eye,
   EyeOff,
@@ -102,6 +102,55 @@ const EMPTY_FORM = {
 const BACKEND_TO_ROLE = { EMPLOYEE: "employee", HR_MANAGER: "hr", ADMIN: "admin" };
 const toDateInput = (v) => (v ? String(v).slice(0, 10) : "");
 
+// ---------------------------------------------------------------
+// DRAFT PERSISTENCE (Add Employee only, never for Edit Employee)
+//
+// So HR doesn't lose what they've typed if they close the popup, switch
+// tabs, or close the browser tab before hitting Submit, the in-progress
+// "Add New Employee" form is mirrored to localStorage as they type and
+// restored the next time the popup is opened for a new employee. It is
+// cleared once the employee is actually created.
+//
+// Passwords are intentionally never written to localStorage (a browser
+// storage isn't a safe place to keep them) — HR just re-enters the
+// password if the tab was closed; every other field is restored.
+// ---------------------------------------------------------------
+const ADD_EMPLOYEE_DRAFT_KEY = "hr_add_employee_draft_v1";
+
+const loadEmployeeDraft = () => {
+  try {
+    const raw = localStorage.getItem(ADD_EMPLOYEE_DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && parsed.formData ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveEmployeeDraft = (formData, currentStep) => {
+  try {
+    const { password, confirmPassword, ...rest } = formData;
+    const hasContent = Object.values(rest).some((v) => String(v || "").trim() !== "");
+    if (!hasContent) {
+      localStorage.removeItem(ADD_EMPLOYEE_DRAFT_KEY);
+      return;
+    }
+    localStorage.setItem(ADD_EMPLOYEE_DRAFT_KEY, JSON.stringify({ formData: rest, currentStep }));
+  } catch {
+    // Storage can fail (private browsing, full quota) — losing the draft convenience
+    // is fine, it must never block HR from filling in the form.
+  }
+};
+
+const clearEmployeeDraft = () => {
+  try {
+    localStorage.removeItem(ADD_EMPLOYEE_DRAFT_KEY);
+  } catch {
+    // ignore
+  }
+};
+
 // Builds the wizard's form state from an existing employee record (edit mode).
 const buildFormFromEmployee = (emp, departments) => {
   const [firstName = "", ...rest] = String(emp.fullName || "").trim().split(/\s+/);
@@ -148,6 +197,12 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Whether the form currently on screen was restored from a saved draft (Add mode only)
+  const [draftRestored, setDraftRestored] = useState(false);
+  // Guards against the restored draft being immediately re-saved (and briefly overwritten
+  // with stale/blank data) on the very render that first applies it — see the persistence
+  // effect below.
+  const skipNextDraftSaveRef = useRef(false);
   // Employment types HR has defined (hrm_db_hr.employment_types)
   const [employmentTypes, setEmploymentTypes] = useState([]);
   const [employmentTypesError, setEmploymentTypesError] = useState("");
@@ -197,13 +252,27 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
     if (open) {
       setCurrentStep(1);
       if (employee) {
-        // Edit mode: show the same wizard, pre-filled with the saved data
+        // Edit mode: show the same wizard, pre-filled with the saved data. Edit never
+        // touches the Add Employee draft.
         const prefilled = buildFormFromEmployee(employee, departments);
         setFormData(prefilled);
         setEmployeeIdNumber(prefilled.employeeId.split("-").slice(1).join("-"));
+        setDraftRestored(false);
       } else {
-        setFormData(EMPTY_FORM);
-        setEmployeeIdNumber("");
+        // Add mode: continue a previously unfinished form instead of blanking it out.
+        skipNextDraftSaveRef.current = true;
+        const draft = loadEmployeeDraft();
+        if (draft) {
+          const restored = { ...EMPTY_FORM, ...draft.formData };
+          setFormData(restored);
+          setEmployeeIdNumber(restored.employeeId ? restored.employeeId.split("-").slice(1).join("-") : "");
+          setCurrentStep(Math.min(Math.max(Number(draft.currentStep) || 1, 1), STEPS.length));
+          setDraftRestored(true);
+        } else {
+          setFormData(EMPTY_FORM);
+          setEmployeeIdNumber("");
+          setDraftRestored(false);
+        }
       }
       setErrors({});
       setShowPassword(false);
@@ -211,6 +280,28 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, employee]);
+
+  // Mirror the in-progress "Add Employee" form to localStorage as HR types, so it survives
+  // closing the popup, switching tabs, or closing the browser tab before submitting.
+  useEffect(() => {
+    if (!open || isEdit) return;
+    if (skipNextDraftSaveRef.current) {
+      // This pass is the one right after restoring/resetting the form on open — its closure
+      // still holds the previous render's formData, so skip it to avoid clobbering the
+      // draft we just loaded (or wiping a real draft with a stale empty one).
+      skipNextDraftSaveRef.current = false;
+      return;
+    }
+    saveEmployeeDraft(formData, currentStep);
+  }, [formData, currentStep, open, isEdit]);
+
+  const discardDraft = () => {
+    clearEmployeeDraft();
+    setFormData(EMPTY_FORM);
+    setEmployeeIdNumber("");
+    setCurrentStep(1);
+    setDraftRestored(false);
+  };
 
   // If the department list finishes loading after the edit form opened,
   // match the employee's saved department name to a real department.
@@ -469,8 +560,10 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
       }
 
       if (onSuccess) await onSuccess();
+      if (!isEdit) clearEmployeeDraft();
       setFormData(EMPTY_FORM);
       setCurrentStep(1);
+      setDraftRestored(false);
     } catch (error) {
       const message =
         error?.response?.data?.message ||
@@ -632,6 +725,18 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
         {/* Body / Form */}
         <form onSubmit={handleFormSubmit} className="flex flex-col min-h-0">
           <div className="green-scrollbar overflow-y-auto p-6 space-y-5">
+            {draftRestored && !isEdit && (
+              <div className="flex items-center justify-between gap-3 bg-teal-50 border border-teal-100 text-teal-700 text-xs rounded-xl px-4 py-3">
+                <span>Continuing your unfinished form — nothing you typed was lost.</span>
+                <button
+                  type="button"
+                  onClick={discardDraft}
+                  className="font-semibold underline decoration-teal-300 hover:decoration-teal-500 flex-shrink-0"
+                >
+                  Discard &amp; start fresh
+                </button>
+              </div>
+            )}
             {/* ============ STEP 1 — PERSONAL ============ */}
             {currentStep === 1 && (
               <div className="space-y-5">

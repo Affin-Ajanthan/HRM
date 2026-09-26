@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Filter, Eye, CheckCircle, XCircle, Clock, FileText, X, Plus, Briefcase } from "lucide-react";
+import { Search, Filter, Eye, CheckCircle, XCircle, Clock, FileText, X, Plus, Briefcase, Tag } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
+import { NameListModal } from "../../components/NameListModal";
+import { hrApi } from "../../services/api";
 
 const LeaveManagement = ({ role = "hr" }) => {
   const navigate = useNavigate();
@@ -9,6 +11,7 @@ const LeaveManagement = ({ role = "hr" }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [viewingRequest, setViewingRequest] = useState(null);
+  const [showLeaveTypes, setShowLeaveTypes] = useState(false);
 
   useEffect(() => {
     const s = localStorage.getItem("user");
@@ -53,7 +56,7 @@ const LeaveManagement = ({ role = "hr" }) => {
       subtitle="Approve and manage employee leave requests"
       actions={role === "hr" && (
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate("/hr/leave/types")}
+          <button onClick={() => setShowLeaveTypes(true)}
             className="inline-flex items-center gap-2 bg-gradient-to-br from-teal-400 to-emerald-500 hover:from-teal-500 hover:to-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm shadow-teal-500/20 transition-all duration-200">
             <Plus size={17} strokeWidth={2.5} /> Add Leave Types
           </button>
@@ -159,6 +162,28 @@ const LeaveManagement = ({ role = "hr" }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Add / manage leave types — centered popup with blurred backdrop, like Add Employment Types */}
+      {role === "hr" && (
+        <NameListModal
+          open={showLeaveTypes}
+          onClose={() => setShowLeaveTypes(false)}
+          title="Add Leave Types"
+          subtitle="Define the kinds of leave your company offers"
+          heading="Leave Types"
+          hint="Add as many as you need, e.g. Sick Leave, Annual Leave"
+          placeholder="Leave type, e.g. Sick Leave"
+          addLabel="Add another leave"
+          saveLabel="Save Leave Types"
+          existingLabel="Existing leave types"
+          emptyLabel="No leave types added yet"
+          icon={Tag}
+          load={hrApi.getLeaveTypes}
+          save={hrApi.createLeaveTypes}
+          onUpdate={hrApi.updateLeaveType}
+          onDelete={hrApi.deleteLeaveType}
+        />
       )}
     </PageLayout>
   );

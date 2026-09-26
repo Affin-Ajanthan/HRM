@@ -170,7 +170,8 @@ public class AuthService {
                 employee.getFullName(),
                 employee.getRole().name(),
                 employee.getCompany() != null ? employee.getCompany().getId() : null,
-                employee.getId()
+                employee.getId(),
+                Boolean.TRUE.equals(employee.getMustChangePassword())
         );
     }
 
@@ -452,6 +453,27 @@ public class AuthService {
                  });
                  
                  // Sync updated password across services
+                 syncService.syncToAllBackends(saved);
+         }
+
+         public void changePassword(String email, String oldPassword, String newPassword) {
+                 String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
+                 Employee employee = employeeRepo.findByEmailIgnoreCase(normalizedEmail)
+                         .orElseThrow(() -> new RuntimeException("Employee not found with email: " + email));
+
+                 if (!passwordEncoder.matches(oldPassword, employee.getPassword())) {
+                     throw new RuntimeException("Current temporary password is invalid");
+                 }
+
+                 employee.setPassword(passwordEncoder.encode(newPassword));
+                 employee.setMustChangePassword(false);
+                 Employee saved = employeeRepo.save(employee);
+
+                 userRepo.findByEmailIgnoreCase(saved.getEmail()).ifPresent(user -> {
+                         user.setPassword(passwordEncoder.encode(newPassword));
+                         userRepo.save(user);
+                 });
+
                  syncService.syncToAllBackends(saved);
          }
 

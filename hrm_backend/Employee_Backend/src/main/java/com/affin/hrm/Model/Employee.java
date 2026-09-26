@@ -71,6 +71,9 @@ public class Employee {
     @Column(nullable = false)
     private EmployeeStatus status = EmployeeStatus.ACTIVE;
 
+    @Column(name = "must_change_password")
+    private Boolean mustChangePassword = false;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

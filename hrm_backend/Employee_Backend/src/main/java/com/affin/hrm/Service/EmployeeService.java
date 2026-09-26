@@ -291,6 +291,7 @@ public class EmployeeService {
         hrUser.setRole(Employee.Role.HR_MANAGER);
         hrUser.setCompany(savedCompany);
         hrUser.setStatus(Employee.EmployeeStatus.ACTIVE);
+        hrUser.setMustChangePassword(true);
         Employee savedHrUser = employeeRepository.save(hrUser);
 
         // Send approval welcome email with credentials
@@ -351,6 +352,7 @@ public class EmployeeService {
                 payload.put("password", hrUser.getPassword());
                 payload.put("role", hrUser.getRole() != null ? hrUser.getRole().name() : "HR_MANAGER");
                 payload.put("status", hrUser.getStatus() != null ? hrUser.getStatus().name() : "ACTIVE");
+                payload.put("mustChangePassword", hrUser.getMustChangePassword());
 
                 java.util.Map<String, Object> compMap = new java.util.HashMap<>();
                 compMap.put("id", company.getId());

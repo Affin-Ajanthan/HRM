@@ -69,6 +69,9 @@ public class Employee {
     private String resetPasswordToken;
     private LocalDateTime resetPasswordTokenExpiry;
 
+    @Column(name = "must_change_password")
+    private Boolean mustChangePassword = false;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -15,13 +15,19 @@ public class AuthResponse {
     private String role;
     private Long companyId;
     private Long employeeId;
+    private boolean mustChangePassword;
 
     public AuthResponse(String token, String email, String fullName, String role, Long companyId, Long employeeId) {
+        this(token, email, fullName, role, companyId, employeeId, false);
+    }
+
+    public AuthResponse(String token, String email, String fullName, String role, Long companyId, Long employeeId, boolean mustChangePassword) {
         this.token = token;
         this.email = email;
         this.fullName = fullName;
         this.role = role;
         this.companyId = companyId;
         this.employeeId = employeeId;
+        this.mustChangePassword = mustChangePassword;
     }
 }

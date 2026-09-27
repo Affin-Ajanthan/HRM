@@ -15,28 +15,28 @@ services:
   user-service:
     build: ./hrm_backend/User_Backend
     restart: unless-stopped
-    env_file: .env.staging
+    env_file: ${ENV_FILE:-.env.staging}
     depends_on:
       postgres: { condition: service_healthy }
 
   hr-service:
     build: ./hrm_backend/HR_Backend
     restart: unless-stopped
-    env_file: .env.staging
+    env_file: ${ENV_FILE:-.env.staging}
     depends_on:
       postgres: { condition: service_healthy }
 
   employee-service:
     build: ./hrm_backend/Employee_Backend
     restart: unless-stopped
-    env_file: .env.staging
+    env_file: ${ENV_FILE:-.env.staging}
     depends_on:
       postgres: { condition: service_healthy }
 
   admin-service:
     build: ./hrm_backend/Admin_Backend
     restart: unless-stopped
-    env_file: .env.staging
+    env_file: ${ENV_FILE:-.env.staging}
     depends_on:
       postgres: { condition: service_healthy }
 

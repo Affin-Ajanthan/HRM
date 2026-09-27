@@ -121,16 +121,17 @@ const HRAttendance = () => {
         )}
 
         {/* Stat cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: "Total", value: stats.total, gradient: "from-teal-400 to-emerald-500" },
-            { label: "Present", value: stats.present, gradient: "from-emerald-400 to-green-500" },
-            { label: "On Leave", value: stats.halfDay, gradient: "from-amber-400 to-orange-500" },
-            { label: "Absent", value: stats.absent, gradient: "from-red-400 to-rose-500" },
+            { label: "Total", value: stats.total, description: "All attendance records for the day", gradient: "from-teal-400 to-emerald-500" },
+            { label: "Present", value: stats.present, description: "Employees present today", gradient: "from-yellow-400 to-yellow-500" },
+            { label: "On Leave", value: stats.halfDay, description: "Employees on leave today", gradient: "from-amber-400 to-orange-500" },
+            { label: "Absent", value: stats.absent, description: "Employees absent today", gradient: "from-red-400 to-rose-500" },
           ].map(s => (
-            <div key={s.label} className={`bg-gradient-to-br ${s.gradient} p-5 rounded-2xl text-white hover:-translate-y-1 transition-all duration-300`}>
-              <p className="text-white/80 text-xs mb-1">{s.label}</p>
-              <p className="text-3xl font-bold">{s.value}</p>
+            <div key={s.label} className={`bg-gradient-to-br ${s.gradient} p-5 rounded-2xl text-white shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 min-h-[108px] flex flex-col justify-center`}>
+              <p className="text-xs font-semibold uppercase tracking-wider text-white">{s.label}</p>
+              <p className="mt-2 text-2xl font-bold text-white">{s.value}</p>
+              <p className="mt-1 text-xs text-white/80">{s.description}</p>
             </div>
           ))}
         </div>

@@ -1182,6 +1182,20 @@ const Department = () => {
                 );
               })}
 
+              {/* Filler rows keep the table height constant across pages,
+                  so the pagination bar stays in a fixed position. */}
+              {paginatedDepartments.length > 0 &&
+                paginatedDepartments.length < ROWS_PER_PAGE &&
+                Array.from({
+                  length: ROWS_PER_PAGE - paginatedDepartments.length,
+                }).map((_, idx) => (
+                  <div
+                    key={`filler-${idx}`}
+                    aria-hidden="true"
+                    className="hidden md:block px-4 sm:px-6 py-4 h-[81px]"
+                  />
+                ))}
+
             </div>
           )}
 
@@ -2489,24 +2503,14 @@ const DeptPaginationBar = ({
 
   return (
     <div className="
-      flex flex-col sm:flex-row
-      items-center justify-between
-      gap-3
+      flex flex-col
+      items-center
+      gap-2
       px-4 sm:px-6
       py-4
       border-t border-slate-100
     ">
-      <p className="text-xs text-slate-500 font-medium">
-        Showing{" "}
-        <strong className="text-slate-800">
-          {start}-{end}
-        </strong>{" "}
-        of{" "}
-        <strong className="text-slate-800">{totalItems}</strong>{" "}
-        departments
-      </p>
-
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center justify-center gap-1.5">
         <button
           type="button"
           onClick={() => onPageChange(Math.max(1, currentPage - 1))}
@@ -2579,6 +2583,16 @@ const DeptPaginationBar = ({
           <ChevronRight size={15} />
         </button>
       </div>
+
+      <p className="text-xs text-slate-500 font-medium">
+        Showing{" "}
+        <strong className="text-slate-800">
+          {start}-{end}
+        </strong>{" "}
+        of{" "}
+        <strong className="text-slate-800">{totalItems}</strong>{" "}
+        departments
+      </p>
     </div>
   );
 };

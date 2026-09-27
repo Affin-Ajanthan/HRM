@@ -29,7 +29,7 @@ const HRAttendance = () => {
   const [error, setError] = useState("");
   const [totalEmployees, setTotalEmployees] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const ROWS_PER_PAGE = 6;
+  const ROWS_PER_PAGE = 9;
 
   const now = useNow(filterDate === toLocalDateString(new Date()));
   const rows = useMemo(() => groupSessionsByEmployee(rawSessions, now), [rawSessions, now]);
@@ -251,21 +251,20 @@ const HRAttendance = () => {
                     <td className="px-5 py-3.5"><span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge(r.status)}`}>{statusLabel(r.status)}</span></td>
                   </tr>
                 ))}
+                {!loading && paginated.length > 0 && paginated.length < ROWS_PER_PAGE &&
+                  Array.from({ length: ROWS_PER_PAGE - paginated.length }).map((_, idx) => (
+                    <tr key={`filler-${idx}`} aria-hidden="true">
+                      <td colSpan={9} className="px-5 py-3.5">&nbsp;</td>
+                    </tr>
+                  ))
+                }
               </tbody>
             </table>
           </div>
 
           {!loading && filtered.length > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-4 border-t border-gray-100">
-              <p className="text-xs text-gray-500 font-medium">
-                Showing{" "}
-                <strong className="text-gray-800">
-                  {(currentPage - 1) * ROWS_PER_PAGE + 1}-
-                  {Math.min(currentPage * ROWS_PER_PAGE, filtered.length)}
-                </strong>{" "}
-                of <strong className="text-gray-800">{filtered.length}</strong> records
-              </p>
-              <div className="flex items-center gap-1.5">
+            <div className="flex flex-col items-center gap-2 px-5 py-4 border-t border-gray-100">
+              <div className="flex items-center justify-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
@@ -299,6 +298,14 @@ const HRAttendance = () => {
                   <ChevronRight size={15} />
                 </button>
               </div>
+              <p className="text-xs text-gray-500 font-medium">
+                Showing{" "}
+                <strong className="text-gray-800">
+                  {(currentPage - 1) * ROWS_PER_PAGE + 1}-
+                  {Math.min(currentPage * ROWS_PER_PAGE, filtered.length)}
+                </strong>{" "}
+                of <strong className="text-gray-800">{filtered.length}</strong> records
+              </p>
             </div>
           )}
         </div>

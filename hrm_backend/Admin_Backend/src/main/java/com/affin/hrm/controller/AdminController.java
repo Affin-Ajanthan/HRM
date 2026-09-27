@@ -77,7 +77,7 @@ public class AdminController {
     }
 
     @PostMapping("/companies/{id}/reject")
-    public ResponseEntity<ApiResponse<CompanyDTO>> rejectCompany(@PathVariable Long id, @RequestParam String reason) {
+    public ResponseEntity<ApiResponse<CompanyDTO>> rejectCompany(@PathVariable Long id, @RequestParam(required = false) String reason) {
         CompanyDTO result = adminService.rejectCompany(id, reason);
         return ResponseEntity.ok(ApiResponse.success(result, "Company rejected"));
     }

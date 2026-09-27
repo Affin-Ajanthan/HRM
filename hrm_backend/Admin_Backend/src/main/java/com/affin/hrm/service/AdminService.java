@@ -36,16 +36,19 @@ public class AdminService {
     private final RestTemplate restTemplate;
     private final AuditLogRepository auditLogRepository;
     private final SystemConfigurationRepository systemConfigurationRepository;
+    private final EmailService emailService;
 
     @Value("${service.employee-url:http://localhost:5006}")
     private String employeeServiceUrl;
 
     public AdminService(RestTemplate restTemplate,
                         AuditLogRepository auditLogRepository,
-                        SystemConfigurationRepository systemConfigurationRepository) {
+                        SystemConfigurationRepository systemConfigurationRepository,
+                        EmailService emailService) {
         this.restTemplate = restTemplate;
         this.auditLogRepository = auditLogRepository;
         this.systemConfigurationRepository = systemConfigurationRepository;
+        this.emailService = emailService;
     }
 
     // ── Dashboard Statistics (from Employee_Backend) ─────────────
@@ -152,17 +155,26 @@ public class AdminService {
     public CompanyDTO approveCompany(Long id) {
         CompanyDTO updated = restTemplate.postForObject(
                 employeeServiceUrl + "/api/internal/companies/" + id + "/approve", null, CompanyDTO.class);
-        logAction("APPROVE_COMPANY", "Company", id, "Approved company and provisioned HR Manager account");
         if (updated != null) {
+            logAction("APPROVE_COMPANY", "Company", id, "Approved company '" + updated.getCompanyName() + "' and provisioned HR Manager account");
+            emailService.sendApprovalEmail(updated.getEmail(), updated.getContactPersonName(), updated.getCompanyName(), "TempPass123!");
             syncCompanyToHRBackend(updated);
+        } else {
+            logAction("APPROVE_COMPANY", "Company", id, "Approved company ID: " + id);
         }
         return updated;
     }
 
     public CompanyDTO rejectCompany(Long id, String reason) {
+        String rejectionReason = (reason != null && !reason.trim().isEmpty()) ? reason : "Application did not meet requirements.";
         CompanyDTO updated = restTemplate.postForObject(
-                employeeServiceUrl + "/api/internal/companies/" + id + "/reject?reason=" + (reason != null ? reason : ""), null, CompanyDTO.class);
-        logAction("REJECT_COMPANY", "Company", id, "Rejected company. Reason: " + reason);
+                employeeServiceUrl + "/api/internal/companies/" + id + "/reject?reason=" + rejectionReason, null, CompanyDTO.class);
+        if (updated != null) {
+            logAction("REJECT_COMPANY", "Company", id, "Rejected company '" + updated.getCompanyName() + "'. Reason: " + rejectionReason);
+            emailService.sendRejectionEmail(updated.getEmail(), updated.getContactPersonName(), updated.getCompanyName(), rejectionReason);
+        } else {
+            logAction("REJECT_COMPANY", "Company", id, "Rejected company ID: " + id + ". Reason: " + rejectionReason);
+        }
         return updated;
     }
 

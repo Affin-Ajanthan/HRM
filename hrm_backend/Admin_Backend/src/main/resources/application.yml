@@ -33,6 +33,24 @@ spring:
         format_sql: true
     open-in-view: false
 
+  # ── Mail Configuration ────────────────────
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+app:
+  frontend:
+    url: ${FRONTEND_URL:http://localhost:5173}
+
 # ── Server ─────────────────────────────────
 server:
   port: ${ADMIN_SERVICE_PORT:5007}

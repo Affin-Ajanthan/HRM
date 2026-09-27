@@ -27,40 +27,40 @@ import NotificationPopup from "./NotificationPopup";
 // ─── Nav configs per role ────────────────────────────────────────────────────
 const NAV = {
   employee: [
-    { name: "Overview",   icon: LayoutDashboard, path: "/employee/dashboard" },
-    { name: "Attendance", icon: Clock,            path: "/employee/attendance" },
-    { name: "Leave",      icon: CalendarDays,     path: "/employee/leave" },
-    { name: "Payslip",    icon: DollarSign,       path: "/employee/payslip" },
-    { name: "Profile",    icon: User,             path: "/employee/profile" },
+    { name: "Overview", icon: LayoutDashboard, path: "/employee/dashboard" },
+    { name: "Attendance", icon: Clock, path: "/employee/attendance" },
+    { name: "Leave", icon: CalendarDays, path: "/employee/leave" },
+    { name: "Payslip", icon: DollarSign, path: "/employee/payslip" },
+    { name: "Profile", icon: User, path: "/employee/profile" },
   ],
   hr: [
-    { name: "Overview",         icon: LayoutDashboard, path: "/hr/dashboard" },
-    { name: "Employees",        icon: Users,           path: "/hr/employees" },
-    { name: "Departments",      icon: Building2,       path: "/hr/departments" },
-    { name: "Attendance",       icon: CalendarCheck,   path: "/hr/attendance" },
-    { name: "Leave Management", icon: FileText,        path: "/hr/leave" },
-    { name: "Payroll",          icon: DollarSign,      path: "/hr/payslip" },
-    { name: "Reports",          icon: BarChart3,       path: "/hr/report" },
-    { name: "Notifications",    icon: BellIcon,        path: "/hr/notifications" },
-    { name: "Profile",          icon: User,            path: "/hr/profile" },
+    { name: "Overview", icon: LayoutDashboard, path: "/hr/dashboard" },
+    { name: "Employees", icon: Users, path: "/hr/employees" },
+    { name: "Departments", icon: Building2, path: "/hr/departments" },
+    { name: "Attendance", icon: CalendarCheck, path: "/hr/attendance" },
+    { name: "Leave Management", icon: FileText, path: "/hr/leave" },
+    { name: "Payroll", icon: DollarSign, path: "/hr/payslip" },
+    { name: "Reports", icon: BarChart3, path: "/hr/report" },
+    { name: "Notifications", icon: BellIcon, path: "/hr/notifications" },
+    { name: "Profile", icon: User, path: "/hr/profile" },
   ],
   admin: [
-    { name: "Overview",     icon: LayoutDashboard, path: "/admin/dashboard" },
-    { name: "Companies",    icon: Building2,       path: "/admin/companies" },
-    { name: "System Users", icon: Users,           path: "/admin/system-users" },
-    { name: "Attendance",   icon: CalendarCheck,   path: "/admin/attendance" },
-    { name: "Leave",        icon: FileText,        path: "/admin/leave" },
-    { name: "Payroll",      icon: Activity,        path: "/admin/payslip" },
-    { name: "System Config",icon: Settings,        path: "/admin/system-config" },
-    { name: "Profile",      icon: User,            path: "/admin/profile" },
+    { name: "Overview", icon: LayoutDashboard, path: "/admin/dashboard" },
+    { name: "Companies", icon: Building2, path: "/admin/companies" },
+    { name: "System Users", icon: Users, path: "/admin/system-users" },
+    // { name: "Attendance", icon: CalendarCheck, path: "/admin/attendance" },
+    // { name: "Leave", icon: FileText, path: "/admin/leave" },
+    // { name: "Payroll", icon: Activity, path: "/admin/payslip" },
+    { name: "System Config", icon: Settings, path: "/admin/system-config" },
+    { name: "Profile", icon: User, path: "/admin/profile" },
   ],
 };
 
 // ─── Role accent colours ──────────────────────────────────────────────────────
 const ACCENT = {
-  employee: { from: "rgba(14,165,233,0.7)",  to: "rgba(6,182,212,0.5)",  shadow: "rgba(14,165,233,0.3)",  avatarFrom: "from-sky-400",   avatarTo: "to-blue-500",   label: "Employee", surface: "bg-slate-50", topbar: "border-slate-200", title: "text-slate-900", hover: "hover:bg-employee-50" },
-  hr:       { from: "rgba(20,184,166,0.75)", to: "rgba(13,148,136,0.55)",shadow: "rgba(20,184,166,0.3)", avatarFrom: "from-teal-400",  avatarTo: "to-emerald-500",label: "HR Manager",    surface: "bg-gray-50", topbar: "border-gray-100", title: "text-gray-900", hover: "hover:bg-gray-100" },
-  admin:    { from: "rgba(99,102,241,0.8)",  to: "rgba(79,70,229,0.6)",  shadow: "rgba(99,102,241,0.35)",avatarFrom: "from-indigo-500",avatarTo: "to-violet-600", label: "Administrator", surface: "bg-gray-50", topbar: "border-gray-100", title: "text-gray-900", hover: "hover:bg-gray-100" },
+  employee: { from: "rgba(14,165,233,0.7)", to: "rgba(6,182,212,0.5)", shadow: "rgba(14,165,233,0.3)", avatarFrom: "from-sky-400", avatarTo: "to-blue-500", label: "Employee", surface: "bg-slate-50", topbar: "border-slate-200", title: "text-slate-900", hover: "hover:bg-employee-50" },
+  hr: { from: "rgba(20,184,166,0.75)", to: "rgba(13,148,136,0.55)", shadow: "rgba(20,184,166,0.3)", avatarFrom: "from-teal-400", avatarTo: "to-emerald-500", label: "HR Manager", surface: "bg-gray-50", topbar: "border-gray-100", title: "text-gray-900", hover: "hover:bg-gray-100" },
+  admin: { from: "rgba(99,102,241,0.8)", to: "rgba(79,70,229,0.6)", shadow: "rgba(99,102,241,0.35)", avatarFrom: "from-indigo-500", avatarTo: "to-violet-600", label: "Administrator", surface: "bg-gray-50", topbar: "border-gray-100", title: "text-gray-900", hover: "hover:bg-gray-100" },
 };
 
 export const PageLayout = ({ role = "employee", activePage, title, subtitle, actions, children }) => {
@@ -71,9 +71,9 @@ export const PageLayout = ({ role = "employee", activePage, title, subtitle, act
   const accent = ACCENT[role];
   const navItems = NAV[role] || [];
 
-  const storedUser  = localStorage.getItem("user");
-  const user        = storedUser ? JSON.parse(storedUser) : {};
-  const initials    = user?.fullName?.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase() || "U";
+  const storedUser = localStorage.getItem("user");
+  const user = storedUser ? JSON.parse(storedUser) : {};
+  const initials = user?.fullName?.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase() || "U";
 
   const handleLogout = () => {
     localStorage.removeItem("user");

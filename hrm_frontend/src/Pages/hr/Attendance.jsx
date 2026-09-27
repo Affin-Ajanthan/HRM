@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Download, Filter, Calendar, MapPin } from "lucide-react";
+import { Search, Download, Filter, Calendar, MapPin, Users, UserCheck, CalendarOff, UserX } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { hrApi } from "../../services/api";
 import { formatMinutes, groupSessionsByEmployee, toLocalDateString, useNow } from "../../utils/attendance";
@@ -123,15 +123,22 @@ const HRAttendance = () => {
         {/* Stat cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: "Total", value: stats.total, description: "All attendance records for the day", gradient: "from-teal-400 to-emerald-500" },
-            { label: "Present", value: stats.present, description: "Employees present today", gradient: "from-yellow-400 to-yellow-500" },
-            { label: "On Leave", value: stats.halfDay, description: "Employees on leave today", gradient: "from-amber-400 to-orange-500" },
-            { label: "Absent", value: stats.absent, description: "Employees absent today", gradient: "from-red-400 to-rose-500" },
+            { label: "Total", value: stats.total, description: "All attendance records for the day", gradient: "from-teal-400 to-emerald-500", icon: <Users size={20} /> },
+            { label: "Present", value: stats.present, description: "Employees present today", gradient: "from-yellow-400 to-yellow-500", icon: <UserCheck size={20} /> },
+            { label: "On Leave", value: stats.halfDay, description: "Employees on leave today", gradient: "from-amber-400 to-orange-500", icon: <CalendarOff size={20} /> },
+            { label: "Absent", value: stats.absent, description: "Employees absent today", gradient: "from-red-400 to-rose-500", icon: <UserX size={20} /> },
           ].map(s => (
             <div key={s.label} className={`bg-gradient-to-br ${s.gradient} p-5 rounded-2xl text-white shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 min-h-[108px] flex flex-col justify-center`}>
-              <p className="text-xs font-semibold uppercase tracking-wider text-white">{s.label}</p>
-              <p className="mt-2 text-2xl font-bold text-white">{s.value}</p>
-              <p className="mt-1 text-xs text-white/80">{s.description}</p>
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-white">{s.label}</p>
+                  <p className="mt-2 text-2xl font-bold text-white">{s.value}</p>
+                  <p className="mt-1 text-xs text-white/80">{s.description}</p>
+                </div>
+                <div className="h-10 w-10 rounded-xl bg-white/20 text-white flex items-center justify-center flex-shrink-0">
+                  {s.icon}
+                </div>
+              </div>
             </div>
           ))}
         </div>

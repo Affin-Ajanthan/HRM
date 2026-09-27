@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Download, Filter, Calendar, MapPin, Users, UserCheck, CalendarOff, UserX } from "lucide-react";
+import { Search, Download, Filter, Calendar, MapPin, Users, UserCheck, CalendarOff, UserX, ChevronLeft, ChevronRight } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
-import { hrApi } from "../../services/api";
+import { hrApi, userHrApi } from "../../services/api";
 import { formatMinutes, groupSessionsByEmployee, toLocalDateString, useNow } from "../../utils/attendance";
 
 const mapLink = (location) => (location ? `https://www.google.com/maps?q=${location}` : null);
@@ -27,6 +27,9 @@ const HRAttendance = () => {
   const [rawSessions, setRawSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [totalEmployees, setTotalEmployees] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ROWS_PER_PAGE = 6;
 
   const now = useNow(filterDate === toLocalDateString(new Date()));
   const rows = useMemo(() => groupSessionsByEmployee(rawSessions, now), [rawSessions, now]);
@@ -38,6 +41,20 @@ const HRAttendance = () => {
       (r.department || "").toLowerCase().includes(searchTerm.toLowerCase())) &&
     (filterStatus === "all" || r.status === filterStatus)
   );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ROWS_PER_PAGE));
+  const paginated = filtered.slice(
+    (currentPage - 1) * ROWS_PER_PAGE,
+    currentPage * ROWS_PER_PAGE
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterDate, filterStatus]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   useEffect(() => {
     const s = localStorage.getItem("user");
@@ -51,8 +68,22 @@ const HRAttendance = () => {
   useEffect(() => {
     if (!user) return;
     fetchAttendance();
+    fetchEmployeeCount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, filterDate]);
+
+  // Total Employee card — real headcount from the employee database,
+  // same source used by the Employee and Department pages.
+  const fetchEmployeeCount = async () => {
+    try {
+      const res = await userHrApi.getEmployees();
+      const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      setTotalEmployees(list.length);
+    } catch (err) {
+      console.error("Failed to load employee count:", err);
+      setTotalEmployees(0);
+    }
+  };
 
   const fetchAttendance = async () => {
     try {
@@ -123,10 +154,10 @@ const HRAttendance = () => {
         {/* Stat cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: "Total", value: stats.total, description: "All attendance records for the day", gradient: "from-teal-400 to-emerald-500", icon: <Users size={20} /> },
-            { label: "Present", value: stats.present, description: "Employees present today", gradient: "from-yellow-400 to-yellow-500", icon: <UserCheck size={20} /> },
-            { label: "On Leave", value: stats.halfDay, description: "Employees on leave today", gradient: "from-amber-400 to-orange-500", icon: <CalendarOff size={20} /> },
-            { label: "Absent", value: stats.absent, description: "Employees absent today", gradient: "from-red-400 to-rose-500", icon: <UserX size={20} /> },
+            { label: "Total Employee", value: totalEmployees, description: "Registered in employee database", gradient: "from-teal-400 to-emerald-500", icon: <Users size={20} /> },
+            { label: "Today Present", value: stats.present, description: "From today's attendance records", gradient: "from-yellow-400 to-yellow-500", icon: <UserCheck size={20} /> },
+            { label: "On Leave Today", value: "—", description: "Not implemented yet", gradient: "from-amber-400 to-orange-500", icon: <CalendarOff size={20} /> },
+            { label: "Absent Today", value: "—", description: "Not implemented yet", gradient: "from-red-400 to-rose-500", icon: <UserX size={20} /> },
           ].map(s => (
             <div key={s.label} className={`bg-gradient-to-br ${s.gradient} p-5 rounded-2xl text-white shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 min-h-[108px] flex flex-col justify-center`}>
               <div className="flex items-start justify-between">
@@ -188,7 +219,7 @@ const HRAttendance = () => {
                   </td></tr>
                 ) : filtered.length === 0 ? (
                   <tr><td colSpan={9} className="text-center py-12 text-gray-400">No records found</td></tr>
-                ) : filtered.map((r, i) => (
+                ) : paginated.map((r, i) => (
                   <tr key={r.employeeId ?? i} className={`hover:bg-teal-50/40 transition-colors ${i % 2 === 1 ? "bg-gray-50/40" : ""}`}>
                     <td className="px-5 py-3.5 font-mono font-semibold text-gray-700">{r.empId}</td>
                     <td className="px-5 py-3.5 font-medium text-gray-800">
@@ -223,6 +254,53 @@ const HRAttendance = () => {
               </tbody>
             </table>
           </div>
+
+          {!loading && filtered.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-4 border-t border-gray-100">
+              <p className="text-xs text-gray-500 font-medium">
+                Showing{" "}
+                <strong className="text-gray-800">
+                  {(currentPage - 1) * ROWS_PER_PAGE + 1}-
+                  {Math.min(currentPage * ROWS_PER_PAGE, filtered.length)}
+                </strong>{" "}
+                of <strong className="text-gray-800">{filtered.length}</strong> records
+              </p>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="h-8 w-8 rounded-lg flex items-center justify-center text-gray-500 border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft size={15} />
+                </button>
+                {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setCurrentPage(p)}
+                    className={`h-8 min-w-[2rem] px-2 rounded-lg text-xs font-semibold transition-colors ${
+                      p === currentPage
+                        ? "bg-gradient-to-r from-teal-500 to-emerald-600 text-white shadow-sm"
+                        : "text-gray-600 border border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-8 w-8 rounded-lg flex items-center justify-center text-gray-500 border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Next page"
+                >
+                  <ChevronRight size={15} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </PageLayout>

@@ -24,6 +24,8 @@ import {
   ChevronDown,
   BadgeCheck,
   MapPin,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { NameListModal } from "../../components/NameListModal";
@@ -51,6 +53,13 @@ const Employee = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showAddEmployeeTypeModal, setShowAddEmployeeTypeModal] = useState(false);
   const [showAddWorkLocationModal, setShowAddWorkLocationModal] = useState(false);
+
+  // ---------------------------------------------------------
+  // PAGINATION — show a fixed number of rows per page, with
+  // page navigation controls below the table.
+  // ---------------------------------------------------------
+  const ROWS_PER_PAGE = 6;
+  const [currentPage, setCurrentPage] = useState(1);
 
   // ---------------------------------------------------------
   // AUTHENTICATION
@@ -305,6 +314,31 @@ const Employee = () => {
 
     return sortDir === "asc" ? sorted : sorted.reverse();
   }, [filteredEmployees, sortKey, sortDir]);
+
+  // ---------------------------------------------------------
+  // PAGINATION — slice the sorted/filtered list into pages of
+  // ROWS_PER_PAGE rows, and reset to page 1 whenever the
+  // underlying list (search, filter, sort) changes.
+  // ---------------------------------------------------------
+  const totalPages = Math.max(
+    1,
+    Math.ceil(sortedEmployees.length / ROWS_PER_PAGE)
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedDeptFilter, sortKey, sortDir]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedEmployees = useMemo(() => {
+    const start = (currentPage - 1) * ROWS_PER_PAGE;
+    return sortedEmployees.slice(start, start + ROWS_PER_PAGE);
+  }, [sortedEmployees, currentPage]);
 
   // ---------------------------------------------------------
   // SUMMARY COUNTS
@@ -710,7 +744,7 @@ const Employee = () => {
               divide-y
               divide-slate-100
             ">
-              {sortedEmployees.map((emp) => {
+              {paginatedEmployees.map((emp) => {
                 const empId =
                   emp.employeeId ||
                   `EMP-${emp.id}`;
@@ -1258,6 +1292,19 @@ const Employee = () => {
                 );
               })}
             </div>
+          )}
+
+          {/* =====================================================
+              PAGINATION CONTROLS
+          ====================================================== */}
+          {!loading && sortedEmployees.length > 0 && (
+            <PaginationBar
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={sortedEmployees.length}
+              pageSize={ROWS_PER_PAGE}
+            />
           )}
         </div>
       </div>
@@ -1881,5 +1928,129 @@ const DetailItem = ({
     </p>
   </div>
 );
+
+// ─────────────────────────────────────────────
+// PAGINATION BAR — page numbers + prev/next
+// ─────────────────────────────────────────────
+const PaginationBar = ({
+  currentPage,
+  totalPages,
+  onPageChange,
+  totalItems,
+  pageSize,
+}) => {
+  const start = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const end = Math.min(currentPage * pageSize, totalItems);
+
+  // Build a compact page list: first, last, current, and neighbors,
+  // with "…" gaps for anything skipped.
+  const pages = [];
+  for (let p = 1; p <= totalPages; p++) {
+    if (
+      p === 1 ||
+      p === totalPages ||
+      (p >= currentPage - 1 && p <= currentPage + 1)
+    ) {
+      pages.push(p);
+    } else if (pages[pages.length - 1] !== "...") {
+      pages.push("...");
+    }
+  }
+
+  return (
+    <div className="
+      flex flex-col sm:flex-row
+      items-center justify-between
+      gap-3
+      px-4 sm:px-6
+      py-4
+      border-t border-slate-100
+    ">
+      <p className="text-xs text-slate-500 font-medium">
+        Showing{" "}
+        <strong className="text-slate-800">
+          {start}-{end}
+        </strong>{" "}
+        of{" "}
+        <strong className="text-slate-800">{totalItems}</strong>{" "}
+        employees
+      </p>
+
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+          disabled={currentPage === 1}
+          className="
+            h-8 w-8
+            rounded-lg
+            flex items-center justify-center
+            text-slate-500
+            border border-slate-200
+            hover:bg-slate-50
+            disabled:opacity-40
+            disabled:cursor-not-allowed
+            transition-colors
+          "
+          aria-label="Previous page"
+        >
+          <ChevronLeft size={15} />
+        </button>
+
+        {pages.map((p, idx) =>
+          p === "..." ? (
+            <span
+              key={`dots-${idx}`}
+              className="px-1.5 text-xs text-slate-400 select-none"
+            >
+              …
+            </span>
+          ) : (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onPageChange(p)}
+              className={`
+                h-8 min-w-[2rem] px-2
+                rounded-lg
+                text-xs font-semibold
+                transition-colors
+                ${
+                  p === currentPage
+                    ? "bg-gradient-to-br from-teal-400 to-emerald-500 text-white shadow-sm"
+                    : "text-slate-600 border border-slate-200 hover:bg-slate-50"
+                }
+              `}
+            >
+              {p}
+            </button>
+          )
+        )}
+
+        <button
+          type="button"
+          onClick={() =>
+            onPageChange(Math.min(totalPages, currentPage + 1))
+          }
+          disabled={currentPage === totalPages}
+          className="
+            h-8 w-8
+            rounded-lg
+            flex items-center justify-center
+            text-slate-500
+            border border-slate-200
+            hover:bg-slate-50
+            disabled:opacity-40
+            disabled:cursor-not-allowed
+            transition-colors
+          "
+          aria-label="Next page"
+        >
+          <ChevronRight size={15} />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export default Employee;

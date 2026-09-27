@@ -277,24 +277,42 @@ public class AuthService {
                         throw new RuntimeException("Employee ID already exists");
                 }
 
-                Company company = companyRepo.findByRegistrationNumber(DEFAULT_COMPANY_REG)
-                                .orElseGet(() -> {
-                                        Company newCompany = new Company();
-                                        newCompany.setCompanyName(DEFAULT_COMPANY_NAME);
-                                        newCompany.setRegistrationNumber(DEFAULT_COMPANY_REG);
-                                        newCompany.setStatus(Company.CompanyStatus.APPROVED);
-                                        return companyRepo.save(newCompany);
-                                });
+                Company company = null;
+                try {
+                        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+                                String authEmail = auth.getName() != null ? auth.getName().trim().toLowerCase() : "";
+                                Employee currentAuthUser = employeeRepo.findByEmailIgnoreCase(authEmail).orElse(null);
+                                if (currentAuthUser != null && currentAuthUser.getCompany() != null) {
+                                        company = currentAuthUser.getCompany();
+                                }
+                        }
+                } catch (Exception e) {
+                        // Fallback if no auth context
+                }
+
+                if (company == null) {
+                        company = companyRepo.findByRegistrationNumber(DEFAULT_COMPANY_REG)
+                                        .orElseGet(() -> {
+                                                Company newCompany = new Company();
+                                                newCompany.setCompanyName(DEFAULT_COMPANY_NAME);
+                                                newCompany.setRegistrationNumber(DEFAULT_COMPANY_REG);
+                                                newCompany.setStatus(Company.CompanyStatus.APPROVED);
+                                                return companyRepo.save(newCompany);
+                                        });
+                }
+
+                final Company finalCompany = company;
 
                 String deptName = (request.getDepartment() == null || request.getDepartment().isBlank())
                                 ? "General" : request.getDepartment().trim();
 
-                Department department = departmentRepo.findByCompanyIdAndName(company.getId(), deptName)
+                Department department = departmentRepo.findByCompanyIdAndName(finalCompany.getId(), deptName)
                                 .orElseGet(() -> {
                                         Department newDept = new Department();
                                         newDept.setName(deptName);
                                         newDept.setDescription(deptName + " Department");
-                                        newDept.setCompany(company);
+                                        newDept.setCompany(finalCompany);
                                         return departmentRepo.save(newDept);
                                 });
 

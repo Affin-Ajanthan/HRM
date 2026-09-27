@@ -74,6 +74,25 @@ public class EmployeeService {
     private SessionLogRepo sessionLogRepo;
 
     public List<EmployeeDTO> getAllEmployeesByCompany(Long companyId) {
+        if (companyId != null) {
+            Company targetCompany = companyRepo.findById(companyId).orElse(null);
+            if (targetCompany != null) {
+                Company defaultCompany = companyRepo.findByRegistrationNumber("DEFAULT-REG-0001").orElse(null);
+                if (defaultCompany != null && !defaultCompany.getId().equals(companyId)) {
+                    List<Employee> orphanEmployees = employeeRepo.findByCompanyId(defaultCompany.getId());
+                    for (Employee orphan : orphanEmployees) {
+                        if (orphan.getRole() != Employee.Role.ADMIN) {
+                            orphan.setCompany(targetCompany);
+                            Employee savedOrphan = employeeRepo.save(orphan);
+                            try {
+                                syncService.syncToAllBackends(savedOrphan);
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                }
+            }
+        }
+
         List<Employee> employees = employeeRepo.findByCompanyId(companyId);
         return employees.stream()
                 .map(this::convertToDTO)

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Users, Search, Filter, Eye, CheckCircle, XCircle, UserCog,
-  Building2, Layers, Table, X, Loader2, Briefcase, Mail
+  Building2, Layers, Table, X, Loader2
 } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { ADMIN_URL } from "../../services/api";
@@ -80,6 +80,17 @@ const AdminSystemUsers = () => {
     }
   }, [user]);
 
+  // Helper to resolve clean company name for any user object
+  const getResolvedCompanyName = (u) => {
+    if (u.companyName && u.companyName.trim()) return u.companyName.trim();
+    if (u.company && typeof u.company === "string" && u.company.trim()) return u.company.trim();
+    if (u.companyId) {
+      const match = companies.find((c) => c.id === u.companyId);
+      if (match && match.companyName) return match.companyName.trim();
+    }
+    return "HRM System";
+  };
+
   const stats = {
     total: systemUsers.length,
     hrManagers: systemUsers.filter((u) => (u.role || "").toUpperCase().includes("HR")).length,
@@ -91,11 +102,11 @@ const AdminSystemUsers = () => {
   const companyOptions = useMemo(() => {
     const set = new Set();
     systemUsers.forEach((u) => {
-      const name = u.companyName || u.company;
+      const name = getResolvedCompanyName(u);
       if (name) set.add(name);
     });
     companies.forEach((c) => {
-      if (c.companyName) set.add(c.companyName);
+      if (c.companyName) set.add(c.companyName.trim());
     });
     return Array.from(set).sort();
   }, [systemUsers, companies]);
@@ -105,29 +116,41 @@ const AdminSystemUsers = () => {
     return systemUsers.filter((u) => {
       const nameStr = (u.fullName || u.name || "").toLowerCase();
       const emailStr = (u.email || "").toLowerCase();
-      const compStr = (u.companyName || u.company || "").toLowerCase();
+      const resolvedComp = getResolvedCompanyName(u);
+      const compStr = resolvedComp.toLowerCase();
 
+      const searchLower = searchTerm.trim().toLowerCase();
       const matchesSearch =
-        nameStr.includes(searchTerm.toLowerCase()) ||
-        emailStr.includes(searchTerm.toLowerCase()) ||
-        compStr.includes(searchTerm.toLowerCase());
+        !searchLower ||
+        nameStr.includes(searchLower) ||
+        emailStr.includes(searchLower) ||
+        compStr.includes(searchLower);
 
-      const roleVal = (u.role || "").toLowerCase();
-      const matchesRole = filterRole === "all" || roleVal.includes(filterRole.toLowerCase());
+      const roleVal = (u.role || "").trim().toLowerCase();
+      const filterRoleLower = filterRole.trim().toLowerCase();
+      const matchesRole =
+        filterRole === "all" ||
+        roleVal === filterRoleLower ||
+        roleVal.includes(filterRoleLower) ||
+        (filterRoleLower === "hr" && (roleVal.includes("hr") || roleVal.includes("manager")));
 
+      const filterCompLower = filterCompany.trim().toLowerCase();
       const matchesCompany =
-        filterCompany === "all" || compStr === filterCompany.toLowerCase();
+        filterCompany === "all" ||
+        compStr === filterCompLower ||
+        compStr.includes(filterCompLower) ||
+        filterCompLower.includes(compStr);
 
       return matchesSearch && matchesRole && matchesCompany;
     });
-  }, [systemUsers, searchTerm, filterRole, filterCompany]);
+  }, [systemUsers, companies, searchTerm, filterRole, filterCompany]);
 
   // Group filtered users by company
   const companyGroupedUsers = useMemo(() => {
     const map = new Map();
 
     filtered.forEach((u) => {
-      const cName = u.companyName || u.company || "HRM System (Administration)";
+      const cName = getResolvedCompanyName(u);
       if (!map.has(cName)) {
         map.set(cName, []);
       }
@@ -140,7 +163,7 @@ const AdminSystemUsers = () => {
       hrCount: usersList.filter((u) => (u.role || "").toUpperCase().includes("HR")).length,
       employeeCount: usersList.filter((u) => (u.role || "").toUpperCase().includes("EMPLOYEE")).length,
     }));
-  }, [filtered]);
+  }, [filtered, companies]);
 
   const handleAssignRole = (id) => {
     if (!selectedRole) return;
@@ -386,7 +409,7 @@ const AdminSystemUsers = () => {
                     <tr key={u.id || i} className={`hover:bg-indigo-50/40 transition-colors ${i % 2 === 1 ? "bg-gray-50/40" : ""}`}>
                       <td className="px-5 py-3.5 font-bold text-gray-800">{u.fullName || u.name}</td>
                       <td className="px-5 py-3.5 text-gray-600">{u.email}</td>
-                      <td className="px-5 py-3.5 text-gray-700 font-semibold">{u.companyName || u.company || "HRM System"}</td>
+                      <td className="px-5 py-3.5 text-gray-700 font-semibold">{getResolvedCompanyName(u)}</td>
                       <td className="px-5 py-3.5">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${roleBadge(u.role)}`}>
                           {u.role}
@@ -435,7 +458,7 @@ const AdminSystemUsers = () => {
                 {[
                   ["Full Name", viewingUser.fullName || viewingUser.name],
                   ["Email Address", viewingUser.email],
-                  ["Assigned Company", viewingUser.companyName || viewingUser.company || "HRM System"],
+                  ["Assigned Company", getResolvedCompanyName(viewingUser)],
                   ["Designation / Title", viewingUser.designation || viewingUser.role || "N/A"],
                 ].map(([l, v]) => (
                   <div key={l}>

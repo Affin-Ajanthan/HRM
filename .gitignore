@@ -4,15 +4,18 @@
 
 
 # ─── Environment & Secrets ─────────────
+# Real env files hold passwords/secrets — never commit
 .env
-# .env.example
 .env.local
 .env.*.local
-# *.env
+.env.staging
+.env.production
+*.env
 
-# Keep example env files
-# !.env.example
-# !*.env.example
+# Templates with placeholders only — these ARE committed
+!.env.example
+!.env.staging.example
+!*.env.example
 
 
 # ─── Java / Gradle ─────────────────────

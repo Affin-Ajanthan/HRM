@@ -14,5 +14,5 @@ RUN useradd -r -u 1001 spring
 COPY --from=build /app/build/libs/*.jar app.jar
 USER spring
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
-EXPOSE 5006
+EXPOSE 5007
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

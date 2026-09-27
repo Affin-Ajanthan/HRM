@@ -610,58 +610,60 @@ const Department = () => {
 
               </div>
 
-              {/* Department Filter */}
-              <div className="flex items-center gap-2">
-                <Filter
-                  size={15}
-                  className="text-slate-400"
-                />
+              {/* Department Filter + Showing count (grouped together, like the Employee page) */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Filter
+                    size={15}
+                    className="text-slate-400"
+                  />
 
-                <select
-                  value={selectedDeptFilter}
-                  onChange={(e) =>
-                    setSelectedDeptFilter(e.target.value)
-                  }
-                  className="
-                    px-3 py-2
-                    bg-slate-50
-                    border border-slate-200
-                    rounded-xl
-                    text-xs font-semibold
-                    text-slate-700
-                    focus:outline-none
-                    focus:bg-white
-                    focus:border-teal-500
-                  "
-                >
-                  <option value="ALL">
-                    All Departments
-                  </option>
-
-                  {departments.map((d) => (
-                    <option
-                      key={d.id}
-                      value={d.name}
-                    >
-                      {d.name}{" "}
-                      {d.shortCode
-                        ? `(${d.shortCode})`
-                        : ""}
+                  <select
+                    value={selectedDeptFilter}
+                    onChange={(e) =>
+                      setSelectedDeptFilter(e.target.value)
+                    }
+                    className="
+                      px-3 py-2
+                      bg-slate-50
+                      border border-slate-200
+                      rounded-xl
+                      text-xs font-semibold
+                      text-slate-700
+                      focus:outline-none
+                      focus:bg-white
+                      focus:border-teal-500
+                    "
+                  >
+                    <option value="ALL">
+                      All Departments
                     </option>
-                  ))}
-                </select>
-              </div>
 
-              <div className="text-sm text-slate-500">
-                Showing{" "}
-                <span className="font-semibold text-slate-700">
-                  {filteredDepartments.length}
-                </span>{" "}
-                of{" "}
-                <span className="font-semibold text-slate-700">
-                  {departments.length}
-                </span>{" "}
-                departments
+                    {departments.map((d) => (
+                      <option
+                        key={d.id}
+                        value={d.name}
+                      >
+                        {d.name}{" "}
+                        {d.shortCode
+                          ? `(${d.shortCode})`
+                          : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="text-sm text-slate-500">
+                  Showing{" "}
+                  <span className="font-semibold text-slate-700">
+                    {filteredDepartments.length}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-semibold text-slate-700">
+                    {departments.length}
+                  </span>{" "}
+                  departments
+                </div>
               </div>
 
             </div>

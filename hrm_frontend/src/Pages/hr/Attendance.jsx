@@ -121,14 +121,12 @@ const HRAttendance = () => {
         )}
 
         {/* Stat cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: "Total",    value: stats.total,   gradient: "from-teal-400 to-emerald-500" },
-            { label: "Present",  value: stats.present, gradient: "from-emerald-400 to-green-500" },
-            { label: "Absent",   value: stats.absent,  gradient: "from-red-400 to-rose-500" },
-            { label: "Half Day", value: stats.halfDay, gradient: "from-amber-400 to-orange-500" },
-            { label: "Late",     value: stats.late,    gradient: "from-violet-400 to-purple-500" },
-            { label: "On Time",  value: stats.onTime,  gradient: "from-sky-400 to-blue-500" },
+            { label: "Total", value: stats.total, gradient: "from-teal-400 to-emerald-500" },
+            { label: "Present", value: stats.present, gradient: "from-emerald-400 to-green-500" },
+            { label: "On Leave", value: stats.halfDay, gradient: "from-amber-400 to-orange-500" },
+            { label: "Absent", value: stats.absent, gradient: "from-red-400 to-rose-500" },
           ].map(s => (
             <div key={s.label} className={`bg-gradient-to-br ${s.gradient} p-5 rounded-2xl text-white hover:-translate-y-1 transition-all duration-300`}>
               <p className="text-white/80 text-xs mb-1">{s.label}</p>

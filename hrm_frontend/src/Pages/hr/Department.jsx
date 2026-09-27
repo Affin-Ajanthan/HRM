@@ -521,20 +521,26 @@ const Department = () => {
 
           {/* Total Departments */}
           <SummaryCard
+            icon={<Building2 size={20} />}
             title="Total Departments"
             value={totalDepartments}
+            description="Active in organization"
             className="bg-gradient-to-br from-green-400 to-emerald-500 text-white" />
 
           {/* Total Job Roles */}
           <SummaryCard
+            icon={<BriefcaseBusiness size={20} />}
             title="Total Job Roles"
             value={totalJobRoles}
+            description="Defined across departments"
             className="bg-gradient-to-br from-orange-400 to-amber-500 text-white" />
 
           {/* Total Employees */}
           <SummaryCard
+            icon={<Users size={20} />}
             title="Total Employees"
             value={totalEmployees}
+            description="Assigned to departments"
             className="bg-gradient-to-br from-purple-500 to-indigo-600 text-white" />
 
         </div>

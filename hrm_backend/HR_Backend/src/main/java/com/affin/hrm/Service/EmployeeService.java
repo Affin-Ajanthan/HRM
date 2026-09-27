@@ -236,6 +236,8 @@ public class EmployeeService {
             log.info("Updated existing employee via sync: {}", normalizedEmail);
             return employeeRepository.save(existing);
         } else {
+            // Incoming id belongs to the sender's DB; let this DB assign its own
+            employee.setId(null);
             employee.setEmail(normalizedEmail);
             employee.setCompany(company);
             employee.setDepartment(department);

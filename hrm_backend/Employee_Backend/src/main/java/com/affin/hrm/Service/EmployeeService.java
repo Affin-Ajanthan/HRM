@@ -294,8 +294,7 @@ public class EmployeeService {
         hrUser.setMustChangePassword(true);
         Employee savedHrUser = employeeRepository.save(hrUser);
 
-        // Send approval welcome email with credentials
-        emailService.sendApprovalEmail(email, savedCompany.getContactPersonName(), savedCompany.getCompanyName(), tempPassword);
+        // Approval email is handled centrally by Admin_Backend EmailService
 
         // Sync approved company & HR Manager account to User_Backend (hrm_db_user)
         syncToUserBackend(savedCompany, savedHrUser);
@@ -308,7 +307,7 @@ public class EmployeeService {
     }
 
     /**
-     * Reject a pending company request and send rejection email.
+     * Reject a pending company request.
      */
     public CompanyDTO rejectCompany(Long companyId, String reason) {
         Company company = companyRepository.findById(companyId)
@@ -318,8 +317,7 @@ public class EmployeeService {
         company.setRejectionReason(reason);
         Company savedCompany = companyRepository.save(company);
 
-        // Send rejection email
-        emailService.sendRejectionEmail(savedCompany.getEmail(), savedCompany.getContactPersonName(), savedCompany.getCompanyName(), reason);
+        // Rejection email is handled centrally by Admin_Backend EmailService
 
         log.info("Rejected company '{}' (ID: {}). Reason: {}", savedCompany.getCompanyName(), savedCompany.getId(), reason);
 

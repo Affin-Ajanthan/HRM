@@ -1,5 +1,6 @@
 package com.affin.hrm.Controller;
 
+import com.affin.hrm.DTO.UserProfileDTO;
 import com.affin.hrm.DTO.UserSummaryDTO;
 import com.affin.hrm.Model.Company;
 import com.affin.hrm.Model.Employee;
@@ -64,6 +65,30 @@ public class InternalUserController {
                 .orElse(List.of());
     }
 
+    /** The user's own profile with personal details — Employee_Backend's profile page. */
+    @GetMapping("/{id}/profile")
+    public ResponseEntity<UserProfileDTO> profile(@PathVariable Long id) {
+        return ResponseEntity.of(employeeRepo.findById(id).map(this::toProfile));
+    }
+
+    /** Saves the personal details an employee edits on their profile page (via Employee_Backend). */
+    @PutMapping("/{id}/profile")
+    @Transactional
+    public ResponseEntity<UserProfileDTO> updateProfile(@PathVariable Long id,
+                                                        @RequestBody UserProfileDTO.UpdateRequest request) {
+        return ResponseEntity.of(employeeRepo.findById(id).map(e -> {
+            e.setPhone(blankToNull(request.getPhone()));
+            e.setAddress(blankToNull(request.getAddress()));
+            e.setDob(request.getDob());
+            String gender = blankToNull(request.getGender());
+            e.setGender(gender == null ? null : Employee.Gender.valueOf(gender.toUpperCase()));
+            e.setEmergencyContactName(blankToNull(request.getEmergencyContactName()));
+            e.setEmergencyContactPhone(blankToNull(request.getEmergencyContactPhone()));
+            e.setEmergencyContactRelation(blankToNull(request.getEmergencyContactRelation()));
+            return toProfile(employeeRepo.save(e));
+        }));
+    }
+
     /** Used by Admin_Backend's system-users page. */
     @PutMapping("/{id}/role")
     @Transactional
@@ -82,6 +107,37 @@ public class InternalUserController {
             e.setStatus(Employee.EmployeeStatus.valueOf(status.trim().toUpperCase()));
             return toSummary(employeeRepo.save(e));
         }));
+    }
+
+    private UserProfileDTO toProfile(Employee e) {
+        UserProfileDTO dto = new UserProfileDTO();
+        dto.setId(e.getId());
+        dto.setEmployeeId(e.getEmployeeId());
+        dto.setFullName(e.getFullName());
+        dto.setEmail(e.getEmail());
+        dto.setRole(e.getRole() != null ? e.getRole().name() : null);
+        dto.setStatus(e.getStatus() != null ? e.getStatus().name() : null);
+        dto.setDesignation(e.getDesignation());
+        dto.setEmploymentType(e.getEmploymentType());
+        dto.setJoiningDate(e.getJoiningDate());
+        if (e.getDepartment() != null) dto.setDepartmentName(e.getDepartment().getName());
+        if (e.getCompany() != null) {
+            dto.setCompanyName(e.getCompany().getCompanyName());
+            dto.setCompanyRegistrationNumber(e.getCompany().getRegistrationNumber());
+        }
+        dto.setNic(e.getNic());
+        dto.setDob(e.getDob());
+        dto.setGender(e.getGender() != null ? e.getGender().name() : null);
+        dto.setPhone(e.getPhone());
+        dto.setAddress(e.getAddress());
+        dto.setEmergencyContactName(e.getEmergencyContactName());
+        dto.setEmergencyContactPhone(e.getEmergencyContactPhone());
+        dto.setEmergencyContactRelation(e.getEmergencyContactRelation());
+        return dto;
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private UserSummaryDTO toSummary(Employee e) {

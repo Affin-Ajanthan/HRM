@@ -1,5 +1,6 @@
 package com.affin.hrm.service;
 
+import com.affin.hrm.dto.EmployeeProfileDTO;
 import com.affin.hrm.exception.BusinessException;
 import com.affin.hrm.model.Company;
 import com.affin.hrm.model.Department;
@@ -11,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
@@ -110,6 +112,34 @@ public class EmployeeDirectory {
 
     public long countByDepartmentId(Long departmentId) {
         return findByDepartmentId(departmentId).size();
+    }
+
+    /** The user's own profile, with personal details, from User_Backend. */
+    public Optional<EmployeeProfileDTO> findProfile(Long userId) {
+        if (userId == null) return Optional.empty();
+        String uri = url("/" + userId + "/profile").toUriString();
+        try {
+            return Optional.ofNullable(restTemplate.getForObject(uri, EmployeeProfileDTO.class));
+        } catch (HttpClientErrorException.NotFound e) {
+            return Optional.empty();
+        } catch (Exception e) {
+            log.error("User_Backend profile lookup failed ({}): {}", uri, e.getMessage());
+            throw new BusinessException("User service is unavailable. Please try again later.");
+        }
+    }
+
+    /** Saves the user's personal details in User_Backend and returns the updated profile. */
+    public Optional<EmployeeProfileDTO> updateProfile(Long userId, EmployeeProfileDTO.UpdateRequest request) {
+        String uri = url("/" + userId + "/profile").toUriString();
+        try {
+            return Optional.ofNullable(restTemplate.exchange(uri, HttpMethod.PUT, new HttpEntity<>(request),
+                    EmployeeProfileDTO.class).getBody());
+        } catch (HttpClientErrorException.NotFound e) {
+            return Optional.empty();
+        } catch (Exception e) {
+            log.error("User_Backend profile update failed ({}): {}", uri, e.getMessage());
+            throw new BusinessException("Could not save your profile. Please try again later.");
+        }
     }
 
     // ── User_Backend calls ───────────────────────────────────────

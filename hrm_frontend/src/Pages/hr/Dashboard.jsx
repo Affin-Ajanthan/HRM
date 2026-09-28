@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, CalendarCheck, FileText, DollarSign,
@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import logo from "../../assets/logo.jpg";
 import { BASE_URL, AUTH_URL, hrApi } from "../../services/api";
+import AddEmployeeModal from "./AddEmployeeModal";
+import { groupSessionsByEmployee, toLocalDateString } from "../../utils/attendance";
 
 // ─── API helper layer ─────────────────────────────────────────────────────────
 const _headers = () => {
@@ -716,110 +718,11 @@ const DepartmentSection = ({ employees, addToast }) => {
 };
 
 // ─── ADD EMPLOYEE MODAL ───────────────────────────────────────────────────────
-const AddEmployeePanel = ({ open, onClose, onSuccess, toast }) => {
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    employeeId: "", fullName: "", email: "", password: "",
-    nic: "", dob: "", address: "", phone: "", gender: "",
-    department: "", role: "EMPLOYEE", designation: "",
-    joiningDate: new Date().toISOString().split("T")[0],
-    employmentType: "",
-  });
-
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
-  const resetForm = () => setForm({ employeeId: "", fullName: "", email: "", password: "", nic: "", dob: "", address: "", phone: "", gender: "", department: "", role: "EMPLOYEE", designation: "", joiningDate: new Date().toISOString().split("T")[0], employmentType: "" });
-
-  // Employment types HR has defined (hrm_db_hr.employment_types) — fetched fresh
-  // every time the panel opens, so adds/renames/deletes made on the Employment
-  // Types page are reflected here instead of a hardcoded list.
-  const [employmentTypes, setEmploymentTypes] = useState([]);
-  const [employmentTypesError, setEmploymentTypesError] = useState("");
-
-  useEffect(() => {
-    if (!open) return;
-    hrApi.getEmploymentTypes()
-      .then((res) => { setEmploymentTypes(res.data || []); setEmploymentTypesError(""); })
-      .catch(() => setEmploymentTypesError("Could not load employment types"));
-  }, [open]);
-
-  const handleSubmit = async (e) => {
-    e?.preventDefault();
-    if (!form.employeeId || !form.fullName || !form.email || !form.password) {
-      toast.addToast("Please fill all required fields", "error"); return;
-    }
-    setSaving(true);
-    try {
-      await api.post("/hr/employees", { ...form, dob: form.dob || null, joiningDate: form.joiningDate || null });
-      toast.addToast("Employee created successfully!", "success");
-      resetForm(); onSuccess(); onClose();
-    } catch (err) { toast.addToast(err.message || "Failed to create employee", "error"); }
-    finally { setSaving(false); }
-  };
-
-  const ic = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white transition";
-  const lc = "block text-xs font-semibold text-gray-600 mb-1";
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col z-10">
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-5 flex items-center justify-between flex-shrink-0 rounded-t-2xl">
-          <div className="flex items-center gap-3">
-            <div className="bg-white/20 p-2 rounded-lg"><UserPlus className="text-white" size={20} /></div>
-            <div><h2 className="text-white font-bold text-lg">Add New Employee</h2><p className="text-blue-100 text-xs">Fill in the details below</p></div>
-          </div>
-          <button onClick={onClose} className="bg-white/20 hover:bg-white/30 p-2 rounded-lg transition"><X className="text-white" size={18} /></button>
-        </div>
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className={lc}>Full Name <span className="text-red-500">*</span></label><input name="fullName" value={form.fullName} onChange={handleChange} placeholder="John Doe" className={ic} /></div>
-            <div><label className={lc}>Employee ID <span className="text-red-500">*</span></label><input name="employeeId" value={form.employeeId} onChange={handleChange} placeholder="EMP001" className={ic} /></div>
-            <div className="col-span-2"><label className={lc}>Email Address <span className="text-red-500">*</span></label><input name="email" type="email" value={form.email} onChange={handleChange} placeholder="john@company.com" className={ic} /></div>
-            <div className="col-span-2"><label className={lc}>Password <span className="text-red-500">*</span></label><input name="password" type="password" value={form.password} onChange={handleChange} placeholder="••••••••" className={ic} /></div>
-            <div><label className={lc}>Phone</label><input name="phone" value={form.phone} onChange={handleChange} placeholder="+94 77 000 0000" className={ic} /></div>
-            <div><label className={lc}>NIC</label><input name="nic" value={form.nic} onChange={handleChange} placeholder="123456789V" className={ic} /></div>
-            <div><label className={lc}>Date of Birth</label><input name="dob" type="date" value={form.dob} onChange={handleChange} className={ic} /></div>
-            <div><label className={lc}>Gender</label>
-              <select name="gender" value={form.gender} onChange={handleChange} className={ic}>
-                <option value="">Select gender</option>
-                <option value="MALE">Male</option><option value="FEMALE">Female</option><option value="OTHER">Other</option>
-              </select>
-            </div>
-            <div className="col-span-2"><label className={lc}>Department</label><input name="department" value={form.department} onChange={handleChange} placeholder="e.g. Engineering, Finance" className={ic} /></div>
-            <div><label className={lc}>Role</label>
-              <select name="role" value={form.role} onChange={handleChange} className={ic}>
-                <option value="EMPLOYEE">Employee</option><option value="HR_MANAGER">HR Manager</option><option value="ADMIN">Admin</option>
-              </select>
-            </div>
-            <div><label className={lc}>Designation</label><input name="designation" value={form.designation} onChange={handleChange} placeholder="Software Engineer" className={ic} /></div>
-            <div><label className={lc}>Employment Type <span className="text-red-500">*</span></label>
-              <select name="employmentType" value={form.employmentType} onChange={handleChange} className={ic}>
-                <option value="">Select type</option>
-                {employmentTypes.map((t) => (
-                  <option key={t.id} value={t.name}>{t.name}</option>
-                ))}
-              </select>
-              {employmentTypesError && <p className="text-red-500 text-xs mt-1">{employmentTypesError}</p>}
-              {!employmentTypesError && employmentTypes.length === 0 && (
-                <p className="text-gray-400 text-xs mt-1">No employment types yet. Add them in Leave Management → Add Employment Type.</p>
-              )}
-            </div>
-            <div><label className={lc}>Joining Date</label><input name="joiningDate" type="date" value={form.joiningDate} onChange={handleChange} className={ic} /></div>
-            <div className="col-span-2"><label className={lc}>Address</label><input name="address" value={form.address} onChange={handleChange} placeholder="123 Main St, City" className={ic} /></div>
-          </div>
-        </form>
-        <div className="p-5 border-t bg-gray-50 flex gap-3 flex-shrink-0 rounded-b-2xl">
-          <button onClick={() => { resetForm(); onClose(); }} type="button" className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-100 transition">Cancel</button>
-          <button onClick={handleSubmit} disabled={saving} className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2">
-            {saving ? <Loader className="animate-spin" size={16} /> : <Save size={16} />}
-            {saving ? "Creating..." : "Create Employee"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
+// NOTE: Employee creation now always goes through the same <AddEmployeeModal />
+// component used on the Employees page (./AddEmployeeModal.jsx), so the popup
+// that appears from the Overview "Add New Employee" quick action, from the
+// dashboard's own Employees tab, and from the dedicated Employees page are all
+// the identical, fully-featured form — see its usage in <HRDashboard /> below.
 
 // ─── EMPLOYMENT TYPE BADGE ─────────────────────────────────────────────────────
 const employmentTypeBadge = (type) => {
@@ -1284,14 +1187,68 @@ const LeaveSection = () => {
   );
 };
 
+// ─── EMPLOYEE DISTRIBUTION BARS ────────────────────────────────────────────────
+// Renders real, database-backed department headcounts (Department.employeeCount,
+// counted server-side from the employees table). `limit` shows only the busiest
+// N departments; omit it to show every department (used inside the "view all" modal).
+const DIST_COLORS = [
+  { from: "from-blue-500",   to: "to-cyan-500",   color: "text-blue-600" },
+  { from: "from-green-500",  to: "to-emerald-500", color: "text-green-600" },
+  { from: "from-purple-500", to: "to-pink-500",   color: "text-purple-600" },
+  { from: "from-orange-500", to: "to-yellow-500", color: "text-orange-600" },
+  { from: "from-red-500",    to: "to-pink-500",   color: "text-red-600" },
+  { from: "from-teal-500",   to: "to-cyan-500",   color: "text-teal-600" },
+  { from: "from-indigo-500", to: "to-blue-500",   color: "text-indigo-600" },
+  { from: "from-pink-500",   to: "to-rose-500",   color: "text-pink-600" },
+];
+
+const DistributionBars = ({ departments, limit }) => {
+  const sorted = [...departments].sort((a, b) => (b.employeeCount || 0) - (a.employeeCount || 0));
+  const shown  = limit ? sorted.slice(0, limit) : sorted;
+  const max    = Math.max(1, ...sorted.map((d) => d.employeeCount || 0));
+
+  if (sorted.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-400">
+        <Building2 size={32} className="mx-auto mb-2 opacity-30" />
+        <p className="text-sm">No departments added yet</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {shown.map((d, i) => {
+        const c = DIST_COLORS[i % DIST_COLORS.length];
+        const count = d.employeeCount || 0;
+        const pct = Math.max(4, Math.round((count / max) * 100));
+        return (
+          <div key={d.id ?? d.name}>
+            <div className="flex justify-between mb-2">
+              <span className="text-sm font-medium">{d.name}</span>
+              <span className={`text-sm font-bold ${c.color}`}>{count} employee{count === 1 ? "" : "s"}</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div className={`bg-gradient-to-r ${c.from} ${c.to} h-3 rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 // ─── MAIN DASHBOARD ───────────────────────────────────────────────────────────
 const HRDashboard = () => {
   const [user, setUser]             = useState(null);
   const [activeMenu, setActiveMenu] = useState("Overview");
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [showAddEmployee, setShowAddEmployee] = useState(false);
-  const [stats, setStats]           = useState({ totalEmployees: 0, activeEmployees: 0, pendingLeaves: 0, todayPresent: 0 });
+  const [stats, setStats]           = useState({ totalDepartments: 0, totalEmployees: 0, pendingLeaves: 0, todayPresent: 0 });
   const [pendingLeaves, setPendingLeaves] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [employees, setEmployees] = useState([]); // real accounts from User_Backend — source of truth for headcount
+  const [showDeptModal, setShowDeptModal] = useState(false);
   const [empRefresh, setEmpRefresh] = useState(0);
   const navigate = useNavigate();
   const toast    = useToast();
@@ -1309,22 +1266,70 @@ const HRDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [statsRes, leavesRes] = await Promise.all([
-        api.get("/hr/dashboard/stats").catch(() => ({ data: {} })),
-        api.get("/hr/leaves/pending").catch(() => ({ data: [] })),
+      const today = toLocalDateString(new Date());
+      // Every number on this page is read straight from its own real table —
+      // no external "dashboard stats" proxy involved:
+      //   • Departments        -> HR_Backend departments table (hrApi.getDepartments)
+      //   • Total Employees    -> User_Backend accounts table, the actual source
+      //                           of truth for employees (userApi -> AUTH_URL/hr/employees),
+      //                           same list the Employees page uses
+      //   • Today Present      -> the real attendance table for today
+      //                           (hrApi.getDailyAttendance), same source the
+      //                           Attendance page and Employee page use
+      //   • Pending Leaves     -> the real leave table (hrApi.getPendingLeaves)
+      const [deptsRes, employeesRes, leavesRes, attendanceRes] = await Promise.all([
+        hrApi.getDepartments().catch(() => ({ data: [] })),
+        userApi.get("/hr/employees").catch(() => ({ data: [] })),
+        hrApi.getPendingLeaves().catch(() => ({ data: [] })),
+        hrApi.getDailyAttendance(today).catch(() => ({ data: [] })),
       ]);
-      if (statsRes?.data) setStats({ totalEmployees: statsRes.data.totalEmployees || 0, activeEmployees: statsRes.data.activeEmployees || 0, pendingLeaves: statsRes.data.pendingLeaveApplications || 0, todayPresent: statsRes.data.todayPresent || 0 });
-      setPendingLeaves(leavesRes?.data || []);
+
+      const deptList     = Array.isArray(deptsRes?.data) ? deptsRes.data : [];
+      const employeeList = Array.isArray(employeesRes?.data) ? employeesRes.data : [];
+      const leaveList    = Array.isArray(leavesRes?.data) ? leavesRes.data : [];
+      const sessions     = Array.isArray(attendanceRes?.data) ? attendanceRes.data : [];
+
+      // Same grouping logic the Attendance page and Employee page use: collapse
+      // every clock-in/out session into one row per employee for today, then
+      // count how many of those rows ended the day as PRESENT.
+      const presentToday = groupSessionsByEmployee(sessions).filter((row) => row.status === "PRESENT").length;
+
+      setDepartments(deptList);
+      setEmployees(employeeList);
+      setPendingLeaves(leaveList);
+      setStats({
+        totalDepartments: deptList.length,
+        totalEmployees: employeeList.length,
+        todayPresent: presentToday,
+        pendingLeaves: leaveList.length,
+      });
     } catch {}
   };
 
-  const handleApproveLeave = async (id) => { try { await api.put(`/hr/leaves/${id}/approve`); toast.addToast("Leave approved", "success"); fetchDashboardData(); } catch { toast.addToast("Failed to approve", "error"); } };
+  const handleApproveLeave = async (id) => { try { await hrApi.approveLeave(id); toast.addToast("Leave approved", "success"); fetchDashboardData(); } catch { toast.addToast("Failed to approve", "error"); } };
   const handleRejectLeave  = async (id) => {
     const reason = window.prompt("Reason for rejection:");
     if (reason === null) return;
-    try { await api.put(`/hr/leaves/${id}/reject?reason=${encodeURIComponent(reason || "Rejected")}`); toast.addToast("Leave rejected", "success"); fetchDashboardData(); } catch { toast.addToast("Failed to reject", "error"); }
+    try { await hrApi.rejectLeave(id, reason || "Rejected"); toast.addToast("Leave rejected", "success"); fetchDashboardData(); } catch { toast.addToast("Failed to reject", "error"); }
   };
   const handleLogout = () => { localStorage.removeItem("user"); localStorage.removeItem("token"); navigate("/login"); };
+
+  // Real per-department headcounts — built the same way the Departments page
+  // builds them: match each real employee (User_Backend) to a department by
+  // name, so this always agrees with what the Departments page shows, however
+  // employees were assigned. Not the HR backend's own possibly-stale count.
+  const departmentsWithCounts = useMemo(() => {
+    const countByName = {};
+    employees.forEach((emp) => {
+      const name = (emp.departmentName || emp.department || "").trim().toLowerCase();
+      if (!name) return;
+      countByName[name] = (countByName[name] || 0) + 1;
+    });
+    return departments.map((d) => ({
+      ...d,
+      employeeCount: countByName[(d.name || "").trim().toLowerCase()] || 0,
+    }));
+  }, [departments, employees]);
 
   useEffect(() => {
     if (activeMenu === "Departments") {
@@ -1355,11 +1360,34 @@ const HRDashboard = () => {
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       <Toast toasts={toast.toasts} removeToast={toast.removeToast} />
 
-      <AddEmployeePanel
-        open={showAddEmployee} onClose={() => setShowAddEmployee(false)}
-        onSuccess={() => { setEmpRefresh(r => r + 1); fetchDashboardData(); }}
-        toast={toast}
+      <AddEmployeeModal
+        open={showAddEmployee}
+        onClose={() => setShowAddEmployee(false)}
+        departments={departments}
+        onSuccess={() => { setEmpRefresh(r => r + 1); fetchDashboardData(); toast.addToast("Employee created successfully!", "success"); setShowAddEmployee(false); }}
       />
+
+      {/* ── Employee Distribution — expanded view (all departments) ── */}
+      {showDeptModal && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowDeptModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col z-10">
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-5 flex items-center justify-between flex-shrink-0 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 p-2 rounded-lg"><Building2 className="text-white" size={20} /></div>
+                <div>
+                  <h2 className="text-white font-bold text-lg">Employee Distribution</h2>
+                  <p className="text-purple-100 text-xs">All {departments.length} department{departments.length === 1 ? "" : "s"}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowDeptModal(false)} className="bg-white/20 hover:bg-white/30 p-2 rounded-lg transition"><X className="text-white" size={18} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <DistributionBars departments={departmentsWithCounts} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Premium Navy Sidebar ── */}
       <nav
@@ -1460,12 +1488,19 @@ const HRDashboard = () => {
             <div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                 {[
-                  { label: "Total Employees",  val: stats.totalEmployees,  sub: "Across all departments", icon: Users,      from: "from-blue-500",   to: "to-blue-600",   tc: "text-blue-100"  },
-                  { label: "Active Employees", val: stats.activeEmployees, sub: "Currently working",      icon: CheckCircle, from: "from-green-500",  to: "to-emerald-600", tc: "text-green-100" },
-                  { label: "Pending Leaves",   val: stats.pendingLeaves,   sub: "Awaiting approval",      icon: Clock,       from: "from-yellow-500", to: "to-orange-500",  tc: "text-yellow-100"},
-                  { label: "Today Present",    val: stats.todayPresent,    sub: "Checked in today",       icon: UserCheck,   from: "from-purple-500", to: "to-pink-600",    tc: "text-purple-100"},
-                ].map(({ label, val, sub, icon: Icon, from, to, tc }) => (
-                  <div key={label} className={`bg-gradient-to-br ${from} ${to} p-6 rounded-xl shadow-xl text-white transform hover:scale-105 hover:shadow-2xl transition-all duration-300 cursor-pointer relative overflow-hidden`}>
+                  { label: "Total Departments", val: stats.totalDepartments, sub: "All departments",         icon: Building2,   from: "from-blue-500",   to: "to-blue-600",   tc: "text-blue-100",   path: "/hr/departments" },
+                  { label: "Total Employees",   val: stats.totalEmployees,   sub: "Across all departments",  icon: Users,       from: "from-green-500",  to: "to-emerald-600", tc: "text-green-100",  path: "/hr/employees"   },
+                  { label: "Today Present",     val: stats.todayPresent,     sub: "Checked in today",        icon: UserCheck,   from: "from-purple-500", to: "to-pink-600",    tc: "text-purple-100", path: "/hr/attendance"  },
+                  { label: "Pending Leaves",    val: stats.pendingLeaves,    sub: "Awaiting approval",       icon: Clock,       from: "from-yellow-500", to: "to-orange-500",  tc: "text-yellow-100", path: "/hr/leave"       },
+                ].map(({ label, val, sub, icon: Icon, from, to, tc, path }) => (
+                  <div
+                    key={label}
+                    onClick={() => navigate(path)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigate(path); }}
+                    className={`bg-gradient-to-br ${from} ${to} p-6 rounded-xl shadow-xl text-white transform hover:scale-105 hover:shadow-2xl transition-all duration-300 cursor-pointer relative overflow-hidden`}
+                  >
                     <div className="absolute top-0 right-0 w-24 h-24 bg-white opacity-10 rounded-full -mr-12 -mt-12" />
                     <div className="flex items-center justify-between mb-3 relative z-10"><div className="bg-white bg-opacity-20 p-3 rounded-lg"><Icon size={28} /></div></div>
                     <p className={`${tc} text-sm font-medium mb-1 relative z-10`}>{label}</p>
@@ -1509,13 +1544,17 @@ const HRDashboard = () => {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
-                  <h3 className="text-xl font-bold mb-6 flex items-center text-gray-800"><div className="bg-purple-100 p-2 rounded-lg mr-3"><Building2 className="text-purple-600" size={24} /></div>Employee Distribution</h3>
-                  <div className="space-y-4">
-                    {[{ name:"Engineering",count:45,pct:"75%",from:"from-blue-500",to:"to-cyan-500",color:"text-blue-600"},{ name:"Sales & Marketing",count:32,pct:"53%",from:"from-green-500",to:"to-emerald-500",color:"text-green-600"},{ name:"Human Resources",count:12,pct:"20%",from:"from-purple-500",to:"to-pink-500",color:"text-purple-600"},{ name:"Finance",count:18,pct:"30%",from:"from-orange-500",to:"to-yellow-500",color:"text-orange-600"},{ name:"Operations",count:23,pct:"38%",from:"from-red-500",to:"to-pink-500",color:"text-red-600"}].map(d => (
-                      <div key={d.name}><div className="flex justify-between mb-2"><span className="text-sm font-medium">{d.name}</span><span className={`text-sm font-bold ${d.color}`}>{d.count} employees</span></div><div className="w-full bg-gray-200 rounded-full h-3"><div className={`bg-gradient-to-r ${d.from} ${d.to} h-3 rounded-full`} style={{ width: d.pct }} /></div></div>
-                    ))}
-                  </div>
+                <div
+                  onClick={() => departments.length > 0 && setShowDeptModal(true)}
+                  className={`bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 ${departments.length > 0 ? "cursor-pointer" : ""}`}
+                >
+                  <h3 className="text-xl font-bold mb-6 flex items-center justify-between text-gray-800">
+                    <span className="flex items-center"><div className="bg-purple-100 p-2 rounded-lg mr-3"><Building2 className="text-purple-600" size={24} /></div>Employee Distribution</span>
+                    {departments.length > 5 && (
+                      <span className="text-xs font-medium text-purple-600 bg-purple-50 px-3 py-1 rounded-full">View all {departments.length}</span>
+                    )}
+                  </h3>
+                  <DistributionBars departments={departmentsWithCounts} limit={5} />
                 </div>
                 <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
                   <h3 className="text-xl font-bold mb-6 flex items-center text-gray-800"><div className="bg-yellow-100 p-2 rounded-lg mr-3"><Award className="text-yellow-600" size={24} /></div>Top Performers This Month</h3>

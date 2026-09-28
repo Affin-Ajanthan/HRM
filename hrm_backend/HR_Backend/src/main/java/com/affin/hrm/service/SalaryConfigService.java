@@ -141,6 +141,22 @@ public class SalaryConfigService {
         return saved;
     }
 
+    /** Removes a single job role salary row (one employment type's basic/allowance/deduction). */
+    public void deleteBasicPayment(Long id, Employee hr) {
+        Long companyId = hr.getCompany().getId();
+        BasicPayment payment = basicPaymentRepository.findById(id)
+                .filter(p -> p.getCompany().getId().equals(companyId))
+                .orElseThrow(() -> new ResourceNotFoundException("BasicPayment", "id", id));
+
+        String jobRoleTitle = title(payment.getJobRole());
+        String employmentTypeName = payment.getEmploymentType().getName();
+        basicPaymentRepository.delete(payment);
+        basicPaymentRepository.flush();
+        audit("DELETE", "BasicPayment", id,
+                "Deleted salary row for " + jobRoleTitle + " (" + employmentTypeName + ")", companyId);
+        log.info("{} deleted basic payment {} for company {}", hr.getEmail(), id, companyId);
+    }
+
     // ── Individual allowances / deductions (additional_payments) ─
 
     @Transactional(readOnly = true)

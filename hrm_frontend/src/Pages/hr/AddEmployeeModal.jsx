@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Eye,
   EyeOff,
@@ -102,6 +102,55 @@ const EMPTY_FORM = {
 const BACKEND_TO_ROLE = { EMPLOYEE: "employee", HR_MANAGER: "hr", ADMIN: "admin" };
 const toDateInput = (v) => (v ? String(v).slice(0, 10) : "");
 
+// ---------------------------------------------------------------
+// DRAFT PERSISTENCE (Add Employee only, never for Edit Employee)
+//
+// So HR doesn't lose what they've typed if they close the popup, switch
+// tabs, or close the browser tab before hitting Submit, the in-progress
+// "Add New Employee" form is mirrored to localStorage as they type and
+// restored the next time the popup is opened for a new employee. It is
+// cleared once the employee is actually created.
+//
+// Passwords are intentionally never written to localStorage (a browser
+// storage isn't a safe place to keep them) — HR just re-enters the
+// password if the tab was closed; every other field is restored.
+// ---------------------------------------------------------------
+const ADD_EMPLOYEE_DRAFT_KEY = "hr_add_employee_draft_v1";
+
+const loadEmployeeDraft = () => {
+  try {
+    const raw = localStorage.getItem(ADD_EMPLOYEE_DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && parsed.formData ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveEmployeeDraft = (formData, currentStep) => {
+  try {
+    const { password, confirmPassword, ...rest } = formData;
+    const hasContent = Object.values(rest).some((v) => String(v || "").trim() !== "");
+    if (!hasContent) {
+      localStorage.removeItem(ADD_EMPLOYEE_DRAFT_KEY);
+      return;
+    }
+    localStorage.setItem(ADD_EMPLOYEE_DRAFT_KEY, JSON.stringify({ formData: rest, currentStep }));
+  } catch {
+    // Storage can fail (private browsing, full quota) — losing the draft convenience
+    // is fine, it must never block HR from filling in the form.
+  }
+};
+
+const clearEmployeeDraft = () => {
+  try {
+    localStorage.removeItem(ADD_EMPLOYEE_DRAFT_KEY);
+  } catch {
+    // ignore
+  }
+};
+
 // Builds the wizard's form state from an existing employee record (edit mode).
 const buildFormFromEmployee = (emp, departments) => {
   const [firstName = "", ...rest] = String(emp.fullName || "").trim().split(/\s+/);
@@ -148,6 +197,12 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Whether the form currently on screen was restored from a saved draft (Add mode only)
+  const [draftRestored, setDraftRestored] = useState(false);
+  // Guards against the restored draft being immediately re-saved (and briefly overwritten
+  // with stale/blank data) on the very render that first applies it — see the persistence
+  // effect below.
+  const skipNextDraftSaveRef = useRef(false);
   // Employment types HR has defined (hrm_db_hr.employment_types)
   const [employmentTypes, setEmploymentTypes] = useState([]);
   const [employmentTypesError, setEmploymentTypesError] = useState("");
@@ -197,13 +252,27 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
     if (open) {
       setCurrentStep(1);
       if (employee) {
-        // Edit mode: show the same wizard, pre-filled with the saved data
+        // Edit mode: show the same wizard, pre-filled with the saved data. Edit never
+        // touches the Add Employee draft.
         const prefilled = buildFormFromEmployee(employee, departments);
         setFormData(prefilled);
         setEmployeeIdNumber(prefilled.employeeId.split("-").slice(1).join("-"));
+        setDraftRestored(false);
       } else {
-        setFormData(EMPTY_FORM);
-        setEmployeeIdNumber("");
+        // Add mode: continue a previously unfinished form instead of blanking it out.
+        skipNextDraftSaveRef.current = true;
+        const draft = loadEmployeeDraft();
+        if (draft) {
+          const restored = { ...EMPTY_FORM, ...draft.formData };
+          setFormData(restored);
+          setEmployeeIdNumber(restored.employeeId ? restored.employeeId.split("-").slice(1).join("-") : "");
+          setCurrentStep(Math.min(Math.max(Number(draft.currentStep) || 1, 1), STEPS.length));
+          setDraftRestored(true);
+        } else {
+          setFormData(EMPTY_FORM);
+          setEmployeeIdNumber("");
+          setDraftRestored(false);
+        }
       }
       setErrors({});
       setShowPassword(false);
@@ -211,6 +280,28 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, employee]);
+
+  // Mirror the in-progress "Add Employee" form to localStorage as HR types, so it survives
+  // closing the popup, switching tabs, or closing the browser tab before submitting.
+  useEffect(() => {
+    if (!open || isEdit) return;
+    if (skipNextDraftSaveRef.current) {
+      // This pass is the one right after restoring/resetting the form on open — its closure
+      // still holds the previous render's formData, so skip it to avoid clobbering the
+      // draft we just loaded (or wiping a real draft with a stale empty one).
+      skipNextDraftSaveRef.current = false;
+      return;
+    }
+    saveEmployeeDraft(formData, currentStep);
+  }, [formData, currentStep, open, isEdit]);
+
+  const discardDraft = () => {
+    clearEmployeeDraft();
+    setFormData(EMPTY_FORM);
+    setEmployeeIdNumber("");
+    setCurrentStep(1);
+    setDraftRestored(false);
+  };
 
   // If the department list finishes loading after the edit form opened,
   // match the employee's saved department name to a real department.
@@ -469,8 +560,10 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
       }
 
       if (onSuccess) await onSuccess();
+      if (!isEdit) clearEmployeeDraft();
       setFormData(EMPTY_FORM);
       setCurrentStep(1);
+      setDraftRestored(false);
     } catch (error) {
       const message =
         error?.response?.data?.message ||
@@ -566,21 +659,10 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
           </div>
 
           <div className="flex items-center gap-2">
-          {isEdit && onDelete && (
             <button
               type="button"
-              onClick={() => onDelete(employee)}
-              disabled={isSubmitting}
-              className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-semibold text-white bg-red-500/90 hover:bg-red-500 disabled:opacity-50 transition-colors"
-            >
-              <Trash2 size={14} />
-              Delete Employee
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={handleClose}
-            className="
+              onClick={handleClose}
+              className="
               h-9 w-9
               rounded-lg
               flex items-center
@@ -590,9 +672,9 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
               hover:text-white
               transition-colors
             "
-          >
-            <X size={19} />
-          </button>
+            >
+              <X size={19} />
+            </button>
           </div>
         </div>
 
@@ -608,29 +690,26 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                 <React.Fragment key={step.id}>
                   <div className="flex flex-col items-center">
                     <div
-                      className={`h-9 w-9 rounded-full flex items-center justify-center transition-all duration-300 ${
-                        isCompleted
+                      className={`h-9 w-9 rounded-full flex items-center justify-center transition-all duration-300 ${isCompleted
                           ? "bg-emerald-500 text-white"
                           : isCurrent
-                          ? "bg-teal-500 text-white shadow-md scale-110"
-                          : "bg-slate-200 text-slate-500"
-                      }`}
+                            ? "bg-teal-500 text-white shadow-md scale-110"
+                            : "bg-slate-200 text-slate-500"
+                        }`}
                     >
                       {isCompleted ? <Check className="w-4 h-4" /> : <StepIcon className="w-4 h-4" />}
                     </div>
                     <span
-                      className={`text-[11px] mt-1.5 font-semibold ${
-                        isCurrent ? "text-teal-600" : "text-slate-400"
-                      }`}
+                      className={`text-[11px] mt-1.5 font-semibold ${isCurrent ? "text-teal-600" : "text-slate-400"
+                        }`}
                     >
                       {step.title}
                     </span>
                   </div>
                   {index < STEPS.length - 1 && (
                     <div
-                      className={`flex-1 h-1 mx-2 rounded-full transition-all duration-300 ${
-                        currentStep > step.id ? "bg-emerald-500" : "bg-slate-200"
-                      }`}
+                      className={`flex-1 h-1 mx-2 rounded-full transition-all duration-300 ${currentStep > step.id ? "bg-emerald-500" : "bg-slate-200"
+                        }`}
                     />
                   )}
                 </React.Fragment>
@@ -642,6 +721,18 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
         {/* Body / Form */}
         <form onSubmit={handleFormSubmit} className="flex flex-col min-h-0">
           <div className="green-scrollbar overflow-y-auto p-6 space-y-5">
+            {draftRestored && !isEdit && (
+              <div className="flex items-center justify-between gap-3 bg-teal-50 border border-teal-100 text-teal-700 text-xs rounded-xl px-4 py-3">
+                <span>Continuing your unfinished form — nothing you typed was lost.</span>
+                <button
+                  type="button"
+                  onClick={discardDraft}
+                  className="font-semibold underline decoration-teal-300 hover:decoration-teal-500 flex-shrink-0"
+                >
+                  Discard &amp; start fresh
+                </button>
+              </div>
+            )}
             {/* ============ STEP 1 — PERSONAL ============ */}
             {currentStep === 1 && (
               <div className="space-y-5">
@@ -654,9 +745,8 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                       value={formData.firstName}
                       onChange={handleChange}
                       placeholder="John"
-                      className={`w-full px-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 ${
-                        errors.firstName ? "border-red-500" : "border-slate-300"
-                      }`}
+                      className={`w-full px-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 ${errors.firstName ? "border-red-500" : "border-slate-300"
+                        }`}
                     />
                     {errors.firstName && <FieldError msg={errors.firstName} />}
                   </div>
@@ -669,9 +759,8 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                       value={formData.lastName}
                       onChange={handleChange}
                       placeholder="Doe"
-                      className={`w-full px-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 ${
-                        errors.lastName ? "border-red-500" : "border-slate-300"
-                      }`}
+                      className={`w-full px-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 ${errors.lastName ? "border-red-500" : "border-slate-300"
+                        }`}
                     />
                     {errors.lastName && <FieldError msg={errors.lastName} />}
                   </div>
@@ -687,9 +776,8 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                       value={formData.email}
                       onChange={handleChange}
                       placeholder="john.doe@company.com"
-                      className={`w-full pl-10 pr-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 ${
-                        errors.email ? "border-red-500" : "border-slate-300"
-                      }`}
+                      className={`w-full pl-10 pr-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 ${errors.email ? "border-red-500" : "border-slate-300"
+                        }`}
                     />
                   </div>
                   {errors.email && <FieldError msg={errors.email} />}
@@ -706,9 +794,8 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                         value={formData.phone}
                         onChange={handleChange}
                         placeholder="+1 (555) 000-0000"
-                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 ${
-                          errors.phone ? "border-red-500" : "border-slate-300"
-                        }`}
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 ${errors.phone ? "border-red-500" : "border-slate-300"
+                          }`}
                       />
                     </div>
                     {errors.phone && <FieldError msg={errors.phone} />}
@@ -723,9 +810,8 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                         name="dateOfBirth"
                         value={formData.dateOfBirth}
                         onChange={handleChange}
-                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 ${
-                          errors.dateOfBirth ? "border-red-500" : "border-slate-300"
-                        }`}
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 ${errors.dateOfBirth ? "border-red-500" : "border-slate-300"
+                          }`}
                       />
                     </div>
                     {errors.dateOfBirth && <FieldError msg={errors.dateOfBirth} />}
@@ -751,23 +837,21 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                           key={role.value}
                           onClick={() => !isDisabled && handleRoleChange(role.value)}
                           title={isDisabled ? role.disabledReason : undefined}
-                          className={`p-3.5 border-2 rounded-xl transition-all duration-200 ${
-                            isDisabled
+                          className={`p-3.5 border-2 rounded-xl transition-all duration-200 ${isDisabled
                               ? "border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed"
                               : isSelected
-                              ? "border-teal-500 bg-teal-50 shadow-sm cursor-pointer"
-                              : "border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer"
-                          }`}
+                                ? "border-teal-500 bg-teal-50 shadow-sm cursor-pointer"
+                                : "border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer"
+                            }`}
                         >
                           <div className="flex items-start gap-3">
                             <div
-                              className={`p-2 rounded-lg ${
-                                isDisabled
+                              className={`p-2 rounded-lg ${isDisabled
                                   ? "bg-slate-200 text-slate-400"
                                   : isSelected
-                                  ? "bg-teal-100 text-teal-600"
-                                  : "bg-slate-100 text-slate-600"
-                              }`}
+                                    ? "bg-teal-100 text-teal-600"
+                                    : "bg-slate-100 text-slate-600"
+                                }`}
                             >
                               {isDisabled ? <LockIcon className="w-4.5 h-4.5" /> : <RoleIcon className="w-4.5 h-4.5" />}
                             </div>
@@ -802,9 +886,8 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-slate-700">Employee ID *</label>
                   <div
-                    className={`flex items-stretch rounded-xl border transition-all duration-200 bg-slate-50 overflow-hidden focus-within:ring-2 focus-within:ring-teal-500 ${
-                      errors.employeeId ? "border-red-500" : "border-slate-300"
-                    }`}
+                    className={`flex items-stretch rounded-xl border transition-all duration-200 bg-slate-50 overflow-hidden focus-within:ring-2 focus-within:ring-teal-500 ${errors.employeeId ? "border-red-500" : "border-slate-300"
+                      }`}
                   >
                     <div className="flex items-center gap-2 px-3.5 bg-slate-100 border-r border-slate-300 text-slate-700 font-semibold text-sm select-none">
                       <IdCard className="w-4 h-4 text-slate-400" />
@@ -838,9 +921,8 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                       <select
                         value={formData.departmentId}
                         onChange={(e) => handleDepartmentSelect(e.target.value)}
-                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 appearance-none ${
-                          errors.departmentId ? "border-red-500" : "border-slate-300"
-                        }`}
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 appearance-none ${errors.departmentId ? "border-red-500" : "border-slate-300"
+                          }`}
                       >
                         <option value="">Select Department</option>
                         {departmentOptions.map((dept) => (
@@ -864,9 +946,8 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                         value={formData.jobTitle}
                         onChange={(e) => handleJobTitleSelect(e.target.value)}
                         disabled={!formData.departmentId}
-                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 appearance-none disabled:opacity-60 disabled:cursor-not-allowed ${
-                          errors.jobTitle ? "border-red-500" : "border-slate-300"
-                        }`}
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 appearance-none disabled:opacity-60 disabled:cursor-not-allowed ${errors.jobTitle ? "border-red-500" : "border-slate-300"
+                          }`}
                       >
                         <option value="">
                           {formData.departmentId ? "Select Job Title" : "Select a department first"}
@@ -892,9 +973,8 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                       name="employmentType"
                       value={formData.employmentType}
                       onChange={handleChange}
-                      className={`w-full px-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 ${
-                        errors.employmentType ? "border-red-500" : "border-slate-300"
-                      }`}
+                      className={`w-full px-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 ${errors.employmentType ? "border-red-500" : "border-slate-300"
+                        }`}
                     >
                       <option value="">Select Type</option>
                       {employmentTypeOptions.map((type) => (
@@ -920,9 +1000,8 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                         name="workLocation"
                         value={formData.workLocation}
                         onChange={handleChange}
-                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 appearance-none ${
-                          errors.workLocation ? "border-red-500" : "border-slate-300"
-                        }`}
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 appearance-none ${errors.workLocation ? "border-red-500" : "border-slate-300"
+                          }`}
                       >
                         <option value="">Select work location</option>
                         {workLocationOptions.map((loc) => (
@@ -951,9 +1030,8 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                       name="hireDate"
                       value={formData.hireDate}
                       onChange={handleChange}
-                      className={`w-full pl-10 pr-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 ${
-                        errors.hireDate ? "border-red-500" : "border-slate-300"
-                      }`}
+                      className={`w-full pl-10 pr-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 ${errors.hireDate ? "border-red-500" : "border-slate-300"
+                        }`}
                     />
                   </div>
                   {errors.hireDate && <FieldError msg={errors.hireDate} />}
@@ -979,9 +1057,8 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                       value={formData.password}
                       onChange={handleChange}
                       placeholder="••••••••"
-                      className={`w-full pl-10 pr-12 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 ${
-                        errors.password ? "border-red-500" : "border-slate-300"
-                      }`}
+                      className={`w-full pl-10 pr-12 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 ${errors.password ? "border-red-500" : "border-slate-300"
+                        }`}
                     />
                     <button
                       type="button"
@@ -997,13 +1074,12 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-500">Password strength</span>
                         <span
-                          className={`font-medium ${
-                            passwordStrength <= 2
+                          className={`font-medium ${passwordStrength <= 2
                               ? "text-red-500"
                               : passwordStrength <= 3
-                              ? "text-yellow-600"
-                              : "text-emerald-600"
-                          }`}
+                                ? "text-yellow-600"
+                                : "text-emerald-600"
+                            }`}
                         >
                           {strengthLabels[passwordStrength]}
                         </span>
@@ -1032,9 +1108,8 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       placeholder="••••••••"
-                      className={`w-full pl-10 pr-12 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 ${
-                        errors.confirmPassword ? "border-red-500" : "border-slate-300"
-                      }`}
+                      className={`w-full pl-10 pr-12 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 ${errors.confirmPassword ? "border-red-500" : "border-slate-300"
+                        }`}
                     />
                     <button
                       type="button"
@@ -1098,11 +1173,10 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
               type="button"
               onClick={handlePrev}
               disabled={currentStep === 1}
-              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                currentStep === 1
+              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${currentStep === 1
                   ? "text-slate-300 cursor-not-allowed"
                   : "text-slate-600 hover:text-slate-800 hover:bg-slate-100"
-              }`}
+                }`}
             >
               <ChevronLeft className="w-4 h-4" />
               Previous
@@ -1124,11 +1198,10 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                 type="button"
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-white text-sm transition-all shadow-sm ${
-                  isSubmitting
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-white text-sm transition-all shadow-sm ${isSubmitting
                     ? "bg-slate-400 cursor-not-allowed"
                     : "bg-gradient-to-br from-teal-400 to-emerald-500 hover:from-teal-500 hover:to-emerald-600"
-                }`}
+                  }`}
               >
                 {isSubmitting ? (
                   <>

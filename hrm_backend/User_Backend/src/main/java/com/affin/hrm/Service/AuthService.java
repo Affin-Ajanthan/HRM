@@ -349,10 +349,44 @@ public class AuthService {
                 employee.setStatus(Employee.EmployeeStatus.ACTIVE);
                 Employee savedEmployee = employeeRepo.save(employee);
                 
+                // Sync employee to legacy users table in hrm_db_user
+                syncUserTable(savedEmployee);
+
                 // Sync employee to other backends (Employee_Backend & HR_Backend)
                 syncService.syncToAllBackends(savedEmployee);
                 
                 return savedEmployee;
+        }
+
+        public void syncUserTable(Employee employee) {
+                if (employee == null || employee.getEmail() == null) return;
+                try {
+                        String normalizedEmail = employee.getEmail().trim().toLowerCase();
+                        User user = userRepo.findByEmailIgnoreCase(normalizedEmail).orElseGet(() -> {
+                                User u = new User();
+                                u.setEmail(normalizedEmail);
+                                return u;
+                        });
+
+                        if (employee.getFullName() != null) user.setFullName(employee.getFullName());
+                        if (employee.getPassword() != null && !employee.getPassword().isBlank()) {
+                                user.setPassword(employee.getPassword());
+                        }
+                        if (employee.getEmployeeId() != null) user.setEmployeeId(employee.getEmployeeId());
+                        if (employee.getNic() != null) user.setNic(employee.getNic());
+                        if (employee.getDob() != null) user.setDob(employee.getDob());
+                        if (employee.getAddress() != null) user.setAddress(employee.getAddress());
+                        if (employee.getGender() != null) user.setGender(employee.getGender().name());
+                        if (employee.getRole() != null) user.setRole(employee.getRole().name());
+                        if (employee.getDepartment() != null && employee.getDepartment().getName() != null) {
+                                user.setDepartment(employee.getDepartment().getName());
+                        }
+
+                        userRepo.save(user);
+                        System.out.println("[USER_DB SYNC] Updated users table for: " + normalizedEmail);
+                } catch (Exception e) {
+                        System.err.println("[USER_DB SYNC ERROR] Failed to update users table for " + employee.getEmail() + ": " + e.getMessage());
+                }
         }
 
         private boolean isBcryptHash(String value) {
@@ -414,11 +448,12 @@ public class AuthService {
         }
 
         // Transactional so each employee's lazy company/department can be read into the sync payload
-        @org.springframework.transaction.annotation.Transactional(readOnly = true)
+        @org.springframework.transaction.annotation.Transactional
         public void syncAllEmployees() {
-                 System.out.println("[SYNC] Starting manual sync of all employees to other backends...");
+                 System.out.println("[SYNC] Starting manual sync of all employees to other backends and legacy users table...");
                  employeeRepo.findAll().forEach(employee -> {
                          try {
+                                 syncUserTable(employee);
                                  syncService.syncToAllBackends(employee);
                          } catch (Exception e) {
                                  System.err.println("[SYNC ERROR] Failed to sync employee: " + employee.getEmail() + " Error: " + e.getMessage());

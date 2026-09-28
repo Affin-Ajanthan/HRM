@@ -27,6 +27,39 @@ public class EmailService {
     private String frontendUrl;
 
     /**
+     * Send confirmation email when a public company registration request is submitted.
+     */
+    public boolean sendRequestReceivedEmail(String recipientEmail, String contactPersonName, String companyName) {
+        String subject = "HRM Company Application Received — " + companyName;
+        String body = String.format("""
+                Dear %s,
+
+                Thank you for submitting a registration request for '%s' to the HRM platform!
+
+                We have received your application and our system administration team is currently reviewing your details.
+
+                What happens next?
+                - Our team will review your application.
+                - Upon approval, you will receive another email containing your HR Manager account login credentials.
+
+                Application Details:
+                - Company Name: %s
+                - Contact Person: %s
+                - Email: %s
+
+                Best regards,
+                HRM System Administration Team
+                """,
+                contactPersonName != null ? contactPersonName : "Client Representative",
+                companyName,
+                companyName,
+                contactPersonName != null ? contactPersonName : "N/A",
+                recipientEmail);
+
+        return sendEmailOrLogFallback(recipientEmail, subject, body, "Request Received Email");
+    }
+
+    /**
      * Send company application approval email containing HR Account credentials.
      */
     public boolean sendApprovalEmail(String recipientEmail, String contactPersonName, String companyName, String tempPassword) {

@@ -90,6 +90,13 @@ public class AdminService {
         logAction("PUBLIC_COMPANY_REQUEST", "Company", saved.getId(),
                 "Submitted company registration request for: " + saved.getCompanyName());
 
+        // Send confirmation email
+        try {
+            emailService.sendRequestReceivedEmail(saved.getEmail(), saved.getContactPersonName(), saved.getCompanyName());
+        } catch (Exception e) {
+            log.warn("Failed to send request received email for company {}: {}", saved.getCompanyName(), e.getMessage());
+        }
+
         return mapToDTO(saved);
     }
 

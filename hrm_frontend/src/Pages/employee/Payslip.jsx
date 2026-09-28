@@ -4,9 +4,9 @@ import { DollarSign, Download, Eye, Calendar, TrendingUp, FileText, CreditCard, 
 import { PageLayout } from "../../components/PageLayout";
 import { employeeApi } from "../../services/api";
 import {
-  EmpButton, SearchBar, FilterSelect, ShowingCount, TableCard, TableHeaderRow, TableHeader, TableRows, TableRow, LoadingState, EmptyState,
+  EmpButton, SummaryCard, SearchBar, FilterSelect, ShowingCount, TableCard, TableHeaderRow, TableHeader, TableRows, TableRow, LoadingState, EmptyState,
 } from "../../components/EmployeeUI";
-import { EMP_GRADIENT, useSort } from "../../components/employeeTheme";
+import { EMP_GRADIENT, CARD_TONES, useSort } from "../../components/employeeTheme";
 import AllowanceRequests from "./AllowanceRequests";
 
 const PAYSLIP_COLS = "grid-cols-[1.4fr_1.1fr_1fr_1fr_1.1fr_0.8fr_150px]";
@@ -134,19 +134,12 @@ const Payslip = () => {
         {/* Summary cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
           {[
-            { label: "Last Salary",   value: `Rs. ${lastNet.toLocaleString()}`, icon: <CreditCard size={20} />, edge: "border-t-emerald-600", chip: "bg-emerald-50 text-emerald-700", sub: payslips.length > 0 ? `${getMonthName(payslips[0].month)} ${payslips[0].year}` : "N/A" },
-            { label: "Avg. Monthly",  value: `Rs. ${avgNet.toLocaleString()}`, icon: <TrendingUp size={20} />, edge: "border-t-teal-500", chip: "bg-teal-50 text-teal-700", sub: "All time" },
-            { label: "Total Earnings",  value: `Rs. ${totalNet.toLocaleString()}`, icon: <DollarSign size={20} />, edge: "border-t-amber-500", chip: "bg-amber-50 text-amber-700", sub: "Year to date" },
-            { label: "Total Payslips",value: payslips.length, icon: <FileText size={20} />, edge: "border-t-slate-700", chip: "bg-slate-100 text-slate-700", sub: "Available" },
+            { label: "Last Salary",   value: `Rs. ${lastNet.toLocaleString()}`, icon: <CreditCard size={20} />, tone: CARD_TONES.blue, sub: payslips.length > 0 ? `${getMonthName(payslips[0].month)} ${payslips[0].year}` : "N/A" },
+            { label: "Avg. Monthly",  value: `Rs. ${avgNet.toLocaleString()}`, icon: <TrendingUp size={20} />, tone: CARD_TONES.green, sub: "All time" },
+            { label: "Total Earnings",  value: `Rs. ${totalNet.toLocaleString()}`, icon: <DollarSign size={20} />, tone: CARD_TONES.yellow, sub: "Year to date" },
+            { label: "Total Payslips",value: payslips.length, icon: <FileText size={20} />, tone: CARD_TONES.purple, sub: "Available" },
           ].map(s => (
-            <div key={s.label} className={`bg-gradient-to-br from-white to-employee-50 border border-employee-100 border-t-4 ${s.edge} p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300`}>
-              <div className="flex items-start justify-between mb-3">
-                <p className="text-slate-500 text-sm font-medium">{s.label}</p>
-                <div className={`${s.chip} p-2.5 rounded-lg`}>{s.icon}</div>
-              </div>
-              <p className="text-2xl font-bold text-slate-900">{s.value}</p>
-              <p className="text-slate-400 text-xs mt-1">{s.sub}</p>
-            </div>
+            <SummaryCard key={s.label} icon={s.icon} title={s.label} value={s.value} description={s.sub} className={s.tone} />
           ))}
         </div>
 
@@ -215,7 +208,7 @@ const Payslip = () => {
                   </div>
                 </div>
               </div>
-              <div className="bg-employee-700 text-white p-5 rounded-lg flex justify-between items-center">
+              <div className={`${EMP_GRADIENT} text-white p-5 rounded-lg flex justify-between items-center`}>
                 <span className="text-lg font-bold">Net Salary</span>
                 <span className="text-2xl font-bold">Rs. {money(paySheet.netTotal)}</span>
               </div>
@@ -309,12 +302,12 @@ const Payslip = () => {
       {viewingPayslip && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl border border-slate-200 shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200 border-t-4 border-t-employee-600 rounded-t-xl">
+            <div className={`flex items-center justify-between p-6 ${EMP_GRADIENT} text-white rounded-t-xl`}>
               <div>
-                <h2 className="text-lg font-semibold text-slate-800">Payslip Details</h2>
-                <p className="text-slate-500 text-sm">{getMonthName(viewingPayslip.month)} {viewingPayslip.year}</p>
+                <h2 className="text-lg font-semibold">Payslip Details</h2>
+                <p className="text-sky-100 text-sm">{getMonthName(viewingPayslip.month)} {viewingPayslip.year}</p>
               </div>
-              <button onClick={() => setViewingPayslip(null)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"><X size={18} /></button>
+              <button onClick={() => setViewingPayslip(null)} className="h-8 w-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"><X size={17} /></button>
             </div>
             <div className="p-6 space-y-5">
               <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 grid grid-cols-2 gap-3 text-sm">
@@ -351,15 +344,15 @@ const Payslip = () => {
                   </div>
                 </div>
               </div>
-              <div className="bg-employee-700 text-white p-5 rounded-lg flex justify-between items-center">
+              <div className={`${EMP_GRADIENT} text-white p-5 rounded-lg flex justify-between items-center`}>
                 <span className="text-lg font-bold">Net Salary</span>
                 <span className="text-2xl font-bold">Rs. {viewingPayslip.netSalary.toLocaleString()}</span>
               </div>
               <div className="flex gap-3">
-                <button onClick={() => handleDownload(viewingPayslip)} className="flex-1 bg-employee-600 hover:bg-employee-700 text-white py-3 rounded-lg font-semibold text-sm transition-colors flex items-center justify-center gap-2">
+                <EmpButton onClick={() => handleDownload(viewingPayslip)} className="flex-1">
                   <Download size={16} /> Download PDF
-                </button>
-                <button onClick={() => setViewingPayslip(null)} className="flex-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 py-3 rounded-lg font-semibold text-sm transition-colors">Close</button>
+                </EmpButton>
+                <EmpButton variant="secondary" onClick={() => setViewingPayslip(null)} className="flex-1">Close</EmpButton>
               </div>
             </div>
           </div>

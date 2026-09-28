@@ -4,12 +4,12 @@ import { CalendarDays, Plus, CheckCircle, XCircle, Clock, FileText, Calendar, Al
 import { PageLayout } from "../../components/PageLayout";
 import { employeeApi } from "../../services/api";
 import {
-  EmpButton, SearchBar, FilterSelect, ShowingCount, TableCard, TableHeaderRow, TableHeader, TableRows, TableRow, LoadingState, EmptyState,
+  EmpButton, SummaryCard, SearchBar, FilterSelect, ShowingCount, TableCard, TableHeaderRow, TableHeader, TableRows, TableRow, LoadingState, EmptyState,
 } from "../../components/EmployeeUI";
-import { EMP_GRADIENT, useSort } from "../../components/employeeTheme";
+import { EMP_GRADIENT, CARD_TONES, useSort } from "../../components/employeeTheme";
 
-// Top-edge colours for the per-type balance cards, in the order the API returns the types
-const BALANCE_EDGES = ["border-t-violet-500", "border-t-teal-500", "border-t-indigo-500"];
+// Gradients for the per-type balance cards, in the order the API returns the types
+const BALANCE_TONES = [CARD_TONES.blue, CARD_TONES.green, CARD_TONES.yellow];
 
 const HISTORY_COLS = "grid-cols-[1.5fr_1.5fr_0.7fr_1fr_1.8fr_1fr]";
 
@@ -163,24 +163,18 @@ const Leave = () => {
               remaining: b.remainingDays,
               used: b.usedDays,
               total: b.totalDays,
-              edge: BALANCE_EDGES[i % BALANCE_EDGES.length],
+              tone: BALANCE_TONES[i % BALANCE_TONES.length],
             })),
             {
               label: "Total Balance",
               remaining: balances.reduce((sum, b) => sum + (b.remainingDays || 0), 0),
               used: balances.reduce((sum, b) => sum + (b.usedDays || 0), 0),
               total: balances.reduce((sum, b) => sum + (b.totalDays || 0), 0),
-              edge: "border-t-slate-700",
+              tone: CARD_TONES.purple,
             },
           ].map(b => (
-            <div key={b.label} className={`bg-gradient-to-br from-white to-employee-50 border border-employee-100 border-t-4 ${b.edge} p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300`}>
-              <p className="text-slate-500 text-sm font-medium mb-1">{b.label}</p>
-              <p className="text-3xl font-bold text-slate-900">{b.remaining}</p>
-              <div className="flex items-center justify-between text-xs mt-2">
-                <span className="text-slate-400">Remaining</span>
-                <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{b.used}/{b.total} used</span>
-              </div>
-            </div>
+            <SummaryCard key={b.label} icon={<CalendarDays size={20} />} title={b.label} value={b.remaining}
+              description={`Remaining · ${b.used}/${b.total} used`} className={b.tone} />
           ))}
         </div>
 
@@ -288,10 +282,10 @@ const Leave = () => {
       {showApplyForm && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl border border-slate-200 shadow-2xl w-full max-w-lg">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-lg font-semibold text-slate-800">Apply for Leave</h2>
-              <button onClick={() => setShowApplyForm(false)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                <X size={18} className="text-slate-500" />
+            <div className={`flex items-center justify-between p-6 ${EMP_GRADIENT} text-white rounded-t-xl`}>
+              <h2 className="text-lg font-semibold">Apply for Leave</h2>
+              <button onClick={() => setShowApplyForm(false)} className="h-8 w-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                <X size={17} />
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -327,8 +321,8 @@ const Leave = () => {
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{formError}</div>
               )}
               <div className="flex gap-3 pt-2">
-                <button type="submit" disabled={submitting} className="flex-1 bg-employee-600 hover:bg-employee-700 text-white disabled:opacity-50 disabled:cursor-not-allowed py-3 rounded-lg font-semibold text-sm transition-colors">{submitting ? "Submitting..." : "Submit Application"}</button>
-                <button type="button" onClick={() => setShowApplyForm(false)} className="flex-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 py-3 rounded-lg font-semibold text-sm transition-colors">Cancel</button>
+                <EmpButton type="submit" disabled={submitting} className="flex-1">{submitting ? "Submitting..." : "Submit Application"}</EmpButton>
+                <EmpButton type="button" variant="secondary" onClick={() => setShowApplyForm(false)} className="flex-1">Cancel</EmpButton>
               </div>
             </form>
           </div>

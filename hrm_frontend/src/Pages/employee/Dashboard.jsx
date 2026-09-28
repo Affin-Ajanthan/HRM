@@ -5,6 +5,8 @@ import {
   Award, Target, TrendingUp, CheckCircle2, Calendar, Gift,
 } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
+import { SummaryCard } from "../../components/EmployeeUI";
+import { CARD_TONES } from "../../components/employeeTheme";
 import { employeeApi } from "../../services/api";
 import { getCurrentPosition, formatMinutes, summarizeSessions, useNow } from "../../utils/attendance";
 
@@ -160,20 +162,12 @@ const EmployeeDashboard = () => {
         {/* ── Stats Cards ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            { edge: "border-t-indigo-500",   chip: "bg-indigo-50 text-indigo-600",     icon: <ClockIcon size={22} />,    label: "Present Days",   value: stats.presentDays,         sub: "This month"        },
-            { edge: "border-t-violet-500",   chip: "bg-violet-50 text-violet-600",     icon: <Calendar size={22} />,     label: "Leave Balance",  value: stats.leaveBalance,        sub: "Days available"    },
-            { edge: "border-t-amber-500",    chip: "bg-amber-50 text-amber-700",       icon: <CalendarDays size={22} />, label: "Pending Leaves", value: stats.pendingLeaves,       sub: "Awaiting approval" },
-            { edge: "border-t-emerald-600",  chip: "bg-emerald-50 text-emerald-700",   icon: <DollarSign size={22} />,   label: "Last Salary",    value: `Rs. ${stats.lastSalary}`, sub: "January 2026"      },
+            { tone: CARD_TONES.blue,   icon: <ClockIcon size={20} />,    label: "Present Days",   value: stats.presentDays,         sub: "This month"        },
+            { tone: CARD_TONES.green,  icon: <Calendar size={20} />,     label: "Leave Balance",  value: stats.leaveBalance,        sub: "Days available"    },
+            { tone: CARD_TONES.yellow, icon: <CalendarDays size={20} />, label: "Pending Leaves", value: stats.pendingLeaves,       sub: "Awaiting approval" },
+            { tone: CARD_TONES.purple, icon: <DollarSign size={20} />,   label: "Last Salary",    value: `Rs. ${stats.lastSalary}`, sub: "January 2026"      },
           ].map(c => (
-            <div key={c.label}
-              className={`bg-gradient-to-br from-white to-employee-50 p-6 rounded-xl border border-employee-100 border-t-4 ${c.edge} shadow-sm hover:shadow-md transition-shadow duration-300`}>
-              <div className="flex items-start justify-between mb-4">
-                <p className="text-sm font-medium text-slate-500">{c.label}</p>
-                <div className={`${c.chip} p-2.5 rounded-lg`}>{c.icon}</div>
-              </div>
-              <h3 className="text-3xl font-bold text-slate-900">{c.value}</h3>
-              <p className="text-xs text-slate-400 mt-2">{c.sub}</p>
-            </div>
+            <SummaryCard key={c.label} icon={c.icon} title={c.label} value={c.value} description={c.sub} className={c.tone} />
           ))}
         </div>
 
@@ -289,14 +283,14 @@ const EmployeeDashboard = () => {
           {/* Upcoming Events */}
           <div className="bg-gradient-to-br from-white to-employee-50 p-6 rounded-xl border border-employee-100 shadow-sm">
             <h3 className="text-lg font-semibold mb-6 flex items-center text-slate-800">
-              <div className="bg-amber-50 p-2 rounded-lg mr-3">
-                <Calendar className="text-amber-600" size={20} />
+              <div className="bg-violet-50 p-2 rounded-lg mr-3">
+                <Calendar className="text-violet-600" size={20} />
               </div>
               Upcoming Events
             </h3>
             <div className="space-y-3">
               {[
-                { icon: <Calendar size={18} />, tone: "bg-indigo-50 text-indigo-600", title: "Team Meeting",        sub: "Tomorrow at 10:00 AM"    },
+                { icon: <Calendar size={18} />, tone: "bg-sky-50 text-blue-600",       title: "Team Meeting",        sub: "Tomorrow at 10:00 AM"    },
                 { icon: <Award size={18} />,    tone: "bg-orange-50 text-orange-600", title: "Performance Review",  sub: "Jan 25, 2026 at 2:00 PM" },
                 { icon: <Gift size={18} />,     tone: "bg-rose-50 text-rose-500",     title: "Company Anniversary", sub: "Jan 28, 2026"            },
               ].map(e => (

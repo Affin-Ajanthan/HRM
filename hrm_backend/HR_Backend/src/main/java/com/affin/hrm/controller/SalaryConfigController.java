@@ -6,12 +6,15 @@ import com.affin.hrm.dto.BasicPaymentDTO;
 import com.affin.hrm.dto.PaySheetDTO;
 import com.affin.hrm.model.Employee;
 import com.affin.hrm.service.AuthService;
+import com.affin.hrm.service.EmployeeDirectory;
 import com.affin.hrm.service.SalaryConfigService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * HR salary configuration: job role salaries (basic payments), individual allowances /
@@ -24,10 +27,13 @@ public class SalaryConfigController {
 
     private final SalaryConfigService salaryConfigService;
     private final AuthService authService;
+    private final EmployeeDirectory employeeDirectory;
 
-    public SalaryConfigController(SalaryConfigService salaryConfigService, AuthService authService) {
+    public SalaryConfigController(SalaryConfigService salaryConfigService, AuthService authService,
+                                  EmployeeDirectory employeeDirectory) {
         this.salaryConfigService = salaryConfigService;
         this.authService = authService;
+        this.employeeDirectory = employeeDirectory;
     }
 
     @GetMapping("/basic-payments")
@@ -74,7 +80,14 @@ public class SalaryConfigController {
     public ResponseEntity<ApiResponse<List<PaySheetDTO>>> getPaySheets(
             @RequestBody List<PaySheetDTO.EmployeeRef> employees) {
         Employee hr = authService.getCurrentEmployee();
+        Long companyId = hr.getCompany().getId();
+        Set<String> companyEmails = employeeDirectory.findByCompanyId(companyId).stream()
+                .map(e -> e.getEmail() == null ? "" : e.getEmail().trim().toLowerCase())
+                .collect(Collectors.toSet());
+        List<PaySheetDTO.EmployeeRef> ownEmployees = employees == null ? List.of() : employees.stream()
+                .filter(ref -> ref.getEmail() != null && companyEmails.contains(ref.getEmail().trim().toLowerCase()))
+                .collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(
-                salaryConfigService.getPaySheets(hr.getCompany().getId(), employees)));
+                salaryConfigService.getPaySheets(companyId, ownEmployees)));
     }
 }

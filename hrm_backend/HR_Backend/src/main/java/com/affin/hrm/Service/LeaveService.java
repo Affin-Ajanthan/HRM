@@ -110,6 +110,7 @@ public class LeaveService {
                 .orElseThrow(() -> new ResourceNotFoundException("LeaveApplication", "id", leaveId));
         Employee approver = employeeDirectory.findById(approverId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", approverId));
+        assertSameCompany(leave, approver);
 
         if (leave.getStatus() != LeaveApplication.LeaveStatus.PENDING) {
             throw new BusinessException("Leave application is not in pending status");
@@ -142,6 +143,7 @@ public class LeaveService {
                 .orElseThrow(() -> new ResourceNotFoundException("LeaveApplication", "id", leaveId));
         Employee approver = employeeDirectory.findById(approverId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", approverId));
+        assertSameCompany(leave, approver);
 
         if (leave.getStatus() != LeaveApplication.LeaveStatus.PENDING) {
             throw new BusinessException("Leave application is not in pending status");
@@ -291,5 +293,13 @@ public class LeaveService {
             dto.setLeaveTypeName(balance.getLeaveType().getName());
         }
         return dto;
+    }
+
+    /** HR may only act on leave requests of their own company; any other reads as not found. */
+    private void assertSameCompany(LeaveApplication leave, Employee hr) {
+        if (hr.getRole() == Employee.Role.ADMIN) return;
+        if (hr.getCompany() == null || !hr.getCompany().getId().equals(leave.getCompanyId())) {
+            throw new ResourceNotFoundException("LeaveApplication", "id", leave.getId());
+        }
     }
 }

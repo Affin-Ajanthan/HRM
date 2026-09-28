@@ -45,7 +45,8 @@ public class HRController {
 
     @GetMapping("/employees/{id}")
     public ResponseEntity<ApiResponse<EmployeeDTO>> getEmployee(@PathVariable Long id) {
-        EmployeeDTO employee = employeeService.getEmployeeById(id);
+        Employee hr = authService.getCurrentEmployee();
+        EmployeeDTO employee = employeeService.getEmployeeById(id, scopeCompanyId(hr));
         return ResponseEntity.ok(ApiResponse.success(employee));
     }
 
@@ -71,13 +72,13 @@ public class HRController {
 
     @PostMapping("/attendance/adjustments/{id}/approve")
     public ResponseEntity<ApiResponse<AttendanceDTO>> approveAdjustment(@PathVariable Long id) {
-        AttendanceDTO result = attendanceService.approveAdjustment(id);
+        AttendanceDTO result = attendanceService.approveAdjustment(id, scopeCompanyId(authService.getCurrentEmployee()));
         return ResponseEntity.ok(ApiResponse.success(result, "Adjustment approved"));
     }
 
     @PostMapping("/attendance/adjustments/{id}/reject")
     public ResponseEntity<ApiResponse<AttendanceDTO>> rejectAdjustment(@PathVariable Long id) {
-        AttendanceDTO result = attendanceService.rejectAdjustment(id);
+        AttendanceDTO result = attendanceService.rejectAdjustment(id, scopeCompanyId(authService.getCurrentEmployee()));
         return ResponseEntity.ok(ApiResponse.success(result, "Adjustment rejected"));
     }
 
@@ -104,5 +105,10 @@ public class HRController {
         Employee hr = authService.getCurrentEmployee();
         LeaveApplicationDTO result = leaveService.rejectLeave(leaveId, reason, hr.getId());
         return ResponseEntity.ok(ApiResponse.success(result, "Leave rejected"));
+    }
+
+    /** The company an HR user is limited to; null for an admin, who may see every company. */
+    private static Long scopeCompanyId(Employee hr) {
+        return hr.getRole() == Employee.Role.ADMIN ? null : hr.getCompany().getId();
     }
 }

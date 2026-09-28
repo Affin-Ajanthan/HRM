@@ -32,7 +32,13 @@ public class EmployeeService {
     }
 
     public EmployeeDTO getEmployeeById(Long id) {
+        return getEmployeeById(id, null);
+    }
+
+    /** The employee, if they belong to the given company (null = any); otherwise not found. */
+    public EmployeeDTO getEmployeeById(Long id, Long companyId) {
         Employee employee = employeeDirectory.findById(id)
+                .filter(e -> companyId == null || (e.getCompany() != null && companyId.equals(e.getCompany().getId())))
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", id));
         return convertToDTO(employee);
     }

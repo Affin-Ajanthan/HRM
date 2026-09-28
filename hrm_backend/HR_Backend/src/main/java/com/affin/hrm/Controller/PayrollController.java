@@ -15,9 +15,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
@@ -42,9 +44,13 @@ public class PayrollController {
 
     @GetMapping("/salaries")
     public ResponseEntity<ApiResponse<List<SalaryDTO>>> getCompanySalaries() {
+        Set<Long> userIds = companyUserIds(authService.getCurrentEmployee());
+        if (userIds.isEmpty()) return ResponseEntity.ok(ApiResponse.success(Collections.emptyList()));
         try {
+            String url = UriComponentsBuilder.fromHttpUrl(employeeServiceUrl + "/api/internal/salaries")
+                    .queryParam("userIds", userIds.toArray()).toUriString();
             ResponseEntity<List<SalaryDTO>> response = restTemplate.exchange(
-                    employeeServiceUrl + "/api/internal/salaries",
+                    url,
                     HttpMethod.GET, null,
                     new ParameterizedTypeReference<List<SalaryDTO>>() {});
             return ResponseEntity.ok(ApiResponse.success(response.getBody()));
@@ -56,6 +62,9 @@ public class PayrollController {
 
     @GetMapping("/salaries/employee/{id}")
     public ResponseEntity<ApiResponse<SalaryDTO>> getEmployeeSalary(@PathVariable Long id) {
+        if (!companyUserIds(authService.getCurrentEmployee()).contains(id)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error("Salary structure not found"));
+        }
         try {
             SalaryDTO salary = restTemplate.getForObject(
                     employeeServiceUrl + "/api/internal/salaries/employee/" + id, SalaryDTO.class);
@@ -68,6 +77,9 @@ public class PayrollController {
 
     @PostMapping("/salaries")
     public ResponseEntity<ApiResponse<SalaryDTO>> saveSalary(@RequestBody SalaryDTO dto) {
+        if (!companyUserIds(authService.getCurrentEmployee()).contains(dto.getEmployeeId())) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error("Employee not found"));
+        }
         try {
             HttpEntity<SalaryDTO> entity = new HttpEntity<>(dto);
             ResponseEntity<SalaryDTO> response = restTemplate.exchange(
@@ -98,5 +110,12 @@ public class PayrollController {
             log.error("Failed to generate payroll in Employee backend: {}", e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error("Failed to generate payroll: " + e.getMessage()));
         }
+    }
+
+    /** User ids of everyone in the HR user's company — the only salaries they may see or change. */
+    private Set<Long> companyUserIds(Employee hr) {
+        return employeeDirectory.findByCompanyId(hr.getCompany().getId()).stream()
+                .map(Employee::getId)
+                .collect(Collectors.toSet());
     }
 }

@@ -304,8 +304,12 @@ public class InternalController {
     }
 
     @GetMapping("/salaries")
-    public ResponseEntity<List<Salary>> getAllSalaries() {
-        return ResponseEntity.ok(salaryRepository.findAll());
+    public ResponseEntity<List<Salary>> getAllSalaries(@RequestParam(required = false) List<Long> userIds) {
+        List<Salary> salaries = salaryRepository.findAll();
+        if (userIds != null) {
+            salaries = salaries.stream().filter(s -> userIds.contains(s.getUserId())).collect(java.util.stream.Collectors.toList());
+        }
+        return ResponseEntity.ok(salaries);
     }
 
     @GetMapping("/salaries/employee/{id}")

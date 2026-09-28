@@ -234,10 +234,11 @@ export const hrApi = {
   approveAdjustment: (id) => request("POST", `${EMPLOYEE_URL}/hr/attendance/adjustments/${id}/approve`),
   rejectAdjustment: (id) => request("POST", `${EMPLOYEE_URL}/hr/attendance/adjustments/${id}/reject`),
 
-  // Leave
-  getPendingLeaves: () => request("GET", `${BASE_URL}/hr/leave/pending`),
-  approveLeave:     (leaveId) => request("POST", `${BASE_URL}/hr/leave/${leaveId}/approve`),
-  rejectLeave:      (leaveId, reason) => request("POST", `${BASE_URL}/hr/leave/${leaveId}/reject?reason=${encodeURIComponent(reason)}`),
+  // Leave requests — employees apply in Employee_Backend (hrm_db_employee), so HR reviews them there
+  getLeaveRequests: () => request("GET", `${EMPLOYEE_URL}/hr/leave`),
+  getPendingLeaves: () => request("GET", `${EMPLOYEE_URL}/hr/leave/pending`),
+  approveLeave:     (leaveId) => request("POST", `${EMPLOYEE_URL}/hr/leave/${leaveId}/approve`),
+  rejectLeave:      (leaveId, reason) => request("POST", `${EMPLOYEE_URL}/hr/leave/${leaveId}/reject?reason=${encodeURIComponent(reason)}`),
 
   // Leave configuration — leave types and per-job-role entitlements (hrm_db_hr)
   getLeaveTypes:        () => request("GET", `${BASE_URL}/hr/leave-types`),

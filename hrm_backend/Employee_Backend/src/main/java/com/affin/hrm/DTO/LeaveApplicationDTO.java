@@ -20,6 +20,7 @@ public class LeaveApplicationDTO {
     private Long employeeId;
     private String employeeName;
     private String employeeIdNumber;
+    private String departmentName;
 
     @NotNull(message = "Leave type is required")
     private Long leaveTypeId;
@@ -37,5 +38,6 @@ public class LeaveApplicationDTO {
     private String rejectionReason;
     private Long approvedBy;
     private String approvedByName;
+    private LocalDateTime approvedAt;
     private LocalDateTime createdAt;
 }

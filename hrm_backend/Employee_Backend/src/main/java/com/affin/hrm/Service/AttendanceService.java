@@ -159,9 +159,8 @@ public class AttendanceService {
         return convertToDTO(saved);
     }
 
-    public AttendanceDTO approveAdjustment(Long attendanceId) {
-        Attendance attendance = attendanceRepository.findById(attendanceId)
-                .orElseThrow(() -> new ResourceNotFoundException("Attendance", "id", attendanceId));
+    public AttendanceDTO approveAdjustment(Long attendanceId, Long companyId) {
+        Attendance attendance = companyAttendance(attendanceId, companyId);
         attendance.setAdjustmentStatus(Attendance.AdjustmentStatus.APPROVED);
         Attendance saved = attendanceRepository.save(attendance);
         auditService.logAction("APPROVE_ATTENDANCE_ADJUSTMENT", "Attendance", saved.getId(),
@@ -169,9 +168,8 @@ public class AttendanceService {
         return convertToDTO(saved);
     }
 
-    public AttendanceDTO rejectAdjustment(Long attendanceId) {
-        Attendance attendance = attendanceRepository.findById(attendanceId)
-                .orElseThrow(() -> new ResourceNotFoundException("Attendance", "id", attendanceId));
+    public AttendanceDTO rejectAdjustment(Long attendanceId, Long companyId) {
+        Attendance attendance = companyAttendance(attendanceId, companyId);
         attendance.setAdjustmentStatus(Attendance.AdjustmentStatus.REJECTED);
         Attendance saved = attendanceRepository.save(attendance);
         auditService.logAction("REJECT_ATTENDANCE_ADJUSTMENT", "Attendance", saved.getId(),
@@ -185,6 +183,13 @@ public class AttendanceService {
                 .stream()
                 .filter(a -> companyId.equals(a.getCompanyId()))
                 .collect(Collectors.collectingAndThen(Collectors.toList(), this::toDTOs));
+    }
+
+    /** The record, if it belongs to the given company (null = any, for admins); otherwise not found. */
+    private Attendance companyAttendance(Long attendanceId, Long companyId) {
+        return attendanceRepository.findById(attendanceId)
+                .filter(a -> companyId == null || companyId.equals(a.getCompanyId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Attendance", "id", attendanceId));
     }
 
     private AttendanceDTO convertToDTO(Attendance attendance) {

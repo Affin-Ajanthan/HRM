@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = {"employee", "company"})
+@ToString(exclude = {"company"})
 @EqualsAndHashCode(of = "id")
 public class Notification {
 
@@ -27,9 +27,9 @@ public class Notification {
     @JoinColumn(name = "company_id")
     private Company company;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "employee_id")
-    private Employee employee;
+    /** The employee's id in User_Backend (hrm_db_user.employees.id). */
+    @Column(name = "user_id")
+    private Long userId;
 
     @Column(nullable = false)
     private String title;

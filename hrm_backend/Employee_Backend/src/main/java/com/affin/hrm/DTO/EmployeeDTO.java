@@ -30,14 +30,6 @@ public class EmployeeDTO {
     @Email(message = "Please provide a valid email address")
     private String email;
 
-    @Size(min = 6, message = "Password must be at least 6 characters")
-    private String password;
-
-    private String nic;
-    private LocalDate dob;
-    private String address;
-    private String phone;
-    private String gender;
     private String role;
     private String designation;
     private LocalDate joiningDate;

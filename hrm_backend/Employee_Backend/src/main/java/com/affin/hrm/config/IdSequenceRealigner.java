@@ -17,7 +17,7 @@ import java.util.List;
 public class IdSequenceRealigner implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(IdSequenceRealigner.class);
-    private static final List<String> TABLES = List.of("companies", "departments", "employees", "attendance");
+    private static final List<String> TABLES = List.of("companies", "departments", "attendance");
 
     private final JdbcTemplate jdbcTemplate;
 

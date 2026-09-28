@@ -3,15 +3,12 @@ package com.affin.hrm.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -23,40 +20,29 @@ import java.util.List;
 
 /**
  * Spring Security configuration — JWT-based stateless authentication.
+ * Tokens are issued by User_Backend (the only service that stores credentials);
+ * this service just validates them.
  */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-    private final CustomUserDetailsService customUserDetailsService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Value("${cors.allowed-origins:http://localhost:5173,http://localhost:5174,http://localhost:3000}")
     private String allowedOrigins;
 
-    public SecurityConfig(CustomUserDetailsService customUserDetailsService,
-                          JwtAuthenticationFilter jwtAuthenticationFilter) {
-        this.customUserDetailsService = customUserDetailsService;
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
+    /** No local user store — stops Spring Boot from creating a default in-memory user. */
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    public DaoAuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(customUserDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder());
-        return authProvider;
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
-        return authConfig.getAuthenticationManager();
+    public UserDetailsService userDetailsService() {
+        return username -> {
+            throw new UsernameNotFoundException("Credentials are managed by User_Backend");
+        };
     }
 
     @Bean
@@ -67,12 +53,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers(
-                    "/api/auth/login",
-                    "/api/auth/register",
-                    "/api/auth/check-user/**",
-                    "/api/public/**"
-                ).permitAll()
+                .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/api/sync/**").permitAll()
                 .requestMatchers("/api/internal/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
@@ -83,7 +64,6 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             );
 
-        http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

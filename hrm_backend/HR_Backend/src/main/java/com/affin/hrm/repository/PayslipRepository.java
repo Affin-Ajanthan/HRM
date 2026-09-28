@@ -9,7 +9,7 @@ import java.util.Optional;
 
 @Repository
 public interface PayslipRepository extends JpaRepository<Payslip, Long> {
-    List<Payslip> findByEmployeeId(Long employeeId);
-    Optional<Payslip> findByEmployeeIdAndMonthAndYear(Long employeeId, Integer month, Integer year);
+    List<Payslip> findByUserId(Long userId);
+    Optional<Payslip> findByUserIdAndMonthAndYear(Long userId, Integer month, Integer year);
     List<Payslip> findByMonthAndYear(Integer month, Integer year);
 }

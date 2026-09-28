@@ -2,7 +2,7 @@ package com.affin.hrm.controller;
 
 import com.affin.hrm.dto.*;
 import com.affin.hrm.model.*;
-import com.affin.hrm.repository.EmployeeRepository;
+import com.affin.hrm.service.EmployeeDirectory;
 import com.affin.hrm.service.AuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,15 +29,15 @@ public class PayrollController {
 
     private final RestTemplate restTemplate;
     private final AuthService authService;
-    private final EmployeeRepository employeeRepository;
+    private final EmployeeDirectory employeeDirectory;
 
     @Value("${service.employee-url:http://localhost:5006}")
     private String employeeServiceUrl;
 
-    public PayrollController(RestTemplate restTemplate, AuthService authService, EmployeeRepository employeeRepository) {
+    public PayrollController(RestTemplate restTemplate, AuthService authService, EmployeeDirectory employeeDirectory) {
         this.restTemplate = restTemplate;
         this.authService = authService;
-        this.employeeRepository = employeeRepository;
+        this.employeeDirectory = employeeDirectory;
     }
 
     @GetMapping("/salaries")
@@ -87,7 +87,7 @@ public class PayrollController {
         try {
             String url = employeeServiceUrl + "/api/internal/payroll/generate?companyId=" + companyId + "&month=" + month + "&year=" + year;
             // Company and employee ids differ between the databases, so the employees are sent by email
-            List<String> emails = employeeRepository.findByCompanyIdAndStatus(companyId, Employee.EmployeeStatus.ACTIVE).stream()
+            List<String> emails = employeeDirectory.findByCompanyIdAndStatus(companyId, Employee.EmployeeStatus.ACTIVE).stream()
                     .map(Employee::getEmail)
                     .collect(Collectors.toList());
             List<?> generated = restTemplate.postForObject(url, emails, List.class);

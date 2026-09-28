@@ -4,9 +4,9 @@ import { Clock, Calendar, CheckCircle, XCircle, Download, Filter, MapPin, Timer,
 import { PageLayout } from "../../components/PageLayout";
 import { employeeApi } from "../../services/api";
 import {
-  EmpButton, SearchBar, FilterSelect, ShowingCount, TableCard, TableHeaderRow, TableHeader, TableRows, TableRow, LoadingState, EmptyState,
+  EmpButton, SummaryCard, SearchBar, FilterSelect, ShowingCount, TableCard, TableHeaderRow, TableHeader, TableRows, TableRow, LoadingState, EmptyState,
 } from "../../components/EmployeeUI";
-import { EMP_GRADIENT, useSort } from "../../components/employeeTheme";
+import { EMP_GRADIENT, CARD_TONES, useSort } from "../../components/employeeTheme";
 import {
   getCurrentPosition, formatMinutes, summarizeSessions, groupSessionsByDate, toLocalDateString, useNow,
 } from "../../utils/attendance";
@@ -241,7 +241,7 @@ const Attendance = () => {
                   { label: "Last Clock In",  value: formatTime(attendance?.clockInTime),  text: "text-slate-900" },
                   { label: "Last Clock Out", value: formatTime(attendance?.clockOutTime), text: "text-slate-900" },
                   { label: "Working Hours",  value: formatMinutes(attendance?.totalWorkingMinutes || 0, isClockedIn), text: "text-slate-900" },
-                  { label: "Status",         value: !attendance ? "Not Started" : attendance.isClockedIn ? "Clocked In" : "Clocked Out", text: "text-indigo-700" },
+                  { label: "Status",         value: !attendance ? "Not Started" : attendance.isClockedIn ? "Clocked In" : "Clocked Out", text: "text-blue-600" },
                 ].map(t => (
                   <div key={t.label} className="bg-white/70 border border-employee-100 rounded-lg p-4 text-center">
                     <p className="text-slate-500 text-xs mb-2">{t.label}</p>
@@ -256,7 +256,7 @@ const Attendance = () => {
                 <button
                   onClick={handleClockIn}
                   disabled={clockInLoading || attendance?.isClockedIn}
-                  className="flex-1 bg-employee-600 hover:bg-employee-700 text-white disabled:opacity-40 disabled:cursor-not-allowed py-3 rounded-lg flex items-center justify-center gap-2 font-semibold text-sm transition-colors"
+                  className={`flex-1 ${EMP_GRADIENT} hover:from-sky-500 hover:to-blue-600 shadow-sm shadow-blue-500/20 text-white disabled:opacity-40 disabled:cursor-not-allowed py-3 rounded-lg flex items-center justify-center gap-2 font-semibold text-sm transition-colors`}
                 >
                   <CheckCircle size={18} /> {clockInLoading ? "Getting location..." : "Clock In"}
                 </button>
@@ -294,17 +294,14 @@ const Attendance = () => {
         {/* Monthly stat cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
           {[
-            { label: "Total Days",     value: stats.totalDays,        edge: "border-t-indigo-500" },
-            { label: "Present",        value: stats.present,          edge: "border-t-emerald-600" },
-            { label: "Absent",         value: stats.absent,           edge: "border-t-yellow-500" },
-            { label: "On Leave",       value: stats.leave,            edge: "border-t-violet-500" },
-            { label: "Late",           value: stats.late,             edge: "border-t-amber-500" },
-            { label: "Hours",          value: stats.workingHours+"h", edge: "border-t-slate-700" },
+            { label: "Total Days",     value: stats.totalDays,        tone: CARD_TONES.blue },
+            { label: "Present",        value: stats.present,          tone: CARD_TONES.green },
+            { label: "Absent",         value: stats.absent,           tone: CARD_TONES.red },
+            { label: "On Leave",       value: stats.leave,            tone: CARD_TONES.purple },
+            { label: "Late",           value: stats.late,             tone: CARD_TONES.yellow },
+            { label: "Hours",          value: stats.workingHours+"h", tone: CARD_TONES.slate },
           ].map(s => (
-            <div key={s.label} className={`bg-gradient-to-br from-white to-employee-50 border border-employee-100 border-t-4 ${s.edge} p-5 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300`}>
-              <p className="text-slate-500 text-xs font-medium mb-1">{s.label}</p>
-              <p className="text-3xl font-bold text-slate-900">{s.value}</p>
-            </div>
+            <SummaryCard key={s.label} title={s.label} value={s.value} className={s.tone} />
           ))}
         </div>
 

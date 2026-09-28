@@ -4,7 +4,7 @@ import com.affin.hrm.dto.*;
 import com.affin.hrm.model.Company;
 import com.affin.hrm.exception.ResourceNotFoundException;
 import com.affin.hrm.repository.CompanyRepository;
-import com.affin.hrm.repository.EmployeeRepository;
+import com.affin.hrm.service.EmployeeDirectory;
 import com.affin.hrm.repository.AttendanceRepository;
 import com.affin.hrm.repository.LeaveApplicationRepository;
 import com.affin.hrm.model.Employee;
@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 public class AdminController {
 
     private final CompanyRepository companyRepository;
-    private final EmployeeRepository employeeRepository;
+    private final EmployeeDirectory employeeDirectory;
     private final EmployeeService employeeService;
     private final AttendanceRepository attendanceRepository;
     private final LeaveApplicationRepository leaveApplicationRepository;
@@ -38,14 +38,14 @@ public class AdminController {
     private final ModelMapper modelMapper;
 
     public AdminController(CompanyRepository companyRepository,
-                           EmployeeRepository employeeRepository,
+                           EmployeeDirectory employeeDirectory,
                            EmployeeService employeeService,
                            AttendanceRepository attendanceRepository,
                            LeaveApplicationRepository leaveApplicationRepository,
                            AuditService auditService,
                            ModelMapper modelMapper) {
         this.companyRepository = companyRepository;
-        this.employeeRepository = employeeRepository;
+        this.employeeDirectory = employeeDirectory;
         this.employeeService = employeeService;
         this.attendanceRepository = attendanceRepository;
         this.leaveApplicationRepository = leaveApplicationRepository;
@@ -58,7 +58,7 @@ public class AdminController {
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<DashboardStatsDTO>> getDashboardStats() {
         DashboardStatsDTO stats = new DashboardStatsDTO();
-        stats.setTotalEmployees(employeeRepository.count());
+        stats.setTotalEmployees((long) employeeDirectory.findAll().size());
         stats.setPresentToday(attendanceRepository.countPresentByCompanyIdAndDate(null, LocalDate.now()));
         stats.setPendingLeaves(leaveApplicationRepository.countByCompanyIdAndStatus(null, LeaveApplication.LeaveStatus.PENDING));
         return ResponseEntity.ok(ApiResponse.success(stats));
@@ -119,21 +119,16 @@ public class AdminController {
 
     @GetMapping("/users")
     public ResponseEntity<ApiResponse<List<EmployeeDTO>>> getAllUsers() {
-        List<EmployeeDTO> users = employeeRepository.findAll().stream()
+        List<EmployeeDTO> users = employeeDirectory.findAll().stream()
                 .map(e -> {
                     EmployeeDTO dto = new EmployeeDTO();
                     dto.setId(e.getId());
                     dto.setEmployeeId(e.getEmployeeId());
                     dto.setFullName(e.getFullName());
                     dto.setEmail(e.getEmail());
-                    dto.setPhone(e.getPhone());
-                    dto.setNic(e.getNic());
-                    dto.setDob(e.getDob());
-                    dto.setAddress(e.getAddress());
                     dto.setDesignation(e.getDesignation());
                     dto.setJoiningDate(e.getJoiningDate());
                     dto.setTerminationDate(e.getTerminationDate());
-                    if (e.getGender() != null) dto.setGender(e.getGender().name());
                     if (e.getRole() != null) dto.setRole(e.getRole().name());
                     if (e.getStatus() != null) dto.setStatus(e.getStatus().name());
                     try {

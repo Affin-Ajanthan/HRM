@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Edit, Save, X, Camera, Lock, Award, Target, User, Mail, Phone, MapPin, Calendar, Briefcase, Building2, ShieldCheck, KeyRound, UserCheck, Heart } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
+import { EmpButton, SummaryCard } from "../../components/EmployeeUI";
+import { EMP_GRADIENT, CARD_TONES } from "../../components/employeeTheme";
+
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -26,11 +29,11 @@ const Profile = () => {
     { name: "React.js", level: 90 }, { name: "Node.js", level: 85 },
     { name: "JavaScript", level: 95 }, { name: "TypeScript", level: 80 }, { name: "SQL", level: 75 },
   ];
-  const SKILL_BARS = ["bg-employee-500", "bg-emerald-500", "bg-amber-500", "bg-employee-700", "bg-slate-500"];
+  const SKILL_BARS = ["bg-employee-500", "bg-emerald-500", "bg-amber-500", "bg-violet-500", "bg-rose-500"];
   const achievements = [
-    { title: "Employee of the Month",    date: "December 2025", icon: <Award size={20} />,  tone: "bg-amber-50 text-amber-600",       edge: "border-t-amber-500" },
-    { title: "Project Excellence Award", date: "October 2025",  icon: <Target size={20} />, tone: "bg-orange-50 text-orange-600", edge: "border-t-orange-500" },
-    { title: "Innovation Award",         date: "June 2025",     icon: <Award size={20} />,  tone: "bg-emerald-50 text-emerald-600",   edge: "border-t-emerald-600" },
+    { title: "Employee of the Month",    date: "December 2025", icon: <Award size={20} />,  tone: "bg-amber-50 text-amber-600",     edge: "border-t-amber-500" },
+    { title: "Project Excellence Award", date: "October 2025",  icon: <Target size={20} />, tone: "bg-orange-50 text-orange-600",   edge: "border-t-orange-500" },
+    { title: "Innovation Award",         date: "June 2025",     icon: <Award size={20} />,  tone: "bg-emerald-50 text-emerald-600", edge: "border-t-emerald-600" },
   ];
 
   // Small coloured icon badge in front of each section heading
@@ -53,10 +56,10 @@ const Profile = () => {
   );
 
   const quickInfo = [
-    { label: "Department",        value: profileData.department,       icon: Building2, tone: "bg-emerald-50 text-emerald-600",   edge: "border-l-emerald-500" },
-    { label: "Employment Type",   value: profileData.employmentType,   icon: Briefcase, tone: "bg-teal-50 text-teal-600",         edge: "border-l-teal-500" },
-    { label: "Joined",            value: profileData.joiningDate,      icon: Calendar,  tone: "bg-amber-50 text-amber-600",       edge: "border-l-amber-500" },
-    { label: "Reporting Manager", value: profileData.reportingManager, icon: UserCheck, tone: "bg-violet-50 text-violet-600",     edge: "border-l-violet-500" },
+    { label: "Department",        value: profileData.department,       icon: Building2, tone: CARD_TONES.blue },
+    { label: "Employment Type",   value: profileData.employmentType,   icon: Briefcase, tone: CARD_TONES.green },
+    { label: "Joined",            value: profileData.joiningDate,      icon: Calendar,  tone: CARD_TONES.yellow },
+    { label: "Reporting Manager", value: profileData.reportingManager, icon: UserCheck, tone: CARD_TONES.purple },
   ];
 
   if (!user) return null;
@@ -66,10 +69,10 @@ const Profile = () => {
     <PageLayout role="employee" activePage="Profile" title="My Profile" subtitle="Manage your personal information"
       actions={
         !isEditing
-          ? <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 bg-employee-600 hover:bg-employee-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"><Edit size={16} /> Edit Profile</button>
+          ? <EmpButton onClick={() => setIsEditing(true)}><Edit size={16} /> Edit Profile</EmpButton>
           : <div className="flex gap-2">
-              <button onClick={() => setIsEditing(false)} className="flex items-center gap-2 bg-employee-600 hover:bg-employee-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"><Save size={16} /> Save</button>
-              <button onClick={() => setIsEditing(false)} className="flex items-center gap-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"><X size={16} /> Cancel</button>
+              <EmpButton onClick={() => setIsEditing(false)}><Save size={16} /> Save</EmpButton>
+              <EmpButton variant="secondary" onClick={() => setIsEditing(false)}><X size={16} /> Cancel</EmpButton>
             </div>
       }
     >
@@ -79,13 +82,13 @@ const Profile = () => {
           <div className="h-32 bg-gradient-to-r from-employee-900 via-employee-700 to-employee-500 relative overflow-hidden">
             <div className="absolute -top-10 right-24 w-40 h-40 rounded-full bg-white/10" />
             <div className="absolute -bottom-16 right-0 w-56 h-56 rounded-full bg-white/5" />
-            <div className="absolute top-6 left-1/2 w-24 h-24 rounded-full bg-emerald-400/10" />
+            <div className="absolute top-6 left-1/2 w-24 h-24 rounded-full bg-sky-300/10" />
           </div>
           <div className="px-6 pb-6">
             <div className="flex items-end gap-5 -mt-12">
               <div className="relative flex-shrink-0">
-                <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-employee-400 to-employee-700 shadow-md flex items-center justify-center text-3xl font-bold text-white border-4 border-white">{initials}</div>
-                <button className="absolute -bottom-1 -right-1 bg-amber-500 text-white p-1.5 rounded-lg hover:bg-amber-600 transition shadow"><Camera size={14} /></button>
+                <div className={`w-24 h-24 rounded-xl ${EMP_GRADIENT} shadow-md flex items-center justify-center text-3xl font-bold text-white border-4 border-white`}>{initials}</div>
+                <button className="absolute -bottom-1 -right-1 bg-blue-600 text-white p-1.5 rounded-lg hover:bg-blue-700 transition shadow"><Camera size={14} /></button>
               </div>
               <div className="mb-2">
                 <h2 className="text-xl font-bold text-slate-900">{profileData.fullName}</h2>
@@ -101,13 +104,7 @@ const Profile = () => {
         {/* Quick info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {quickInfo.map(q => (
-            <div key={q.label} className={`bg-gradient-to-br from-white to-employee-50 border border-employee-100 border-l-4 ${q.edge} rounded-xl p-4 shadow-sm flex items-center gap-3`}>
-              <div className={`${q.tone} p-2.5 rounded-lg`}><q.icon size={20} /></div>
-              <div className="min-w-0">
-                <p className="text-xs text-slate-500">{q.label}</p>
-                <p className="text-sm font-semibold text-slate-800 truncate">{q.value}</p>
-              </div>
-            </div>
+            <SummaryCard key={q.label} icon={<q.icon size={20} />} title={q.label} value={q.value} className={q.tone} />
           ))}
         </div>
 
@@ -132,12 +129,12 @@ const Profile = () => {
                   <Field label="Date of Birth" name="dateOfBirth" type="date" icon={Calendar} tone="text-amber-500" />
                   <div className="md:col-span-2"><Field label="Address" name="address" icon={MapPin} tone="text-rose-500" /></div>
                 </div>
-                <div className="bg-amber-50/50 border border-amber-100 rounded-lg p-5">
+                <div className="bg-sky-50/50 border border-sky-100 rounded-lg p-5">
                   <SectionTitle icon={Phone} tone="bg-amber-100 text-amber-700">Emergency Contact</SectionTitle>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Field label="Contact Name" name="emergencyContactName" icon={User} tone="text-amber-600" />
                     <Field label="Phone" name="emergencyContact" type="tel" icon={Phone} tone="text-amber-600" />
-                    <Field label="Relationship" name="emergencyContactRelation" icon={Heart} tone="text-amber-600" />
+                    <Field label="Relationship" name="emergencyContactRelation" icon={Heart} tone="text-rose-500" />
                   </div>
                 </div>
               </div>
@@ -150,7 +147,7 @@ const Profile = () => {
                   <Field label="Department" name="department" readOnly icon={Building2} tone="text-emerald-500" />
                   <Field label="Designation" name="designation" readOnly icon={Briefcase} tone="text-teal-500" />
                   <Field label="Joining Date" name="joiningDate" readOnly icon={Calendar} tone="text-amber-500" />
-                  <Field label="Employment Type" name="employmentType" readOnly icon={Briefcase} tone="text-emerald-500" />
+                  <Field label="Employment Type" name="employmentType" readOnly icon={Briefcase} tone="text-blue-500" />
                   <Field label="Reporting Manager" name="reportingManager" readOnly icon={UserCheck} tone="text-violet-500" />
                 </div>
                 <div className="bg-employee-50 border-l-4 border-employee-500 rounded-lg p-4 text-sm text-slate-700">
@@ -195,7 +192,7 @@ const Profile = () => {
 
         {/* Security */}
         <div className="bg-gradient-to-br from-white to-employee-50 rounded-xl border border-employee-100 shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-3 mb-4"><span className="bg-rose-50 p-2 rounded-lg"><Lock size={20} className="text-rose-500" /></span> Security</h3>
+          <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-3 mb-4"><span className="bg-rose-50 text-rose-500 p-2 rounded-lg"><Lock size={20} /></span> Security</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-employee-50/60 border border-employee-100 rounded-lg p-4 flex items-center gap-4">
               <div className="bg-rose-100 text-rose-600 p-2.5 rounded-lg"><KeyRound size={20} /></div>
@@ -203,15 +200,15 @@ const Profile = () => {
                 <p className="text-sm font-semibold text-slate-800">Password</p>
                 <p className="text-xs text-slate-500">Change your login password regularly</p>
               </div>
-              <button className="px-4 py-2 bg-employee-600 hover:bg-employee-700 text-white rounded-lg text-sm font-semibold transition-colors">Change Password</button>
+              <EmpButton>Change Password</EmpButton>
             </div>
-            <div className="bg-emerald-50/60 border border-emerald-100 rounded-lg p-4 flex items-center gap-4">
+            <div className="bg-employee-50/60 border border-employee-100 rounded-lg p-4 flex items-center gap-4">
               <div className="bg-emerald-100 text-emerald-700 p-2.5 rounded-lg"><ShieldCheck size={20} /></div>
               <div className="flex-1">
                 <p className="text-sm font-semibold text-slate-800">Two-Factor Authentication</p>
                 <p className="text-xs text-slate-500">Add an extra layer of security</p>
               </div>
-              <button className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold transition-colors">Enable 2FA</button>
+              <EmpButton>Enable 2FA</EmpButton>
             </div>
           </div>
         </div>

@@ -18,7 +18,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = {"company", "manager", "employees"})
+@ToString(exclude = {"company"})
 @EqualsAndHashCode(of = "id")
 public class Department {
 
@@ -38,9 +38,9 @@ public class Department {
     @JoinColumn(name = "company_id", nullable = false)
     private Company company;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "manager_id")
-    private Employee manager;
+    /** User_Backend id of the department manager. */
+    @Column(name = "manager_user_id")
+    private Long managerUserId;
 
     @Column(nullable = false)
     private Boolean active = true;
@@ -52,8 +52,4 @@ public class Department {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
-
-    @JsonIgnore
-    @OneToMany(mappedBy = "department", fetch = FetchType.LAZY)
-    private List<Employee> employees;
 }

@@ -1,8 +1,7 @@
 package com.affin.hrm.service;
 
+import com.affin.hrm.config.AuthenticatedUser;
 import com.affin.hrm.model.AuditLog;
-import com.affin.hrm.model.Company;
-import com.affin.hrm.model.Employee;
 import com.affin.hrm.repository.AuditLogRepository;
 import com.affin.hrm.repository.CompanyRepository;
 import org.slf4j.Logger;
@@ -27,14 +26,11 @@ public class AuditService {
 
     private final AuditLogRepository auditLogRepository;
     private final CompanyRepository companyRepository;
-    private final com.affin.hrm.repository.EmployeeRepository employeeRepository;
 
     public AuditService(AuditLogRepository auditLogRepository,
-                        CompanyRepository companyRepository,
-                        com.affin.hrm.repository.EmployeeRepository employeeRepository) {
+                        CompanyRepository companyRepository) {
         this.auditLogRepository = auditLogRepository;
         this.companyRepository = companyRepository;
-        this.employeeRepository = employeeRepository;
     }
 
     public void logAction(String action, String entity, Long entityId, String description, Long companyId) {
@@ -45,12 +41,11 @@ public class AuditService {
             auditLog.setEntityId(entityId);
             auditLog.setDescription(description);
 
-            // Get current user from SecurityContext directly to avoid circular dependency
+            // Acting user's User_Backend id, straight from the JWT
             try {
                 Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-                if (auth != null && auth.getName() != null) {
-                    employeeRepository.findByEmailIgnoreCase(auth.getName().trim().toLowerCase())
-                            .ifPresent(auditLog::setEmployee);
+                if (auth != null && auth.getPrincipal() instanceof AuthenticatedUser user) {
+                    auditLog.setUserId(user.userId());
                 }
             } catch (Exception e) {
                 log.debug("No authenticated user for audit log — system action");

@@ -10,6 +10,7 @@ import com.affin.hrm.model.SystemConfiguration;
 import com.affin.hrm.repository.AuditLogRepository;
 import com.affin.hrm.repository.CompanyRepository;
 import com.affin.hrm.repository.SystemConfigurationRepository;
+import com.affin.hrm.exception.BusinessException;
 import com.affin.hrm.exception.ResourceNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -225,8 +226,13 @@ public class AdminService {
         // 1. Sync company to all backends (User_Backend, HR_Backend, Employee_Backend)
         syncCompanyToBackends(updated);
 
-        // 2. Provision HR Manager user in User_Backend with mustChangePassword = true
-        provisionHRManagerUser(updated, tempPassword);
+        // 2. Provision HR Manager user in User_Backend with mustChangePassword = true.
+        //    If that fails, stop before emailing credentials that would not work; approving again retries.
+        String provisionError = provisionHRManagerUser(updated, tempPassword);
+        if (provisionError != null) {
+            throw new BusinessException("Company approved, but its HR Manager account could not be created: "
+                    + provisionError + ". Please try approving again.");
+        }
 
         // 3. Send approval email
         emailService.sendApprovalEmail(updated.getEmail(), updated.getContactPersonName(), updated.getCompanyName(), tempPassword);
@@ -309,7 +315,8 @@ public class AdminService {
         }
     }
 
-    private void provisionHRManagerUser(Company company, String tempPassword) {
+    /** Creates the company's HR Manager login in User_Backend; returns null on success, otherwise the reason. */
+    private String provisionHRManagerUser(Company company, String tempPassword) {
         try {
             Map<String, Object> payload = new HashMap<>();
             payload.put("email", company.getEmail());
@@ -328,8 +335,10 @@ public class AdminService {
 
             restTemplate.postForObject(userServiceUrl + "/api/sync/employee", payload, String.class);
             log.info("Provisioned HR Manager account for company: {} with email: {}", company.getCompanyName(), company.getEmail());
+            return null;
         } catch (Exception e) {
             log.error("Failed to provision HR Manager account for company {}: {}", company.getCompanyName(), e.getMessage());
+            return e.getMessage();
         }
     }
 
@@ -358,7 +367,7 @@ public class AdminService {
         return dto;
     }
 
-    // ── System User Management (via Employee_Backend) ────────────
+    // ── System User Management (lists via Employee_Backend, changes in User_Backend) ──
 
     @Transactional(readOnly = true)
     public List<EmployeeDTO> getAllSystemUsers() {
@@ -404,7 +413,7 @@ public class AdminService {
 
     public EmployeeDTO updateUserRole(Long userId, String role) {
         ResponseEntity<EmployeeDTO> response = restTemplate.exchange(
-                employeeServiceUrl + "/api/internal/employees/" + userId + "/role?role=" + role,
+                userServiceUrl + "/api/internal/users/" + userId + "/role?role=" + role,
                 HttpMethod.PUT, null, EmployeeDTO.class);
         logAction("UPDATE_USER_ROLE", "Employee", userId, "Changed role to " + role);
         return response.getBody();
@@ -412,7 +421,7 @@ public class AdminService {
 
     public EmployeeDTO updateUserStatus(Long userId, String status) {
         ResponseEntity<EmployeeDTO> response = restTemplate.exchange(
-                employeeServiceUrl + "/api/internal/employees/" + userId + "/status?status=" + status,
+                userServiceUrl + "/api/internal/users/" + userId + "/status?status=" + status,
                 HttpMethod.PUT, null, EmployeeDTO.class);
         logAction("UPDATE_USER_STATUS", "Employee", userId, "Changed status to " + status);
         return response.getBody();

@@ -4,6 +4,7 @@ import com.affin.hrm.Model.Company;
 import com.affin.hrm.Model.Employee;
 import com.affin.hrm.Repo.CompanyRepo;
 import com.affin.hrm.Repo.EmployeeRepo;
+import com.affin.hrm.service.AuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -26,23 +27,27 @@ public class SyncController {
     private final EmployeeRepo employeeRepo;
     private final com.affin.hrm.Repo.UserRepo userRepo;
     private final PasswordEncoder passwordEncoder;
+    private final AuthService authService;
 
     public SyncController(CompanyRepo companyRepo,
                           EmployeeRepo employeeRepo,
                           com.affin.hrm.Repo.UserRepo userRepo,
-                          PasswordEncoder passwordEncoder) {
+                          PasswordEncoder passwordEncoder,
+                          AuthService authService) {
         this.companyRepo = companyRepo;
         this.employeeRepo = employeeRepo;
         this.userRepo = userRepo;
         this.passwordEncoder = passwordEncoder;
+        this.authService = authService;
     }
 
     @PostMapping("/company")
     public ResponseEntity<String> syncCompany(@RequestBody Company company) {
         log.info("[USER_BACKEND SYNC] Syncing company: {}", company.getCompanyName());
 
-        Company existing = companyRepo.findByCompanyName(company.getCompanyName())
-                .orElseGet(() -> companyRepo.findByRegistrationNumber(company.getRegistrationNumber()).orElse(null));
+        // Registration number identifies a company (names can repeat); each new one gets its own auto-increment id
+        Company existing = companyRepo.findByRegistrationNumber(company.getRegistrationNumber())
+                .orElseGet(() -> companyRepo.findByCompanyName(company.getCompanyName()).orElse(null));
 
         if (existing == null) {
             existing = new Company();
@@ -90,6 +95,14 @@ public class SyncController {
                     return e;
                 });
 
+        // Never move an existing account into another company (or reset its password) from here
+        String incomingReg = payload.get("company") instanceof Map<?, ?> m ? (String) m.get("registrationNumber") : null;
+        if (employee.getId() != null && employee.getCompany() != null && incomingReg != null
+                && !incomingReg.equals(employee.getCompany().getRegistrationNumber())) {
+            log.warn("[USER_BACKEND SYNC] Refused: {} already belongs to company '{}'", email, employee.getCompany().getCompanyName());
+            return ResponseEntity.status(409).body("Email " + email + " is already used by another company's account");
+        }
+
         if (fullName != null) employee.setFullName(fullName);
 
         if (password != null && !password.isBlank()) {
@@ -97,7 +110,14 @@ public class SyncController {
             employee.setPassword(encoded);
         }
 
-        if (employeeIdStr != null) employee.setEmployeeId(employeeIdStr);
+        // Employee numbers are unique across the whole system: keep the sender's number only if it is
+        // free (or already this account's), otherwise give the next free one for the role (e.g. HR-004).
+        if (employeeIdStr != null && employeeRepo.findByEmployeeId(employeeIdStr)
+                .map(other -> other.getId().equals(employee.getId())).orElse(true)) {
+            employee.setEmployeeId(employeeIdStr);
+        } else if (employee.getEmployeeId() == null) {
+            employee.setEmployeeId(authService.generateEmployeeIdForRole(roleStr != null ? roleStr : "EMPLOYEE"));
+        }
 
         if (roleStr != null) {
             try {
@@ -129,11 +149,11 @@ public class SyncController {
 
             if (companyName != null || regNum != null) {
                 Company company = null;
-                if (companyName != null) {
-                    company = companyRepo.findByCompanyName(companyName).orElse(null);
-                }
-                if (company == null && regNum != null) {
+                if (regNum != null) {
                     company = companyRepo.findByRegistrationNumber(regNum).orElse(null);
+                }
+                if (company == null && companyName != null) {
+                    company = companyRepo.findByCompanyName(companyName).orElse(null);
                 }
                 if (company == null) {
                     company = new Company();

@@ -17,7 +17,6 @@ import java.time.LocalTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = {"employee"})
 @EqualsAndHashCode(of = "id")
 public class Attendance {
 
@@ -25,13 +24,13 @@ public class Attendance {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "employee_id", nullable = false)
-    private Employee employee;
-
-    /** User_Backend id of the employee, stored so records can be traced to the login account. */
+    /** The employee's id in User_Backend (hrm_db_user.employees.id). */
     @Column(name = "user_id")
     private Long userId;
+
+    /** Id of this database's company the record belongs to. */
+    @Column(name = "company_id")
+    private Long companyId;
 
     @Column(nullable = false)
     private LocalDate date;

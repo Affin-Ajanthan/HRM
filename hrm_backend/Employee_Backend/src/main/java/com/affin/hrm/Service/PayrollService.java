@@ -6,7 +6,6 @@ import com.affin.hrm.model.Employee;
 import com.affin.hrm.model.Payslip;
 import com.affin.hrm.model.Salary;
 import com.affin.hrm.model.Attendance;
-import com.affin.hrm.repository.EmployeeRepository;
 import com.affin.hrm.repository.PayslipRepository;
 import com.affin.hrm.repository.SalaryRepository;
 import com.affin.hrm.repository.AttendanceRepository;
@@ -24,18 +23,18 @@ import java.util.stream.Collectors;
 @Transactional
 public class PayrollService {
 
-    private final EmployeeRepository employeeRepository;
+    private final EmployeeDirectory employeeDirectory;
     private final PayslipRepository payslipRepository;
     private final SalaryRepository salaryRepository;
     private final AttendanceRepository attendanceRepository;
     private final HrServiceClient hrServiceClient;
 
-    public PayrollService(EmployeeRepository employeeRepository,
+    public PayrollService(EmployeeDirectory employeeDirectory,
                           PayslipRepository payslipRepository,
                           SalaryRepository salaryRepository,
                           AttendanceRepository attendanceRepository,
                           HrServiceClient hrServiceClient) {
-        this.employeeRepository = employeeRepository;
+        this.employeeDirectory = employeeDirectory;
         this.payslipRepository = payslipRepository;
         this.salaryRepository = salaryRepository;
         this.attendanceRepository = attendanceRepository;
@@ -43,18 +42,18 @@ public class PayrollService {
     }
 
     public Payslip getOrCreatePayslip(Long employeeId, Integer month, Integer year) {
-        return payslipRepository.findByEmployeeIdAndMonthAndYear(employeeId, month, year)
+        return payslipRepository.findByUserIdAndMonthAndYear(employeeId, month, year)
                 .orElseGet(() -> generatePayslip(employeeId, month, year));
     }
 
     public List<Payslip> getEmployeePayslips(Long employeeId) {
-        return payslipRepository.findByEmployeeId(employeeId);
+        return payslipRepository.findByUserId(employeeId);
     }
 
     /** The employee's payslips as DTOs, newest month first. */
     @Transactional(readOnly = true)
     public List<PayslipDTO> getEmployeePayslipDTOs(Long employeeId) {
-        return payslipRepository.findByEmployeeId(employeeId).stream()
+        return payslipRepository.findByUserId(employeeId).stream()
                 .sorted(Comparator.comparing(Payslip::getYear).thenComparing(Payslip::getMonth).reversed())
                 .map(PayrollService::toDTO)
                 .collect(Collectors.toList());
@@ -73,7 +72,7 @@ public class PayrollService {
         Set<String> seen = new HashSet<>();
         for (String email : emails) {
             if (email == null || email.isBlank() || !seen.add(email.trim().toLowerCase())) continue;
-            employeeRepository.findByEmailIgnoreCase(email.trim())
+            employeeDirectory.findByEmailIgnoreCase(email.trim())
                     .filter(emp -> emp.getStatus() == Employee.EmployeeStatus.ACTIVE)
                     .ifPresent(emp -> generated.add(toDTO(getOrCreatePayslip(emp.getId(), month, year))));
         }
@@ -81,7 +80,7 @@ public class PayrollService {
     }
 
     public Payslip generatePayslip(Long employeeId, Integer month, Integer year) {
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeDirectory.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
 
         // Salary HR set for the employee's job role plus their individual allowances / deductions
@@ -92,13 +91,13 @@ public class PayrollService {
         }
 
         // Get salary structure or create default
-        Salary salary = salaryRepository.findByEmployeeId(employeeId)
+        Salary salary = salaryRepository.findByUserId(employeeId)
                 .orElseGet(() -> createDefaultSalary(employee));
 
         // Calculate present days
         LocalDate startDate = LocalDate.of(year, month, 1);
         LocalDate endDate = startDate.plusMonths(1).minusDays(1);
-        List<Attendance> attendances = attendanceRepository.findByEmployeeIdAndDateBetween(employeeId, startDate, endDate);
+        List<Attendance> attendances = attendanceRepository.findByUserIdAndDateBetween(employeeId, startDate, endDate);
         
         long presentDaysCount = attendances.stream()
                 .filter(a -> a.getStatus() == Attendance.AttendanceStatus.PRESENT)
@@ -125,7 +124,8 @@ public class PayrollService {
         BigDecimal net = gross.subtract(totalDeductions);
 
         Payslip payslip = new Payslip();
-        payslip.setEmployee(employee);
+        payslip.setUserId(employee.getId());
+        payslip.setCompanyId(employee.getCompany().getId());
         payslip.setMonth(month);
         payslip.setYear(year);
         payslip.setBasicSalary(basic);
@@ -142,7 +142,7 @@ public class PayrollService {
     }
 
     public List<Payslip> generateBulkPayroll(Long companyId, Integer month, Integer year) {
-        List<Employee> employees = employeeRepository.findByCompanyId(companyId);
+        List<Employee> employees = employeeDirectory.findByCompanyId(companyId);
         List<Payslip> generated = new ArrayList<>();
         for (Employee emp : employees) {
             if (emp.getStatus() == Employee.EmployeeStatus.ACTIVE) {
@@ -159,7 +159,7 @@ public class PayrollService {
     private Payslip fromPaySheet(Employee employee, PaySheetDTO sheet, Integer month, Integer year) {
         LocalDate startDate = LocalDate.of(year, month, 1);
         LocalDate endDate = startDate.plusMonths(1).minusDays(1);
-        int presentDays = (int) attendanceRepository.findByEmployeeIdAndDateBetween(employee.getId(), startDate, endDate).stream()
+        int presentDays = (int) attendanceRepository.findByUserIdAndDateBetween(employee.getId(), startDate, endDate).stream()
                 .filter(a -> a.getStatus() == Attendance.AttendanceStatus.PRESENT)
                 .count();
         int totalWorkingDays = 22; // Assumption, same as the attendance-based payslips
@@ -169,7 +169,8 @@ public class PayrollService {
         BigDecimal deductions = zeroIfNull(sheet.getTotalDeduction());
 
         Payslip payslip = new Payslip();
-        payslip.setEmployee(employee);
+        payslip.setUserId(employee.getId());
+        payslip.setCompanyId(employee.getCompany().getId());
         payslip.setMonth(month);
         payslip.setYear(year);
         payslip.setBasicSalary(basic);
@@ -191,7 +192,7 @@ public class PayrollService {
     public static PayslipDTO toDTO(Payslip p) {
         PayslipDTO dto = new PayslipDTO();
         dto.setId(p.getId());
-        dto.setEmployeeId(p.getEmployee() != null ? p.getEmployee().getId() : null);
+        dto.setEmployeeId(p.getUserId());
         dto.setMonth(p.getMonth());
         dto.setYear(p.getYear());
         dto.setBasicSalary(p.getBasicSalary());
@@ -216,7 +217,8 @@ public class PayrollService {
         BigDecimal pf = BigDecimal.valueOf(2000.00);
 
         Salary salary = new Salary();
-        salary.setEmployee(employee);
+        salary.setUserId(employee.getId());
+        salary.setCompanyId(employee.getCompany().getId());
         salary.setBasicSalary(basic);
         salary.setHouseAllowance(house);
         salary.setTransportAllowance(transport);

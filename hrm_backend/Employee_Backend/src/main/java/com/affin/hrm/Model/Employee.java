@@ -1,89 +1,42 @@
 package com.affin.hrm.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 /**
- * Employee entity — the core user of the HRM system.
+ * Read-only view of a user, loaded from User_Backend (hrm_db_user.employees is the only
+ * table of people). Not stored in this database: records here reference a person by
+ * {@code user_id}, which is this object's {@link #getId()}.
+ * <p>
+ * {@link #getCompany()} and {@link #getDepartment()} are this database's own company and
+ * department rows, matched by registration number / name (ids differ per database).
  */
-@Entity
-@Table(name = "employees")
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 @ToString(exclude = {"company", "department"})
 @EqualsAndHashCode(of = "id")
 public class Employee {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    /** The user's id in User_Backend. */
     private Long id;
-
-    /** The user's id in User_Backend (hrm_db_user.employees.id) — the cross-service identity. */
-    @Column(name = "user_id", unique = true)
-    private Long userId;
-
-    @Column(nullable = false, unique = true)
     private String employeeId;
-
-    @Column(nullable = false)
     private String fullName;
-
-    @Column(nullable = false, unique = true)
     private String email;
-
-    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY)
-    @Column(nullable = false)
-    private String password;
-
-    private String nic;
-    private LocalDate dob;
-    private String address;
-    private String phone;
-
-    @Enumerated(EnumType.STRING)
-    private Gender gender;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "company_id", nullable = false)
     private Company company;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id")
     private Department department;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    private String departmentName;
     private Role role = Role.EMPLOYEE;
-
     private String designation;
+    private String employmentType;
     private LocalDate joiningDate;
     private LocalDate terminationDate;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private EmployeeStatus status = EmployeeStatus.ACTIVE;
 
-    @Column(name = "must_change_password")
-    private Boolean mustChangePassword = false;
-
-    @CreationTimestamp
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
-
-    public enum Gender {
-        MALE, FEMALE, OTHER
+    /** Same as {@link #getId()}: the User_Backend id records here store as user_id. */
+    public Long getUserId() {
+        return id;
     }
 
     public enum Role {

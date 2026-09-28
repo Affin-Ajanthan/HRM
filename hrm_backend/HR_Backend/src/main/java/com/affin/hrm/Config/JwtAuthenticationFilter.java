@@ -10,7 +10,6 @@ import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -28,11 +27,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtUtil jwtUtil;
-    private final CustomUserDetailsService customUserDetailsService;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil, CustomUserDetailsService customUserDetailsService) {
+    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
         this.jwtUtil = jwtUtil;
-        this.customUserDetailsService = customUserDetailsService;
     }
 
     @Override
@@ -45,23 +42,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (StringUtils.hasText(jwt) && jwtUtil.validateToken(jwt)) {
                 String email = jwtUtil.getEmailFromToken(jwt);
                 String role = jwtUtil.getRoleFromToken(jwt);
+                Long userId = jwtUtil.getUserIdFromToken(jwt);
 
+                // The token (issued by User_Backend) is the only source of identity and role here.
                 if (StringUtils.hasText(role)) {
                     String authority = role.startsWith("ROLE_") ? role : "ROLE_" + role;
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            email, null, List.of((GrantedAuthority) () -> authority));
+                            new AuthenticatedUser(email, userId), null, List.of((GrantedAuthority) () -> authority));
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-                    filterChain.doFilter(request, response);
-                    return;
+                } else {
+                    log.warn("Rejected token without a role claim for: {}", email);
                 }
-
-                log.debug("Role claim missing in token, falling back to DB lookup for: {}", email);
-                UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         } catch (Exception ex) {
             log.error("Could not set user authentication in security context", ex);

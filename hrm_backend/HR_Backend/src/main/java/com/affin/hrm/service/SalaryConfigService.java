@@ -8,7 +8,7 @@ import com.affin.hrm.exception.ResourceNotFoundException;
 import com.affin.hrm.model.*;
 import com.affin.hrm.repository.AdditionalPaymentRepository;
 import com.affin.hrm.repository.BasicPaymentRepository;
-import com.affin.hrm.repository.EmployeeRepository;
+import com.affin.hrm.service.EmployeeDirectory;
 import com.affin.hrm.repository.EmploymentTypeRepository;
 import com.affin.hrm.repository.JobRoleRepository;
 import org.slf4j.Logger;
@@ -43,20 +43,20 @@ public class SalaryConfigService {
     private final AdditionalPaymentRepository additionalPaymentRepository;
     private final JobRoleRepository jobRoleRepository;
     private final EmploymentTypeRepository employmentTypeRepository;
-    private final EmployeeRepository employeeRepository;
+    private final EmployeeDirectory employeeDirectory;
     private final AuditService auditService;
 
     public SalaryConfigService(BasicPaymentRepository basicPaymentRepository,
                                AdditionalPaymentRepository additionalPaymentRepository,
                                JobRoleRepository jobRoleRepository,
                                EmploymentTypeRepository employmentTypeRepository,
-                               EmployeeRepository employeeRepository,
+                               EmployeeDirectory employeeDirectory,
                                AuditService auditService) {
         this.basicPaymentRepository = basicPaymentRepository;
         this.additionalPaymentRepository = additionalPaymentRepository;
         this.jobRoleRepository = jobRoleRepository;
         this.employmentTypeRepository = employmentTypeRepository;
-        this.employeeRepository = employeeRepository;
+        this.employeeDirectory = employeeDirectory;
         this.auditService = auditService;
     }
 
@@ -71,7 +71,7 @@ public class SalaryConfigService {
         // How many employees each row currently pays
         List<BasicPayment> all = departmentId == null ? rows : basicPaymentRepository.findByCompanyIdOrderByUpdatedAtDesc(companyId);
         Map<Long, Integer> counts = new HashMap<>();
-        for (Employee e : employeeRepository.findByCompanyId(companyId)) {
+        for (Employee e : employeeDirectory.findByCompanyId(companyId)) {
             if (e.getStatus() == Employee.EmployeeStatus.TERMINATED) continue;
             BasicPayment match = findBasicPayment(all, departmentName(e), e.getDesignation(), e.getEmploymentType());
             if (match != null) counts.merge(match.getId(), 1, Integer::sum);

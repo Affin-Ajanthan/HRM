@@ -48,13 +48,6 @@ public class EmployeeController {
         return ResponseEntity.ok(ApiResponse.success(dto));
     }
 
-    @PutMapping("/profile")
-    public ResponseEntity<ApiResponse<EmployeeDTO>> updateMyProfile(@Valid @RequestBody EmployeeDTO dto) {
-        Employee employee = authService.getCurrentEmployee();
-        EmployeeDTO updated = employeeService.updateEmployee(employee.getId(), dto);
-        return ResponseEntity.ok(ApiResponse.success(updated, "Profile updated successfully"));
-    }
-
     // ── Leave Endpoints ───────────────────────────────────────────
 
     @GetMapping("/leave/types")
@@ -133,7 +126,7 @@ public class EmployeeController {
     public ResponseEntity<ApiResponse<List<Notification>>> getMyNotifications() {
         try {
             Employee employee = authService.getCurrentEmployee();
-            List<Notification> notifications = notificationRepository.findByEmployeeIdOrderByCreatedAtDesc(employee.getId());
+            List<Notification> notifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(employee.getId());
             return ResponseEntity.ok(ApiResponse.success(notifications));
         } catch (Exception e) {
             return ResponseEntity.ok(ApiResponse.success(java.util.Collections.emptyList()));

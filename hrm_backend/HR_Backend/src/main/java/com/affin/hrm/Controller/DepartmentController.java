@@ -4,6 +4,7 @@ import com.affin.hrm.dto.*;
 import com.affin.hrm.model.*;
 import com.affin.hrm.repository.*;
 import com.affin.hrm.service.AuthService;
+import com.affin.hrm.service.EmployeeDirectory;
 import com.affin.hrm.service.AuditService;
 import com.affin.hrm.exception.BusinessException;
 import com.affin.hrm.exception.ResourceNotFoundException;
@@ -32,7 +33,7 @@ public class DepartmentController {
     private static final Logger log = LoggerFactory.getLogger(DepartmentController.class);
 
     private final DepartmentRepository departmentRepository;
-    private final EmployeeRepository employeeRepository;
+    private final EmployeeDirectory employeeDirectory;
     private final CompanyRepository companyRepository;
     private final AuthService authService;
     private final AuditService auditService;
@@ -42,13 +43,13 @@ public class DepartmentController {
     private String employeeServiceUrl;
 
     public DepartmentController(DepartmentRepository departmentRepository,
-                                EmployeeRepository employeeRepository,
+                                EmployeeDirectory employeeDirectory,
                                 CompanyRepository companyRepository,
                                 AuthService authService,
                                 AuditService auditService,
                                 RestTemplate restTemplate) {
         this.departmentRepository = departmentRepository;
-        this.employeeRepository = employeeRepository;
+        this.employeeDirectory = employeeDirectory;
         this.companyRepository = companyRepository;
         this.authService = authService;
         this.auditService = auditService;
@@ -60,8 +61,9 @@ public class DepartmentController {
     public ResponseEntity<ApiResponse<List<DepartmentDTO>>> getCompanyDepartments() {
         Employee hr = authService.getCurrentEmployee();
         Long companyId = hr.getCompany().getId();
+        List<Employee> people = employeeDirectory.findByCompanyId(companyId);
         List<DepartmentDTO> dtos = departmentRepository.findByCompanyId(companyId).stream()
-                .map(this::convertToDTO)
+                .map(d -> convertToDTO(d, people))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(dtos));
     }
@@ -86,9 +88,9 @@ public class DepartmentController {
         department.setActive(true);
 
         if (dto.getManagerId() != null) {
-            Employee manager = employeeRepository.findById(dto.getManagerId())
+            Employee manager = employeeDirectory.findById(dto.getManagerId())
                     .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", dto.getManagerId()));
-            department.setManager(manager);
+            department.setManagerUserId(manager.getId());
         }
 
         // Job roles are saved together with the department (cascade) so they
@@ -131,11 +133,11 @@ public class DepartmentController {
         if (dto.getActive() != null) department.setActive(dto.getActive());
 
         if (dto.getManagerId() != null) {
-            Employee manager = employeeRepository.findById(dto.getManagerId())
+            Employee manager = employeeDirectory.findById(dto.getManagerId())
                     .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", dto.getManagerId()));
-            department.setManager(manager);
+            department.setManagerUserId(manager.getId());
         } else if (dto.getManagerId() == null && dto.getManagerName() == null) {
-            department.setManager(null);
+            department.setManagerUserId(null);
         }
 
         // Sync the department's job roles with the submitted list: existing
@@ -167,7 +169,7 @@ public class DepartmentController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        long employeeCount = employeeRepository.countByDepartmentId(id);
+        long employeeCount = employeeDirectory.countByDepartmentId(id);
         if (employeeCount > 0) {
             return ResponseEntity.badRequest().body(ApiResponse.error(
                     "Cannot delete '" + department.getName() + "': " + employeeCount
@@ -219,10 +221,10 @@ public class DepartmentController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        Employee manager = employeeRepository.findById(managerId)
+        Employee manager = employeeDirectory.findById(managerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", managerId));
 
-        department.setManager(manager);
+        department.setManagerUserId(manager.getId());
         Department saved = departmentRepository.save(department);
         syncDepartmentToEmployeeService(saved);
         return ResponseEntity.ok(ApiResponse.success(convertToDTO(saved), "Manager assigned successfully"));
@@ -312,6 +314,12 @@ public class DepartmentController {
     }
 
     private DepartmentDTO convertToDTO(Department dept) {
+        return convertToDTO(dept, dept.getCompany() != null
+                ? employeeDirectory.findByCompanyId(dept.getCompany().getId()) : List.of());
+    }
+
+    /** {@code people}: everyone in the department's company, read once from User_Backend. */
+    private DepartmentDTO convertToDTO(Department dept, List<Employee> people) {
         DepartmentDTO dto = new DepartmentDTO();
         dto.setId(dept.getId());
         dto.setName(dept.getName());
@@ -319,12 +327,15 @@ public class DepartmentController {
         dto.setDescription(dept.getDescription());
         dto.setCompanyId(dept.getCompany() != null ? dept.getCompany().getId() : null);
         dto.setActive(dept.getActive());
-        if (dept.getManager() != null) {
-            dto.setManagerId(dept.getManager().getId());
-            dto.setManagerName(dept.getManager().getFullName());
+        if (dept.getManagerUserId() != null) {
+            dto.setManagerId(dept.getManagerUserId());
+            people.stream().filter(p -> dept.getManagerUserId().equals(p.getId())).findFirst()
+                    .ifPresent(m -> dto.setManagerName(m.getFullName()));
         }
 
-        long count = employeeRepository.countByDepartmentId(dept.getId());
+        long count = people.stream()
+                .filter(p -> p.getDepartment() != null && dept.getId().equals(p.getDepartment().getId()))
+                .count();
         dto.setEmployeeCount((int) count);
 
         if (dept.getJobRoles() != null) {

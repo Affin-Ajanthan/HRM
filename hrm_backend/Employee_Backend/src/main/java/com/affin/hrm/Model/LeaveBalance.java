@@ -15,7 +15,6 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = "employee")
 @EqualsAndHashCode(of = "id")
 public class LeaveBalance {
 
@@ -23,9 +22,13 @@ public class LeaveBalance {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "employee_id", nullable = false)
-    private Employee employee;
+    /** The employee's id in User_Backend (hrm_db_user.employees.id). */
+    @Column(name = "user_id")
+    private Long userId;
+
+    /** Id of this database's company the record belongs to. */
+    @Column(name = "company_id")
+    private Long companyId;
 
     /** leave_types.id in hrm_db_hr — leave types are owned by HR_Backend. */
     @Column(name = "leave_type_id", nullable = false)

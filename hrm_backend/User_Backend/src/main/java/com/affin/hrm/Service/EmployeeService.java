@@ -47,9 +47,6 @@ public class EmployeeService {
     private AuditService auditService;
 
     @Autowired
-    private SyncService syncService;
-
-    @Autowired
     private EmploymentTypeService employmentTypeService;
 
     @Autowired
@@ -79,26 +76,8 @@ public class EmployeeService {
     @Autowired
     private com.affin.hrm.Repo.UserRepo userRepo;
 
+    /** Only the given company's people — each company's data is kept separate. */
     public List<EmployeeDTO> getAllEmployeesByCompany(Long companyId) {
-        if (companyId != null) {
-            Company targetCompany = companyRepo.findById(companyId).orElse(null);
-            if (targetCompany != null) {
-                Company defaultCompany = companyRepo.findByRegistrationNumber("DEFAULT-REG-0001").orElse(null);
-                if (defaultCompany != null && !defaultCompany.getId().equals(companyId)) {
-                    List<Employee> orphanEmployees = employeeRepo.findByCompanyId(defaultCompany.getId());
-                    for (Employee orphan : orphanEmployees) {
-                        if (orphan.getRole() != Employee.Role.ADMIN) {
-                            orphan.setCompany(targetCompany);
-                            Employee savedOrphan = employeeRepo.save(orphan);
-                            try {
-                                syncService.syncToAllBackends(savedOrphan);
-                            } catch (Exception ignored) {}
-                        }
-                    }
-                }
-            }
-        }
-
         List<Employee> employees = employeeRepo.findByCompanyId(companyId);
         return employees.stream()
                 .map(this::convertToDTO)
@@ -116,6 +95,21 @@ public class EmployeeService {
         Employee employee = employeeRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
         return convertToDTO(employee);
+    }
+
+    /**
+     * Throws "not found" unless {@code employeeId} belongs to {@code actor}'s company,
+     * so an HR manager can only see and change their own company's people.
+     * System administrators may act on any company.
+     */
+    public void assertSameCompany(Long employeeId, Employee actor) {
+        if (actor.getRole() == Employee.Role.ADMIN) return;
+        Employee target = employeeRepo.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Employee not found with id: " + employeeId));
+        if (actor.getCompany() == null || target.getCompany() == null
+                || !actor.getCompany().getId().equals(target.getCompany().getId())) {
+            throw new RuntimeException("Employee not found with id: " + employeeId);
+        }
     }
 
     public EmployeeDTO createEmployee(EmployeeDTO employeeDTO, Long companyId) {
@@ -173,9 +167,8 @@ public class EmployeeService {
         auditService.logAction("CREATE_EMPLOYEE", "Employee", savedEmployee.getId(), 
                 "Created employee: " + savedEmployee.getFullName(), companyId);
 
-        // ===== AUTOMATIC SYNC TO OTHER BACKENDS & LEGACY USER TABLE =====
+        // Keep the legacy users table in step
         authService.syncUserTable(savedEmployee);
-        syncService.syncToAllBackends(savedEmployee);
 
         return convertToDTO(savedEmployee);
     }
@@ -203,6 +196,7 @@ public class EmployeeService {
         // Update department: by id when given, otherwise by name (the HR screen sends the name)
         if (employeeDTO.getDepartmentId() != null) {
             Department department = departmentRepo.findById(employeeDTO.getDepartmentId())
+                    .filter(d -> d.getCompany() != null && d.getCompany().getId().equals(employee.getCompany().getId()))
                     .orElseThrow(() -> new RuntimeException("Department not found with id: " + employeeDTO.getDepartmentId()));
             employee.setDepartment(department);
         } else if (employeeDTO.getDepartmentName() != null && !employeeDTO.getDepartmentName().isBlank()) {
@@ -225,9 +219,8 @@ public class EmployeeService {
         auditService.logAction("UPDATE_EMPLOYEE", "Employee", updatedEmployee.getId(), 
                 "Updated employee: " + updatedEmployee.getFullName(), employee.getCompany().getId());
 
-        // Sync updated employee to other backends & legacy users table
+        // Keep the legacy users table in step
         authService.syncUserTable(updatedEmployee);
-        syncService.syncToAllBackends(updatedEmployee);
 
         return convertToDTO(updatedEmployee);
     }
@@ -284,9 +277,6 @@ public class EmployeeService {
         employeeRepo.flush();
 
         auditService.logAction("DELETE_EMPLOYEE", "Employee", id, "Deleted employee: " + label, companyId);
-
-        // Best-effort removal from the Employee / HR backends
-        syncService.deleteFromAllBackends(id);
     }
 
     public void terminateEmployee(Long id, LocalDate terminationDate) {

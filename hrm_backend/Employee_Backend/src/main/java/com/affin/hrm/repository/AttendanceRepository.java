@@ -12,26 +12,21 @@ import java.util.Optional;
 
 @Repository
 public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
-    List<Attendance> findByEmployeeIdAndDateOrderByClockInTimeAsc(Long employeeId, LocalDate date);
-    Optional<Attendance> findFirstByEmployeeIdAndDateAndClockOutTimeIsNullOrderByClockInTimeDesc(Long employeeId, LocalDate date);
-    List<Attendance> findByEmployeeId(Long employeeId);
-    List<Attendance> findByEmployeeIdAndDateBetween(Long employeeId, LocalDate startDate, LocalDate endDate);
+    List<Attendance> findByUserIdAndDateOrderByClockInTimeAsc(Long userId, LocalDate date);
+    Optional<Attendance> findFirstByUserIdAndDateAndClockOutTimeIsNullOrderByClockInTimeDesc(Long userId, LocalDate date);
+    List<Attendance> findByUserId(Long userId);
+    List<Attendance> findByUserIdAndDateBetween(Long userId, LocalDate startDate, LocalDate endDate);
 
-    @Query("SELECT a FROM Attendance a WHERE a.employee.company.id = :companyId AND a.date = :date")
+    @Query("SELECT a FROM Attendance a WHERE a.companyId = :companyId AND a.date = :date")
     List<Attendance> findByCompanyIdAndDate(@Param("companyId") Long companyId, @Param("date") LocalDate date);
 
-    @Query("SELECT a FROM Attendance a WHERE a.employee.company.id = :companyId AND a.date BETWEEN :startDate AND :endDate")
+    @Query("SELECT a FROM Attendance a WHERE a.companyId = :companyId AND a.date BETWEEN :startDate AND :endDate")
     List<Attendance> findByCompanyIdAndDateBetween(@Param("companyId") Long companyId,
                                                      @Param("startDate") LocalDate startDate,
                                                      @Param("endDate") LocalDate endDate);
 
-    @Query("SELECT a FROM Attendance a WHERE a.employee.department.id = :departmentId AND a.date BETWEEN :startDate AND :endDate")
-    List<Attendance> findByDepartmentIdAndDateBetween(@Param("departmentId") Long departmentId,
-                                                       @Param("startDate") LocalDate startDate,
-                                                       @Param("endDate") LocalDate endDate);
-
     List<Attendance> findByIsAdjustmentRequestedAndAdjustmentStatus(Boolean isAdjustmentRequested, Attendance.AdjustmentStatus status);
 
-    @Query("SELECT COUNT(a) FROM Attendance a WHERE a.employee.company.id = :companyId AND a.date = :date AND a.status = 'PRESENT'")
+    @Query("SELECT COUNT(a) FROM Attendance a WHERE a.companyId = :companyId AND a.date = :date AND a.status = 'PRESENT'")
     long countPresentByCompanyIdAndDate(@Param("companyId") Long companyId, @Param("date") LocalDate date);
 }

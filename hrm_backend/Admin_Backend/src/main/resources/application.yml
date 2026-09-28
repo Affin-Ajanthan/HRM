@@ -75,5 +75,6 @@ logging:
 
 # ── Inter-Service URLs ─────────────────────
 service:
+  user-url: ${USER_SERVICE_URL:http://localhost:5002}
   employee-url: ${EMPLOYEE_SERVICE_URL:http://localhost:5006}
   hr-url: ${HR_SERVICE_URL:http://localhost:5005}

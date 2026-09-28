@@ -478,6 +478,16 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
         error?.message ||
         (isEdit ? "Error updating employee." : "Error creating employee.");
       console.error("Failed to create employee:", error);
+
+      const msgLower = (message || "").toLowerCase();
+      if (msgLower.includes("email already exists")) {
+        setErrors((prev) => ({ ...prev, email: "An employee with this email already exists." }));
+        setCurrentStep(1);
+      } else if (msgLower.includes("employee id already exists")) {
+        setErrors((prev) => ({ ...prev, employeeId: "This Employee ID is already in use." }));
+        setCurrentStep(2);
+      }
+
       alert(message);
     } finally {
       setIsSubmitting(false);

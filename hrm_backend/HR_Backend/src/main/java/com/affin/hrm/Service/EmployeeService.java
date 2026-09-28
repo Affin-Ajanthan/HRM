@@ -236,6 +236,7 @@ public class EmployeeService {
             log.info("Updated existing employee via sync: {}", normalizedEmail);
             return employeeRepository.save(existing);
         } else {
+            employee.setId(null);
             employee.setEmail(normalizedEmail);
             employee.setCompany(company);
             employee.setDepartment(department);
@@ -248,16 +249,38 @@ public class EmployeeService {
     }
 
     private Company getOrCreateCompany(Employee employee) {
-        if (employee.getCompany() != null && employee.getCompany().getId() != null) {
-            Company found = companyRepository.findById(employee.getCompany().getId()).orElse(null);
-            if (found != null) return found;
+        Company incoming = employee.getCompany();
+        if (incoming == null) {
+            return companyRepository.findByRegistrationNumber("DEFAULT-REG-0001")
+                    .orElseGet(() -> {
+                        Company c = new Company();
+                        c.setCompanyName("Default Company");
+                        c.setRegistrationNumber("DEFAULT-REG-0001");
+                        c.setStatus(Company.CompanyStatus.APPROVED);
+                        return companyRepository.save(c);
+                    });
         }
-        return companyRepository.findByRegistrationNumber("DEFAULT-REG-0001")
+
+        if (incoming.getRegistrationNumber() != null && !incoming.getRegistrationNumber().isBlank()) {
+            java.util.Optional<Company> found = companyRepository.findByRegistrationNumber(incoming.getRegistrationNumber());
+            if (found.isPresent()) return found.get();
+        }
+
+        if (incoming.getCompanyName() != null && !incoming.getCompanyName().isBlank()) {
+            java.util.Optional<Company> found = companyRepository.findByCompanyName(incoming.getCompanyName());
+            if (found.isPresent()) return found.get();
+        }
+
+        String regNumber = incoming.getRegistrationNumber() != null && !incoming.getRegistrationNumber().isBlank()
+                ? incoming.getRegistrationNumber()
+                : "DEFAULT-REG-0001";
+
+        return companyRepository.findByRegistrationNumber(regNumber)
                 .orElseGet(() -> {
                     Company c = new Company();
-                    c.setCompanyName(employee.getCompany() != null && employee.getCompany().getCompanyName() != null
-                            ? employee.getCompany().getCompanyName() : "Default Company");
-                    c.setRegistrationNumber("DEFAULT-REG-0001");
+                    c.setCompanyName(incoming.getCompanyName() != null && !incoming.getCompanyName().isBlank()
+                            ? incoming.getCompanyName() : "Default Company");
+                    c.setRegistrationNumber(regNumber);
                     c.setStatus(Company.CompanyStatus.APPROVED);
                     return companyRepository.save(c);
                 });

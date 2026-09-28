@@ -56,6 +56,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                    .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                     .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/check-user/**", "/api/auth/debug-user/**", "/api/auth/sync-all", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/auth/next-employee-id/**", "/api/sync/**").permitAll()
                         .requestMatchers("/api/auth/**").authenticated()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

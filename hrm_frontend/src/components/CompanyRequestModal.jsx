@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { Building2, X, CheckCircle2, AlertCircle, Loader2, User, Mail, Phone, MapPin, Globe, Briefcase, Users, FileText } from "lucide-react";
 
-const API_BASE = "http://localhost:5006/api/public/companies/request";
+import { ADMIN_URL } from "../services/api";
+
+const API_BASE = `${ADMIN_URL}/public/companies`;
 
 const CompanyRequestModal = ({ onClose }) => {
   const [formData, setFormData] = useState({

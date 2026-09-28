@@ -80,34 +80,24 @@ public class AuthService {
                 String rawPassword = request.getPassword() == null ? "" : request.getPassword();
                 System.out.println("[AUTH_SERVICE] Login attempt for: " + normalizedEmail);
 
-                Authentication authentication;
-                try {
-                        authentication = authenticationManager.authenticate(
-                                        new UsernamePasswordAuthenticationToken(normalizedEmail, rawPassword)
-                        );
-                } catch (BadCredentialsException ex) {
-                        // Legacy module support: some older accounts were created in the 'users' table
-                        // (api/hrm/login). If that user exists and the password matches, migrate it to
-                        // the new Employee-based auth and retry.
-                        migrateLegacyUserIfNeeded(normalizedEmail, rawPassword);
+                // Legacy module support: migrate legacy user if needed
+                migrateLegacyUserIfNeeded(normalizedEmail, rawPassword);
 
-                        // Backward-compatibility: some older records may have stored plain-text passwords
-                        // or emails with inconsistent casing. If the plain-text matches, upgrade it to BCrypt.
-                        employeeRepo.findByEmailIgnoreCase(normalizedEmail).ifPresent(employee -> {
-                                String stored = employee.getPassword();
-                                if (stored != null
-                                                && !isBcryptHash(stored)
-                                                && stored.equals(rawPassword)) {
-                                        employee.setPassword(passwordEncoder.encode(rawPassword));
-                                        employeeRepo.save(employee);
-                                }
-                        });
+                // Backward-compatibility: if password stored in DB is plain text, upgrade it to BCrypt before authenticating
+                employeeRepo.findByEmailIgnoreCase(normalizedEmail).ifPresent(employee -> {
+                        String stored = employee.getPassword();
+                        if (stored != null
+                                        && !isBcryptHash(stored)
+                                        && stored.equals(rawPassword)) {
+                                employee.setPassword(passwordEncoder.encode(rawPassword));
+                                employeeRepo.save(employee);
+                                System.out.println("[AUTH_SERVICE] Upgraded plain-text password to BCrypt for: " + normalizedEmail);
+                        }
+                });
 
-                        // Retry authentication after potential upgrade
-                        authentication = authenticationManager.authenticate(
-                                        new UsernamePasswordAuthenticationToken(normalizedEmail, rawPassword)
-                        );
-                }
+                Authentication authentication = authenticationManager.authenticate(
+                                new UsernamePasswordAuthenticationToken(normalizedEmail, rawPassword)
+                );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
         Employee employee = employeeRepo.findByEmailIgnoreCase(normalizedEmail)

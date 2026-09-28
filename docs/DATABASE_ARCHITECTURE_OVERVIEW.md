@@ -1,136 +1,132 @@
-# 🌐 HRM Microservices Architecture & Database Interconnection Guide
+# 🌐 HRM System Architecture & Company Approval Process Guide
 
-This document provides a high-level overview of the **4 Microservices Architecture** in the HRM System, showing how each database (`hrm_db_user`, `hrm_db_hr`, `hrm_db_employee`, `hrm_db_admin`) operates, its owned entities/tables, and how data is synchronized across services.
+This document outlines the **4 Microservices Architecture** for the HRM platform, specifying database ownership, the complete company registration review workflow, HR Manager account provisioning, automated email notifications, and forced password change security.
 
 ---
 
-## 🏛️ System Overview Diagram
+## 🏛️ System Overview & Microservice Responsibilities
 
 ```mermaid
 flowchart TB
     subgraph Frontend["💻 HRM React Frontend (Port 5173)"]
+        UI_Public["Public Landing & Request Form (/login, /createaccount)"]
         UI_Admin["Admin Portal (/admin/*)"]
         UI_HR["HR Manager Portal (/hr/*)"]
         UI_Emp["Employee Portal (/employee/*)"]
-        UI_Public["Public Landing & Company Request (/login, /createaccount)"]
     end
 
-    subgraph Service_User["1️⃣ User Service (Port 5002)"]
-        UserBackend["User_Backend\n(Authentication & Security)"]
-        DB_User[("hrm_db_user\nPostgreSQL")]
-        UserBackend --- DB_User
-    end
-
-    subgraph Service_HR["2️⃣ HR Service (Port 5005)"]
-        HRBackend["HR_Backend\n(Payroll, Depts, Policy)"]
-        DB_HR[("hrm_db_hr\nPostgreSQL")]
-        HRBackend --- DB_HR
-    end
-
-    subgraph Service_Emp["3️⃣ Employee Service (Port 5006)"]
-        EmployeeBackend["Employee_Backend\n(Attendance, Leave, Allowance)"]
-        DB_Emp[("hrm_db_employee\nPostgreSQL")]
-        EmployeeBackend --- DB_Emp
-    end
-
-    subgraph Service_Admin["4️⃣ Admin Service (Port 5007)"]
-        AdminBackend["Admin_Backend\n(App Reviews, Audit, Email)"]
-        DB_Admin[("hrm_db_admin\nPostgreSQL")]
+    subgraph Service_Admin["1️⃣ Admin Service (Port 5007) — Authority for Companies & Approvals"]
+        AdminBackend["Admin_Backend\n(Company Requests, Approvals, Email, Audits)"]
+        DB_Admin[("hrm_db_admin\nPostgreSQL\n(companies, audit_logs, system_config)")]
         AdminBackend --- DB_Admin
     end
 
-    %% Frontend Routing
-    UI_Public -->|Auth & Register| UserBackend
-    UI_Admin -->|System Oversight & Reviews| AdminBackend
-    UI_HR -->|HR Operations & Depts| HRBackend
-    UI_Emp -->|Clock-in, Leave, Profile| EmployeeBackend
+    subgraph Service_User["2️⃣ User Service (Port 5002) — Authority for Auth & Credentials"]
+        UserBackend["User_Backend\n(Authentication, Security, Passwords)"]
+        DB_User[("hrm_db_user\nPostgreSQL\n(employees/users, session_logs)")]
+        UserBackend --- DB_User
+    end
 
-    %% Service-to-Service REST Communication & Sync
-    AdminBackend -->|1. Provision HR Account & Status Update| EmployeeBackend
-    AdminBackend -->|2. Sync Approved Company| HRBackend
-    EmployeeBackend -->|3. Sync Approved Company & HR Account| UserBackend
-    UserBackend -->|4. Sync User Profile Updates| EmployeeBackend
-    UserBackend -->|5. Sync User Profile Updates| HRBackend
+    subgraph Service_HR["3️⃣ HR Service (Port 5005) — Authority for HR Operations"]
+        HRBackend["HR_Backend\n(Departments, Payroll Policy, Salaries)"]
+        DB_HR[("hrm_db_hr\nPostgreSQL\n(departments, basic_payments, leave_types)")]
+        HRBackend --- DB_HR
+    end
+
+    subgraph Service_Emp["4️⃣ Employee Service (Port 5006) — Authority for Daily Activities"]
+        EmployeeBackend["Employee_Backend\n(Attendance, Leaves, Allowances)"]
+        DB_Emp[("hrm_db_employee\nPostgreSQL\n(attendance, leave_applications, allowances)")]
+        EmployeeBackend --- DB_Emp
+    end
+
+    %% Routing
+    UI_Public -->|1. Submit Company Request| AdminBackend
+    UI_Admin -->|2. Review & Approve / Reject| AdminBackend
+    AdminBackend -->|3. Provision HR Account| UserBackend
+    AdminBackend -->|4. Send Approval Credentials Email| UI_Public
+    UI_Public -->|5. Login & Force Password Change| UserBackend
+    UI_HR -->|HR Operations| HRBackend
+    UI_Emp -->|Clock In & Leaves| EmployeeBackend
+
+    %% Inter-service Sync
+    AdminBackend -->|Sync Approved Companies| HRBackend
+    AdminBackend -->|Sync Approved Companies| EmployeeBackend
+    UserBackend -->|Sync HR/Employee Profiles| HRBackend
+    UserBackend -->|Sync HR/Employee Profiles| EmployeeBackend
 ```
 
 ---
 
-## 💾 Detailed Database Schemas & Owned Tables
+## 🔄 Sequence Diagram: Company Application to HR Login
 
 ```mermaid
-erDiagram
-    %% User DB
-    hrm_db_user {
-        BIGINT id PK
-        VARCHAR email
-        VARCHAR password
-        VARCHAR role "EMPLOYEE | HR_MANAGER | ADMIN"
-        BIGINT company_id FK
-        VARCHAR employee_id
-        BOOLEAN must_change_password
-    }
+sequenceDiagram
+    autonumber
+    actor Client as Client Representative
+    participant PublicUI as Frontend / Public Form
+    participant AdminApp as Admin_Backend (5007)
+    participant DBAdmin as hrm_db_admin
+    participant UserApp as User_Backend (5002)
+    participant DBUser as hrm_db_user
+    participant EmailEng as Admin EmailService
 
-    %% HR DB
-    hrm_db_hr {
-        BIGINT id PK
-        VARCHAR company_name
-        VARCHAR registration_number
-        DECIMAL basic_salary
-        VARCHAR department_name
-        VARCHAR employment_type
-        VARCHAR work_location
-    }
-
-    %% Employee DB
-    hrm_db_employee {
-        BIGINT id PK
-        VARCHAR employee_id
-        TIMESTAMP clock_in_time
-        TIMESTAMP clock_out_time
-        VARCHAR leave_status "PENDING | APPROVED | REJECTED"
-        DECIMAL allowance_amount
-    }
-
-    %% Admin DB
-    hrm_db_admin {
-        BIGINT id PK
-        VARCHAR action "APPROVE_COMPANY | REJECT_COMPANY"
-        VARCHAR entity "Company | Employee"
-        VARCHAR description
-        VARCHAR config_key
-        VARCHAR config_value
-    }
+    Client->>PublicUI: Fill Company Registration Request Form
+    PublicUI->>AdminApp: POST /api/admin/company-requests (Status: PENDING)
+    AdminApp->>DBAdmin: Save Company Record (Status: PENDING)
+    
+    Note over AdminApp,DBAdmin: System Admin Reviews Request in Admin Portal
+    
+    alt Admin APPROVES Company
+        AdminApp->>DBAdmin: Update Company Status to APPROVED
+        AdminApp->>UserApp: POST /api/sync/provision-hr (Email, TempPassword, CompanyId)
+        UserApp->>DBUser: Create HR Manager Account (role=HR_MANAGER, mustChangePassword=true)
+        AdminApp->>EmailEng: Trigger Approval Welcome Email
+        EmailEng-->>Client: 📧 Email with Login URL, HR Email, Temp Password, Change Password Warning
+        
+        Client->>PublicUI: Sign in at /login using Temp Credentials
+        PublicUI->>UserApp: POST /api/auth/login
+        UserApp-->>PublicUI: Auth Response (mustChangePassword = true)
+        PublicUI->>Client: Prompt Force Password Change Screen
+        Client->>PublicUI: Submit New Password
+        PublicUI->>UserApp: POST /api/auth/change-password
+        UserApp->>DBUser: Update Password & set mustChangePassword = false
+        UserApp-->>PublicUI: Password Updated -> Redirect to HR Dashboard
+    else Admin REJECTS Company
+        AdminApp->>DBAdmin: Update Company Status to REJECTED + Rejection Reason
+        AdminApp->>EmailEng: Trigger Rejection Email with Reason
+        EmailEng-->>Client: 📧 Email with Rejection Reason & Support Contact
+    end
 ```
 
 ---
 
-## 🔄 Core Data Flow Scenarios
+## 💾 Database Ownership & Table Schema Matrix
 
-### 1️⃣ Company Registration & Admin Approval Flow
-1. **Public Submission**: Client submits company request via Frontend -> Saved in `Employee_Backend` / `User_Backend` as `PENDING`.
-2. **Admin Review**: System Administrator approves/rejects application via `Admin_Backend` (Port 5007).
-3. **Auto-Provisioning**: `Admin_Backend` invokes `Employee_Backend` to set company status to `APPROVED` and provision an `HR_MANAGER` account with `mustChangePassword = true`.
-4. **Automated Notification**: `Admin_Backend`'s `EmailService` sends an approval welcome email (or rejection email with stated reasons) to the client.
-5. **Database Sync**:
-   - `Admin_Backend` syncs company data to `HR_Backend` (`hrm_db_hr`).
-   - `Employee_Backend` syncs company & HR Manager details to `User_Backend` (`hrm_db_user`).
-   - `Admin_Backend` writes audit log record (`APPROVE_COMPANY`) into `hrm_db_admin`.
+| Database Name | Owning Microservice | Tables Managed | Description & Primary Use Case |
+| :--- | :--- | :--- | :--- |
+| **`hrm_db_admin`** | **`Admin_Backend`** (Port 5007) | `companies`<br>`audit_logs`<br>`system_configurations` | **Authority for Client Companies**: Stores all company registration requests (PENDING, APPROVED, REJECTED), rejection reasons, system audit logs, and configuration parameters. |
+| **`hrm_db_user`** | **`User_Backend`** (Port 5002) | `employees` / `users`<br>`session_logs` | **Authority for Credentials & Auth**: Manages user accounts (`EMPLOYEE`, `HR_MANAGER`, `ADMIN`), hashed BCrypt passwords, `must_change_password` flag, and active login sessions. |
+| **`hrm_db_hr`** | **`HR_Backend`** (Port 5005) | `departments`<br>`basic_payments`<br>`additional_payments`<br>`leave_types`<br>`work_locations` | **Authority for HR Operations**: Manages company departments, job role pay structures, leave allocations, work locations, and employment types. |
+| **`hrm_db_employee`** | **`Employee_Backend`** (Port 5006) | `attendance`<br>`leave_applications`<br>`allowance_requests`<br>`notifications` | **Authority for Daily Activities**: Stores employee clock-in/out timestamps, leave requests, allowance submissions, and employee notifications. |
 
 ---
 
-### 2️⃣ Employee Account Creation & Access Flow
-1. **HR Creation**: HR Manager adds an employee via HR Portal.
-2. **User Database Creation**: Saved into `hrm_db_user` under HR Manager's company ID.
-3. **Multi-Service Propagation**: `User_Backend`'s `SyncService` propagates employee record to `hrm_db_employee` (for attendance/leave) and `hrm_db_hr` (for payroll/salaries).
-4. **Login Verification**: Employee logs in via `User_Backend` JWT endpoint; authentication checks `hrm_db_user`.
+## 📋 Implementation Checklist for Restructuring
 
----
+Below is the structured task breakdown to be executed upon finalization:
 
-## 📊 Quick Service Reference Matrix
+1. **`Admin_Backend` (`hrm_db_admin`)**:
+   - Move/Ensure `Company` entity and repository exist inside `Admin_Backend`.
+   - Store all public registration submissions directly into `hrm_db_admin.companies` as `PENDING`.
+   - Handle Admin Dashboard company tabs: **Pending Applications**, **Approved Companies**, **Rejected Applications** (with reasons), and **Company Members**.
 
-| Microservice | Port | Database Name | Primary Responsibilities | Key Tables |
-| :--- | :--- | :--- | :--- | :--- |
-| **`User_Backend`** | `5002` | `hrm_db_user` | JWT Authentication, Security, Passwords, User Directory | `employees`, `users`, `companies`, `departments`, `session_logs` |
-| **`HR_Backend`** | `5005` | `hrm_db_hr` | Payroll Policy, Department Management, Salary Structures | `companies`, `departments`, `basic_payments`, `leave_allocations` |
-| **`Employee_Backend`**| `5006` | `hrm_db_employee` | Daily Operations, Attendance Clocking, Leave Requests, Allowances | `employees`, `attendance`, `leave_applications`, `allowance_requests` |
-| **`Admin_Backend`** | `5007` | `hrm_db_admin` | System Administration, Application Approval/Rejection, Emailing, Audit Logs | `audit_logs`, `system_configurations` |
+2. **`User_Backend` (`hrm_db_user`)**:
+   - Implement `/api/sync/provision-hr` endpoint to receive HR Manager account provisioning details from `Admin_Backend`.
+   - Save HR Manager user with `mustChangePassword = true`.
+   - Maintain `changePassword` endpoint to clear `mustChangePassword = false` upon first password update.
+
+3. **Email Delivery (`Admin_Backend`)**:
+   - `EmailService` in `Admin_Backend` formats and sends approval welcome email containing login link, HR email, generated temporary password, and force password change instructions.
+
+4. **Inter-Service Sync**:
+   - Sync approved company details from `Admin_Backend` to `HR_Backend` (`hrm_db_hr`) and `Employee_Backend` (`hrm_db_employee`).

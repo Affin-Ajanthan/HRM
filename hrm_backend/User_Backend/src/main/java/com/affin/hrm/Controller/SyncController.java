@@ -7,12 +7,13 @@ import com.affin.hrm.Repo.EmployeeRepo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
 /**
- * SyncController in User_Backend — receives company & user sync requests from Employee_Backend
+ * SyncController in User_Backend — receives company & user sync requests from Employee_Backend / Admin_Backend
  * to ensure hrm_db_user stores all approved companies and their associated HR/User accounts.
  */
 @RestController
@@ -24,11 +25,16 @@ public class SyncController {
     private final CompanyRepo companyRepo;
     private final EmployeeRepo employeeRepo;
     private final com.affin.hrm.Repo.UserRepo userRepo;
+    private final PasswordEncoder passwordEncoder;
 
-    public SyncController(CompanyRepo companyRepo, EmployeeRepo employeeRepo, com.affin.hrm.Repo.UserRepo userRepo) {
+    public SyncController(CompanyRepo companyRepo,
+                          EmployeeRepo employeeRepo,
+                          com.affin.hrm.Repo.UserRepo userRepo,
+                          PasswordEncoder passwordEncoder) {
         this.companyRepo = companyRepo;
         this.employeeRepo = employeeRepo;
         this.userRepo = userRepo;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @PostMapping("/company")
@@ -85,7 +91,12 @@ public class SyncController {
                 });
 
         if (fullName != null) employee.setFullName(fullName);
-        if (password != null) employee.setPassword(password);
+
+        if (password != null && !password.isBlank()) {
+            String encoded = isBcryptHash(password) ? password : passwordEncoder.encode(password);
+            employee.setPassword(encoded);
+        }
+
         if (employeeIdStr != null) employee.setEmployeeId(employeeIdStr);
 
         if (roleStr != null) {
@@ -136,8 +147,8 @@ public class SyncController {
         }
 
         Employee saved = employeeRepo.save(employee);
-        log.info("[USER_BACKEND SYNC SUCCESS] Employee synced to hrm_db_user ID: {}, Email: {}, Company: {}",
-                saved.getId(), saved.getEmail(), saved.getCompany() != null ? saved.getCompany().getCompanyName() : "None");
+        log.info("[USER_BACKEND SYNC SUCCESS] Employee synced to hrm_db_user ID: {}, Email: {}, Company: {}, mustChangePassword: {}",
+                saved.getId(), saved.getEmail(), saved.getCompany() != null ? saved.getCompany().getCompanyName() : "None", saved.getMustChangePassword());
 
         // Also update legacy users table if present
         try {
@@ -147,7 +158,10 @@ public class SyncController {
                 return u;
             });
             if (fullName != null) legacyUser.setFullName(fullName);
-            if (password != null) legacyUser.setPassword(password);
+            if (password != null && !password.isBlank()) {
+                String encoded = isBcryptHash(password) ? password : passwordEncoder.encode(password);
+                legacyUser.setPassword(encoded);
+            }
             if (employeeIdStr != null) legacyUser.setEmployeeId(employeeIdStr);
             if (roleStr != null) legacyUser.setRole(roleStr);
             userRepo.save(legacyUser);
@@ -157,5 +171,11 @@ public class SyncController {
         }
 
         return ResponseEntity.ok("Employee synced to hrm_db_user successfully");
+    }
+
+    private boolean isBcryptHash(String value) {
+        if (value == null) return false;
+        String v = value.trim();
+        return v.startsWith("$2a$") || v.startsWith("$2b$") || v.startsWith("$2y$");
     }
 }

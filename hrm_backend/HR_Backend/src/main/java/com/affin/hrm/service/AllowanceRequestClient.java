@@ -44,7 +44,7 @@ public class AllowanceRequestClient {
     @Value("${service.employee-url:http://localhost:5006}")
     private String employeeServiceUrl;
 
-    @Value("${service.user-url:http://localhost:5004}")
+    @Value("${service.user-url:http://localhost:5002}")
     private String userServiceUrl;
 
     public AllowanceRequestClient(RestTemplate restTemplate, EmployeeRepository employeeRepository,

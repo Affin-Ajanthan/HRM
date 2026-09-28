@@ -217,6 +217,7 @@ public class EmployeeService {
             log.info("Updated existing employee via sync: {} (userId {})", normalizedEmail, userId);
             return employeeRepository.save(existing);
         } else {
+            employee.setId(null);
             employee.setEmail(normalizedEmail);
             employee.setCompany(company);
             employee.setDepartment(department);
@@ -234,15 +235,35 @@ public class EmployeeService {
 
     private Company getOrCreateCompany(Employee employee) {
         Company incoming = employee.getCompany();
-        String regNumber = incoming != null && incoming.getRegistrationNumber() != null
-                ? incoming.getRegistrationNumber() : DEFAULT_COMPANY_REG;
+        if (incoming == null) {
+            return companyRepository.findByRegistrationNumber(DEFAULT_COMPANY_REG)
+                    .orElseGet(() -> {
+                        Company c = new Company();
+                        c.setCompanyName(DEFAULT_COMPANY_NAME);
+                        c.setRegistrationNumber(DEFAULT_COMPANY_REG);
+                        c.setStatus(Company.CompanyStatus.APPROVED);
+                        return companyRepository.save(c);
+                    });
+        }
+
+        if (incoming.getRegistrationNumber() != null && !incoming.getRegistrationNumber().isBlank()) {
+            java.util.Optional<Company> found = companyRepository.findByRegistrationNumber(incoming.getRegistrationNumber());
+            if (found.isPresent()) return found.get();
+        }
+
+        if (incoming.getCompanyName() != null && !incoming.getCompanyName().isBlank()) {
+            java.util.Optional<Company> found = companyRepository.findByCompanyName(incoming.getCompanyName());
+            if (found.isPresent()) return found.get();
+        }
+
+        String regNumber = incoming.getRegistrationNumber() != null && !incoming.getRegistrationNumber().isBlank()
+                ? incoming.getRegistrationNumber()
+                : DEFAULT_COMPANY_REG;
+
         return companyRepository.findByRegistrationNumber(regNumber)
-                .or(() -> incoming != null && incoming.getCompanyName() != null
-                        ? companyRepository.findByCompanyName(incoming.getCompanyName())
-                        : java.util.Optional.empty())
                 .orElseGet(() -> {
                     Company c = new Company();
-                    c.setCompanyName(incoming != null && incoming.getCompanyName() != null
+                    c.setCompanyName(incoming.getCompanyName() != null && !incoming.getCompanyName().isBlank()
                             ? incoming.getCompanyName() : DEFAULT_COMPANY_NAME);
                     c.setRegistrationNumber(regNumber);
                     c.setStatus(Company.CompanyStatus.APPROVED);

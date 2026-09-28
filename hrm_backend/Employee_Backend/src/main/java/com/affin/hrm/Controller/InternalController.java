@@ -10,6 +10,7 @@ import org.modelmapper.ModelMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -87,6 +88,7 @@ public class InternalController {
     // ── Employees ────────────────────────────────────────────────
 
     @GetMapping("/employees")
+    @Transactional(readOnly = true)
     public ResponseEntity<List<EmployeeDTO>> getAllEmployees() {
         List<EmployeeDTO> employees = employeeRepository.findAll().stream()
                 .map(this::convertToEmployeeDTO)
@@ -95,6 +97,7 @@ public class InternalController {
     }
 
     @GetMapping("/employees/{id}")
+    @Transactional(readOnly = true)
     public ResponseEntity<EmployeeDTO> getEmployeeById(@PathVariable Long id) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", id));
@@ -102,6 +105,7 @@ public class InternalController {
     }
 
     @GetMapping("/employees/company/{companyId}")
+    @Transactional(readOnly = true)
     public ResponseEntity<List<EmployeeDTO>> getEmployeesByCompany(@PathVariable Long companyId) {
         List<EmployeeDTO> employees = employeeRepository.findByCompanyId(companyId).stream()
                 .map(this::convertToEmployeeDTO)
@@ -110,6 +114,7 @@ public class InternalController {
     }
 
     @GetMapping("/employees/admins")
+    @Transactional(readOnly = true)
     public ResponseEntity<List<EmployeeDTO>> getAdminUsers() {
         List<EmployeeDTO> admins = employeeRepository.findAll().stream()
                 .filter(e -> e.getRole() == Employee.Role.ADMIN || e.getRole() == Employee.Role.HR_MANAGER)

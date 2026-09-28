@@ -27,14 +27,7 @@ public class DefaultAccountSeeder implements CommandLineRunner {
         seed("Default Employee", "employee@hrm.local", "Employee@123", "EMPLOYEE", "General");
 
         // Push every existing employee (freshly seeded ones included) to the
-        // HR and Employee backends right now. Login already does this
-        // synchronously on every sign-in, but this covers the very first boot
-        // of a fresh environment, where the HR/Employee service might not
-        // have been reachable yet at the exact moment each account above was
-        // registered (e.g. the two services finishing their DB migrations at
-        // slightly different times). Safe to call even if those services are
-        // still starting up — each sync attempt logs and retries internally
-        // and never throws, so it can't block or fail application startup.
+        // HR and Employee backends right now.
         try {
             authService.syncAllEmployees();
         } catch (Exception e) {

@@ -7,6 +7,7 @@ import com.affin.hrm.model.Department;
 import com.affin.hrm.model.Employee;
 import com.affin.hrm.repository.CompanyRepository;
 import com.affin.hrm.repository.DepartmentRepository;
+import com.affin.hrm.repository.EmployeeRepository;
 import com.affin.hrm.service.EmployeeService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,13 +26,16 @@ public class SyncController {
     private static final Logger log = LoggerFactory.getLogger(SyncController.class);
 
     private final EmployeeService employeeService;
+    private final EmployeeRepository employeeRepository;
     private final CompanyRepository companyRepository;
     private final DepartmentRepository departmentRepository;
 
     public SyncController(EmployeeService employeeService,
+                          EmployeeRepository employeeRepository,
                           CompanyRepository companyRepository,
                           DepartmentRepository departmentRepository) {
         this.employeeService = employeeService;
+        this.employeeRepository = employeeRepository;
         this.companyRepository = companyRepository;
         this.departmentRepository = departmentRepository;
     }
@@ -42,6 +46,23 @@ public class SyncController {
         Employee saved = employeeService.saveEmployee(employee);
         log.info("Employee synced successfully: {} (ID: {})", saved.getEmail(), saved.getId());
         return ResponseEntity.ok(ApiResponse.success("Employee synced: " + saved.getEmail(),
+                "Sync completed successfully"));
+    }
+
+    @DeleteMapping("/employee/{id}")
+    public ResponseEntity<ApiResponse<String>> deleteEmployee(@PathVariable Long id) {
+        log.info("Received sync request to delete employee ID: {}", id);
+        try {
+            if (employeeRepository.existsById(id)) {
+                employeeRepository.deleteById(id);
+                log.info("Deleted employee ID: {} from Employee_Backend", id);
+            } else {
+                log.info("Employee ID {} does not exist in Employee_Backend", id);
+            }
+        } catch (Exception e) {
+            log.warn("Error deleting employee ID {} during sync: {}", id, e.getMessage());
+        }
+        return ResponseEntity.ok(ApiResponse.success("Sync delete completed for employee ID: " + id,
                 "Sync completed successfully"));
     }
 

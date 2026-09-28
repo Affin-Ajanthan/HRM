@@ -73,7 +73,32 @@ public class EmployeeService {
     @Autowired
     private SessionLogRepo sessionLogRepo;
 
+    @Autowired
+    private AuthService authService;
+
+    @Autowired
+    private com.affin.hrm.Repo.UserRepo userRepo;
+
     public List<EmployeeDTO> getAllEmployeesByCompany(Long companyId) {
+        if (companyId != null) {
+            Company targetCompany = companyRepo.findById(companyId).orElse(null);
+            if (targetCompany != null) {
+                Company defaultCompany = companyRepo.findByRegistrationNumber("DEFAULT-REG-0001").orElse(null);
+                if (defaultCompany != null && !defaultCompany.getId().equals(companyId)) {
+                    List<Employee> orphanEmployees = employeeRepo.findByCompanyId(defaultCompany.getId());
+                    for (Employee orphan : orphanEmployees) {
+                        if (orphan.getRole() != Employee.Role.ADMIN) {
+                            orphan.setCompany(targetCompany);
+                            Employee savedOrphan = employeeRepo.save(orphan);
+                            try {
+                                syncService.syncToAllBackends(savedOrphan);
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                }
+            }
+        }
+
         List<Employee> employees = employeeRepo.findByCompanyId(companyId);
         return employees.stream()
                 .map(this::convertToDTO)
@@ -148,9 +173,8 @@ public class EmployeeService {
         auditService.logAction("CREATE_EMPLOYEE", "Employee", savedEmployee.getId(), 
                 "Created employee: " + savedEmployee.getFullName(), companyId);
 
-        // ===== AUTOMATIC SYNC TO OTHER BACKENDS =====
-        // Sync newly created employee to Employee_Backend for clock-in and attendance
-        // and to HR_Backend for HR management
+        // ===== AUTOMATIC SYNC TO OTHER BACKENDS & LEGACY USER TABLE =====
+        authService.syncUserTable(savedEmployee);
         syncService.syncToAllBackends(savedEmployee);
 
         return convertToDTO(savedEmployee);
@@ -201,7 +225,8 @@ public class EmployeeService {
         auditService.logAction("UPDATE_EMPLOYEE", "Employee", updatedEmployee.getId(), 
                 "Updated employee: " + updatedEmployee.getFullName(), employee.getCompany().getId());
 
-        // Sync updated employee to other backends
+        // Sync updated employee to other backends & legacy users table
+        authService.syncUserTable(updatedEmployee);
         syncService.syncToAllBackends(updatedEmployee);
 
         return convertToDTO(updatedEmployee);
@@ -249,6 +274,11 @@ public class EmployeeService {
         auditLogRepo.detachEmployee(id);
         departmentRepo.clearManager(id);
         sessionLogRepo.deleteByUserId(id);
+
+        if (employee.getEmail() != null) {
+            userRepo.findByEmailIgnoreCase(employee.getEmail().trim().toLowerCase())
+                    .ifPresent(u -> userRepo.delete(u));
+        }
 
         employeeRepo.delete(employee);
         employeeRepo.flush();

@@ -10,9 +10,37 @@
 
 // ─── Base URLs from environment variables ─────────────────────
 export const BASE_URL     = import.meta.env.VITE_API_BASE_URL     || "http://localhost:5005/api";
-export const AUTH_URL     = import.meta.env.VITE_AUTH_URL          || "http://localhost:5004/api";
+export const AUTH_URL     = import.meta.env.VITE_AUTH_URL          || "http://localhost:5002/api";
 export const EMPLOYEE_URL = import.meta.env.VITE_EMPLOYEE_URL     || "http://localhost:5006/api";
 export const ADMIN_URL    = import.meta.env.VITE_ADMIN_URL         || "http://localhost:5007/api";
+
+async function parseErrorMessage(res) {
+  let errMsg = "";
+  try {
+    const contentType = res.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      const err = await res.json();
+      errMsg = err.message || err.error || err.detail || (typeof err === "string" ? err : "");
+    } else {
+      errMsg = await res.text();
+    }
+  } catch (e) {
+    // Ignore parse failure
+  }
+
+  errMsg = (errMsg || "").trim();
+
+  if (!errMsg || errMsg === res.statusText) {
+    if (res.status === 403) errMsg = "Forbidden - Access denied. You do not have permission for this action.";
+    else if (res.status === 401) errMsg = "Unauthorized - Session expired or unauthenticated. Please log in again.";
+    else if (res.status === 400) errMsg = "Bad request - Please check the submitted data.";
+    else if (res.status === 404) errMsg = "Resource not found.";
+    else if (res.status >= 500) errMsg = "Internal server error.";
+    else errMsg = res.statusText || "An error occurred.";
+  }
+
+  return `${res.status}: ${errMsg}`;
+}
 
 // ─── Shared fetch helper ──────────────────────────────────────
 async function request(method, url, body = null) {
@@ -30,20 +58,8 @@ async function request(method, url, body = null) {
     const res = await fetch(url, opts);
 
     if (!res.ok) {
-      let errMsg = res.statusText;
-      try {
-        const contentType = res.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-          const err = await res.json();
-          errMsg = err.message || err.error || err.detail || JSON.stringify(err) || res.statusText;
-        } else {
-          const text = await res.text();
-          errMsg = text || res.statusText;
-        }
-      } catch (e) {
-        // Failed to parse error body
-      }
-      throw new Error(`${res.status}: ${errMsg}`);
+      const errText = await parseErrorMessage(res);
+      throw new Error(errText);
     }
 
     return await res.json();
@@ -57,19 +73,8 @@ async function request(method, url, body = null) {
 
 // Error text from a failed response, in the same "<status>: <message>" form as request()
 async function responseError(res) {
-  let errMsg = res.statusText;
-  try {
-    const contentType = res.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-      const err = await res.json();
-      errMsg = err.message || err.error || res.statusText;
-    } else {
-      errMsg = (await res.text()) || res.statusText;
-    }
-  } catch {
-    // Failed to parse error body
-  }
-  return new Error(`${res.status}: ${errMsg}`);
+  const errText = await parseErrorMessage(res);
+  return new Error(errText);
 }
 
 async function authorizedFetch(url, opts = {}) {

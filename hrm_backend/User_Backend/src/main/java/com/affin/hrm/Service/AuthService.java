@@ -80,34 +80,24 @@ public class AuthService {
                 String rawPassword = request.getPassword() == null ? "" : request.getPassword();
                 System.out.println("[AUTH_SERVICE] Login attempt for: " + normalizedEmail);
 
-                Authentication authentication;
-                try {
-                        authentication = authenticationManager.authenticate(
-                                        new UsernamePasswordAuthenticationToken(normalizedEmail, rawPassword)
-                        );
-                } catch (BadCredentialsException ex) {
-                        // Legacy module support: some older accounts were created in the 'users' table
-                        // (api/hrm/login). If that user exists and the password matches, migrate it to
-                        // the new Employee-based auth and retry.
-                        migrateLegacyUserIfNeeded(normalizedEmail, rawPassword);
+                // Legacy module support: migrate legacy user if needed
+                migrateLegacyUserIfNeeded(normalizedEmail, rawPassword);
 
-                        // Backward-compatibility: some older records may have stored plain-text passwords
-                        // or emails with inconsistent casing. If the plain-text matches, upgrade it to BCrypt.
-                        employeeRepo.findByEmailIgnoreCase(normalizedEmail).ifPresent(employee -> {
-                                String stored = employee.getPassword();
-                                if (stored != null
-                                                && !isBcryptHash(stored)
-                                                && stored.equals(rawPassword)) {
-                                        employee.setPassword(passwordEncoder.encode(rawPassword));
-                                        employeeRepo.save(employee);
-                                }
-                        });
+                // Backward-compatibility: if password stored in DB is plain text, upgrade it to BCrypt before authenticating
+                employeeRepo.findByEmailIgnoreCase(normalizedEmail).ifPresent(employee -> {
+                        String stored = employee.getPassword();
+                        if (stored != null
+                                        && !isBcryptHash(stored)
+                                        && stored.equals(rawPassword)) {
+                                employee.setPassword(passwordEncoder.encode(rawPassword));
+                                employeeRepo.save(employee);
+                                System.out.println("[AUTH_SERVICE] Upgraded plain-text password to BCrypt for: " + normalizedEmail);
+                        }
+                });
 
-                        // Retry authentication after potential upgrade
-                        authentication = authenticationManager.authenticate(
-                                        new UsernamePasswordAuthenticationToken(normalizedEmail, rawPassword)
-                        );
-                }
+                Authentication authentication = authenticationManager.authenticate(
+                                new UsernamePasswordAuthenticationToken(normalizedEmail, rawPassword)
+                );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
         Employee employee = employeeRepo.findByEmailIgnoreCase(normalizedEmail)
@@ -277,24 +267,42 @@ public class AuthService {
                         throw new RuntimeException("Employee ID already exists");
                 }
 
-                Company company = companyRepo.findByRegistrationNumber(DEFAULT_COMPANY_REG)
-                                .orElseGet(() -> {
-                                        Company newCompany = new Company();
-                                        newCompany.setCompanyName(DEFAULT_COMPANY_NAME);
-                                        newCompany.setRegistrationNumber(DEFAULT_COMPANY_REG);
-                                        newCompany.setStatus(Company.CompanyStatus.APPROVED);
-                                        return companyRepo.save(newCompany);
-                                });
+                Company company = null;
+                try {
+                        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+                                String authEmail = auth.getName() != null ? auth.getName().trim().toLowerCase() : "";
+                                Employee currentAuthUser = employeeRepo.findByEmailIgnoreCase(authEmail).orElse(null);
+                                if (currentAuthUser != null && currentAuthUser.getCompany() != null) {
+                                        company = currentAuthUser.getCompany();
+                                }
+                        }
+                } catch (Exception e) {
+                        // Fallback if no auth context
+                }
+
+                if (company == null) {
+                        company = companyRepo.findByRegistrationNumber(DEFAULT_COMPANY_REG)
+                                        .orElseGet(() -> {
+                                                Company newCompany = new Company();
+                                                newCompany.setCompanyName(DEFAULT_COMPANY_NAME);
+                                                newCompany.setRegistrationNumber(DEFAULT_COMPANY_REG);
+                                                newCompany.setStatus(Company.CompanyStatus.APPROVED);
+                                                return companyRepo.save(newCompany);
+                                        });
+                }
+
+                final Company finalCompany = company;
 
                 String deptName = (request.getDepartment() == null || request.getDepartment().isBlank())
                                 ? "General" : request.getDepartment().trim();
 
-                Department department = departmentRepo.findByCompanyIdAndName(company.getId(), deptName)
+                Department department = departmentRepo.findByCompanyIdAndName(finalCompany.getId(), deptName)
                                 .orElseGet(() -> {
                                         Department newDept = new Department();
                                         newDept.setName(deptName);
                                         newDept.setDescription(deptName + " Department");
-                                        newDept.setCompany(company);
+                                        newDept.setCompany(finalCompany);
                                         return departmentRepo.save(newDept);
                                 });
 
@@ -341,10 +349,44 @@ public class AuthService {
                 employee.setStatus(Employee.EmployeeStatus.ACTIVE);
                 Employee savedEmployee = employeeRepo.save(employee);
                 
+                // Sync employee to legacy users table in hrm_db_user
+                syncUserTable(savedEmployee);
+
                 // Sync employee to other backends (Employee_Backend & HR_Backend)
                 syncService.syncToAllBackends(savedEmployee);
                 
                 return savedEmployee;
+        }
+
+        public void syncUserTable(Employee employee) {
+                if (employee == null || employee.getEmail() == null) return;
+                try {
+                        String normalizedEmail = employee.getEmail().trim().toLowerCase();
+                        User user = userRepo.findByEmailIgnoreCase(normalizedEmail).orElseGet(() -> {
+                                User u = new User();
+                                u.setEmail(normalizedEmail);
+                                return u;
+                        });
+
+                        if (employee.getFullName() != null) user.setFullName(employee.getFullName());
+                        if (employee.getPassword() != null && !employee.getPassword().isBlank()) {
+                                user.setPassword(employee.getPassword());
+                        }
+                        if (employee.getEmployeeId() != null) user.setEmployeeId(employee.getEmployeeId());
+                        if (employee.getNic() != null) user.setNic(employee.getNic());
+                        if (employee.getDob() != null) user.setDob(employee.getDob());
+                        if (employee.getAddress() != null) user.setAddress(employee.getAddress());
+                        if (employee.getGender() != null) user.setGender(employee.getGender().name());
+                        if (employee.getRole() != null) user.setRole(employee.getRole().name());
+                        if (employee.getDepartment() != null && employee.getDepartment().getName() != null) {
+                                user.setDepartment(employee.getDepartment().getName());
+                        }
+
+                        userRepo.save(user);
+                        System.out.println("[USER_DB SYNC] Updated users table for: " + normalizedEmail);
+                } catch (Exception e) {
+                        System.err.println("[USER_DB SYNC ERROR] Failed to update users table for " + employee.getEmail() + ": " + e.getMessage());
+                }
         }
 
         private boolean isBcryptHash(String value) {
@@ -406,11 +448,12 @@ public class AuthService {
         }
 
         // Transactional so each employee's lazy company/department can be read into the sync payload
-        @org.springframework.transaction.annotation.Transactional(readOnly = true)
+        @org.springframework.transaction.annotation.Transactional
         public void syncAllEmployees() {
-                 System.out.println("[SYNC] Starting manual sync of all employees to other backends...");
+                 System.out.println("[SYNC] Starting manual sync of all employees to other backends and legacy users table...");
                  employeeRepo.findAll().forEach(employee -> {
                          try {
+                                 syncUserTable(employee);
                                  syncService.syncToAllBackends(employee);
                          } catch (Exception e) {
                                  System.err.println("[SYNC ERROR] Failed to sync employee: " + employee.getEmail() + " Error: " + e.getMessage());

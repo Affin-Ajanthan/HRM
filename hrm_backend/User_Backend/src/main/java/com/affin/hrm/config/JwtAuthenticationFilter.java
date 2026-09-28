@@ -33,13 +33,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (StringUtils.hasText(jwt) && jwtUtil.validateToken(jwt)) {
                 String email = jwtUtil.getEmailFromToken(jwt);
+                String role = jwtUtil.getRoleFromToken(jwt);
 
-                UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                try {
+                    UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                } catch (Exception dbEx) {
+                    if (StringUtils.hasText(role)) {
+                        String cleanRole = role.trim().toUpperCase().replace("-", "_").replace(" ", "_");
+                        if (cleanRole.equals("HR") || cleanRole.equals("HRMANAGER")) {
+                            cleanRole = "HR_MANAGER";
+                        }
+                        String authority = cleanRole.startsWith("ROLE_") ? cleanRole : "ROLE_" + cleanRole;
+                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                                email, null, java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority(authority)));
+                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    } else {
+                        logger.error("Could not load user from DB and no role claim present for: " + email, dbEx);
+                    }
+                }
             }
         } catch (Exception ex) {
             logger.error("Could not set user authentication in security context", ex);

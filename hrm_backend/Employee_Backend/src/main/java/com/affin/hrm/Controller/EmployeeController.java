@@ -42,10 +42,17 @@ public class EmployeeController {
     }
 
     @GetMapping("/profile")
-    public ResponseEntity<ApiResponse<EmployeeDTO>> getMyProfile() {
+    public ResponseEntity<ApiResponse<EmployeeProfileDTO>> getMyProfile() {
         Employee employee = authService.getCurrentEmployee();
-        EmployeeDTO dto = employeeService.getEmployeeById(employee.getId());
-        return ResponseEntity.ok(ApiResponse.success(dto));
+        return ResponseEntity.ok(ApiResponse.success(employeeService.getProfile(employee)));
+    }
+
+    /** Employees change their own personal details; employment details stay with HR. */
+    @PutMapping("/profile")
+    public ResponseEntity<ApiResponse<EmployeeProfileDTO>> updateMyProfile(
+            @Valid @RequestBody EmployeeProfileDTO.UpdateRequest request) {
+        Employee employee = authService.getCurrentEmployee();
+        return ResponseEntity.ok(ApiResponse.success(employeeService.updateProfile(employee, request), "Profile updated"));
     }
 
     // ── Leave Endpoints ───────────────────────────────────────────

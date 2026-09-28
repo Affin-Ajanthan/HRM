@@ -2,6 +2,7 @@ package com.affin.hrm.service;
 
 import com.affin.hrm.dto.CompanyDTO;
 import com.affin.hrm.dto.EmployeeDTO;
+import com.affin.hrm.dto.EmployeeProfileDTO;
 import com.affin.hrm.exception.ResourceNotFoundException;
 import com.affin.hrm.model.Company;
 import com.affin.hrm.model.Employee;
@@ -52,6 +53,29 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public EmployeeDTO getEmployeeById(Long id) {
         return getEmployeeById(id, null);
+    }
+
+    /** The logged-in employee's profile page: their User_Backend record plus their department's manager. */
+    @Transactional(readOnly = true)
+    public EmployeeProfileDTO getProfile(Employee employee) {
+        EmployeeProfileDTO profile = employeeDirectory.findProfile(employee.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employee.getId()));
+        return withReportingManager(profile, employee);
+    }
+
+    public EmployeeProfileDTO updateProfile(Employee employee, EmployeeProfileDTO.UpdateRequest request) {
+        EmployeeProfileDTO profile = employeeDirectory.updateProfile(employee.getId(), request)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employee.getId()));
+        log.info("Employee {} updated their profile", employee.getId());
+        return withReportingManager(profile, employee);
+    }
+
+    private EmployeeProfileDTO withReportingManager(EmployeeProfileDTO profile, Employee employee) {
+        Long managerId = employee.getDepartment() != null ? employee.getDepartment().getManagerUserId() : null;
+        if (managerId != null && !managerId.equals(employee.getId())) {
+            employeeDirectory.findById(managerId).ifPresent(m -> profile.setReportingManagerName(m.getFullName()));
+        }
+        return profile;
     }
 
     /** The employee, if they belong to the given company (null = any); otherwise not found. */

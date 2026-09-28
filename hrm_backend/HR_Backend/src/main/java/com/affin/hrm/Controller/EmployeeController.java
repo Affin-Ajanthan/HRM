@@ -38,13 +38,6 @@ public class EmployeeController {
         return ResponseEntity.ok(ApiResponse.success(dto));
     }
 
-    @PutMapping("/profile")
-    public ResponseEntity<ApiResponse<EmployeeDTO>> updateMyProfile(@Valid @RequestBody EmployeeDTO dto) {
-        Employee employee = authService.getCurrentEmployee();
-        EmployeeDTO updated = employeeService.updateEmployee(employee.getId(), dto);
-        return ResponseEntity.ok(ApiResponse.success(updated, "Profile updated successfully"));
-    }
-
     // ── Leave Endpoints ───────────────────────────────────────────
 
     @PostMapping("/leave/apply")

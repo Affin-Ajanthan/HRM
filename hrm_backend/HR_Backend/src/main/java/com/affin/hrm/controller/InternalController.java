@@ -2,7 +2,7 @@ package com.affin.hrm.controller;
 
 import com.affin.hrm.dto.LeaveEntitlementDTO;
 import com.affin.hrm.dto.PaySheetDTO;
-import com.affin.hrm.repository.EmployeeRepository;
+import com.affin.hrm.service.EmployeeDirectory;
 import com.affin.hrm.service.LeaveConfigService;
 import com.affin.hrm.service.SalaryConfigService;
 import org.slf4j.Logger;
@@ -24,13 +24,13 @@ public class InternalController {
 
     private static final Logger log = LoggerFactory.getLogger(InternalController.class);
 
-    private final EmployeeRepository employeeRepository;
+    private final EmployeeDirectory employeeDirectory;
     private final LeaveConfigService leaveConfigService;
     private final SalaryConfigService salaryConfigService;
 
-    public InternalController(EmployeeRepository employeeRepository, LeaveConfigService leaveConfigService,
+    public InternalController(EmployeeDirectory employeeDirectory, LeaveConfigService leaveConfigService,
                               SalaryConfigService salaryConfigService) {
-        this.employeeRepository = employeeRepository;
+        this.employeeDirectory = employeeDirectory;
         this.leaveConfigService = leaveConfigService;
         this.salaryConfigService = salaryConfigService;
     }
@@ -42,7 +42,7 @@ public class InternalController {
     @GetMapping("/pay-sheet")
     @Transactional(readOnly = true)
     public ResponseEntity<PaySheetDTO> getPaySheet(@RequestParam String email) {
-        return employeeRepository.findByEmailIgnoreCase(email.trim())
+        return employeeDirectory.findByEmailIgnoreCase(email.trim())
                 .map(e -> ResponseEntity.ok(salaryConfigService.getPaySheet(e)))
                 .orElseGet(() -> {
                     log.warn("Internal: pay sheet requested for unknown employee {}", email);
@@ -57,7 +57,7 @@ public class InternalController {
     @GetMapping("/leave-entitlements")
     @Transactional(readOnly = true)
     public ResponseEntity<List<LeaveEntitlementDTO>> getLeaveEntitlements(@RequestParam String email) {
-        return employeeRepository.findByEmailIgnoreCase(email.trim())
+        return employeeDirectory.findByEmailIgnoreCase(email.trim())
                 .map(e -> ResponseEntity.ok(leaveConfigService.getEntitlements(e)))
                 .orElseGet(() -> {
                     log.warn("Internal: leave entitlements requested for unknown employee {}", email);

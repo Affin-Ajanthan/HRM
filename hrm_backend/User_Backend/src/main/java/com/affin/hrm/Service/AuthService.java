@@ -52,9 +52,6 @@ public class AuthService {
         private SessionLogRepo sessionLogRepo;
 
     @Autowired
-        private com.affin.hrm.service.SyncService syncService;
-
-    @Autowired
     private JwtUtil jwtUtil;
 
     @Autowired
@@ -114,44 +111,6 @@ public class AuthService {
             sessionLogRepo.save(session);
         } catch (Exception e) {
             System.err.println("[SESSION LOG ERROR] " + e.getMessage());
-        }
-
-        // Push this user's current record to the HR_Backend (and Employee_Backend)
-        // in the background on every login. This guarantees that an HR user
-        // (or any user) is present in hrm_db_hr before they use the HR dashboard
-        // (e.g. add department), even if the original sync at registration time
-        // failed or the HR service was temporarily unavailable. Runs off the
-        // request thread so it never slows down or blocks the login response.
-        final Employee employeeToSync = employee;
-        // Warm up the lazy company/department associations now, while still on
-        // the request thread (Hibernate session still open here).
-        try {
-            if (employeeToSync.getCompany() != null) {
-                employeeToSync.getCompany().getCompanyName();
-                employeeToSync.getCompany().getRegistrationNumber();
-            }
-            if (employeeToSync.getDepartment() != null) {
-                employeeToSync.getDepartment().getName();
-            }
-        } catch (Exception ignored) {
-            // Falls back to defaults inside SyncService if this couldn't be warmed up
-        }
-        // IMPORTANT: this must run synchronously, BEFORE the login response is
-        // returned. The HR dashboard calls HR-service endpoints (e.g. create
-        // department) the instant it receives the JWT, and those endpoints look
-        // the employee up in hrm_db_hr. If this sync were fire-and-forget on a
-        // background thread, the frontend could reach the HR service before the
-        // employee row exists there, producing a false "Employee not found"
-        // error right after a successful login. syncToAllBackends() already
-        // swallows its own per-backend errors (it just logs and returns
-        // true/false), so this cannot make login fail even if the HR or
-        // Employee service is temporarily unreachable — it only guarantees
-        // that, when the services ARE reachable, the sync has actually
-        // completed before the caller gets the token.
-        try {
-            syncService.syncToAllBackends(employeeToSync);
-        } catch (Exception e) {
-            System.err.println("[LOGIN SYNC ERROR] " + e.getMessage());
         }
 
         return new AuthResponse(
@@ -267,20 +226,20 @@ public class AuthService {
                         throw new RuntimeException("Employee ID already exists");
                 }
 
-                Company company = null;
-                try {
-                        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-                        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
-                                String authEmail = auth.getName() != null ? auth.getName().trim().toLowerCase() : "";
-                                Employee currentAuthUser = employeeRepo.findByEmailIgnoreCase(authEmail).orElse(null);
-                                if (currentAuthUser != null && currentAuthUser.getCompany() != null) {
-                                        company = currentAuthUser.getCompany();
-                                }
-                        }
-                } catch (Exception e) {
-                        // Fallback if no auth context
+                // The new account always joins the creator's company, so each company's
+                // HR managers only ever add people to their own company.
+                Employee creator = null;
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+                        String authEmail = auth.getName() != null ? auth.getName().trim().toLowerCase() : "";
+                        creator = employeeRepo.findByEmailIgnoreCase(authEmail).orElse(null);
                 }
+                if (creator != null && creator.getCompany() == null) {
+                        throw new RuntimeException("Your account is not linked to a company");
+                }
+                Company company = creator != null ? creator.getCompany() : null;
 
+                // Only the built-in seeding runs without a logged-in creator; it uses the default company.
                 if (company == null) {
                         company = companyRepo.findByRegistrationNumber(DEFAULT_COMPANY_REG)
                                         .orElseGet(() -> {
@@ -317,6 +276,10 @@ public class AuthService {
                                 resolvedRole = Employee.Role.EMPLOYEE;
                         }
                 }
+                // HR managers add employees and other HR managers; only an administrator can add an administrator
+                if (creator != null && resolvedRole == Employee.Role.ADMIN && creator.getRole() != Employee.Role.ADMIN) {
+                        throw new RuntimeException("Only an administrator can create administrator accounts");
+                }
 
                 Employee employee = new Employee();
                 employee.setFullName(request.getFullName());
@@ -351,9 +314,6 @@ public class AuthService {
                 
                 // Sync employee to legacy users table in hrm_db_user
                 syncUserTable(savedEmployee);
-
-                // Sync employee to other backends (Employee_Backend & HR_Backend)
-                syncService.syncToAllBackends(savedEmployee);
                 
                 return savedEmployee;
         }
@@ -410,6 +370,11 @@ public class AuthService {
                                 .orElse(0) + 1;
         }
 
+        /** Next free employee number for a role, e.g. HR-004. */
+        public String generateEmployeeIdForRole(String role) {
+                return generateEmployeeId(employeeIdPrefixForRole(role));
+        }
+
         private String generateEmployeeId(String prefix) {
                 return prefix + "-" + String.format("%03d", nextEmployeeIdNumber(prefix));
         }
@@ -427,16 +392,6 @@ public class AuthService {
                 return result;
         }
 
-        /**
-         * Pushes the currently authenticated user's record to the Employee_Backend.
-         * Called by Employee_Backend itself when it receives a request from a user
-         * it doesn't have yet (e.g. the login-time sync failed).
-         */
-        @org.springframework.transaction.annotation.Transactional(readOnly = true)
-        public boolean syncCurrentEmployeeToEmployeeBackend() {
-                return syncService.syncToEmployeeBackend(getCurrentEmployee());
-        }
-
         public boolean checkUserExists(String email) {
                 String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
                 return employeeRepo.findByEmailIgnoreCase(normalizedEmail).isPresent();
@@ -447,14 +402,12 @@ public class AuthService {
                 return userRepo.findByEmailIgnoreCase(normalizedEmail).isPresent();
         }
 
-        // Transactional so each employee's lazy company/department can be read into the sync payload
         @org.springframework.transaction.annotation.Transactional
         public void syncAllEmployees() {
-                 System.out.println("[SYNC] Starting manual sync of all employees to other backends and legacy users table...");
+                 System.out.println("[SYNC] Starting sync of all employees to the legacy users table...");
                  employeeRepo.findAll().forEach(employee -> {
                          try {
                                  syncUserTable(employee);
-                                 syncService.syncToAllBackends(employee);
                          } catch (Exception e) {
                                  System.err.println("[SYNC ERROR] Failed to sync employee: " + employee.getEmail() + " Error: " + e.getMessage());
                          }
@@ -494,9 +447,6 @@ public class AuthService {
                          user.setPassword(passwordEncoder.encode(newPassword));
                          userRepo.save(user);
                  });
-                 
-                 // Sync updated password across services
-                 syncService.syncToAllBackends(saved);
          }
 
          public void changePassword(String email, String oldPassword, String newPassword) {
@@ -516,8 +466,6 @@ public class AuthService {
                          user.setPassword(passwordEncoder.encode(newPassword));
                          userRepo.save(user);
                  });
-
-                 syncService.syncToAllBackends(saved);
          }
 
          public void logout(Long userId) {

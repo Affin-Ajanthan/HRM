@@ -74,7 +74,8 @@ public class AllowanceRequestService {
         byte[] pdf = readPdf(document);
 
         AllowanceRequest request = new AllowanceRequest();
-        request.setEmployee(employee);
+        request.setUserId(employee.getId());
+        request.setCompanyId(employee.getCompany().getId());
         request.setEmployeeEmail(employee.getEmail().trim().toLowerCase(Locale.ROOT));
         request.setEmployeeCode(employee.getEmployeeId());
         request.setEmployeeName(employee.getFullName());
@@ -99,7 +100,7 @@ public class AllowanceRequestService {
 
     @Transactional(readOnly = true)
     public List<AllowanceRequestDTO> getForEmployee(Employee employee) {
-        return requestRepository.findByEmployeeIdOrderByCreatedAtDesc(employee.getId()).stream()
+        return requestRepository.findByUserIdOrderByCreatedAtDesc(employee.getId()).stream()
                 .map(AllowanceRequestService::toDTO)
                 .collect(Collectors.toList());
     }
@@ -108,7 +109,7 @@ public class AllowanceRequestService {
     @Transactional(readOnly = true)
     public AllowanceRequestDocument getDocumentForEmployee(Employee employee, Long requestId) {
         AllowanceRequest request = requestRepository.findById(requestId)
-                .filter(r -> r.getEmployee().getId().equals(employee.getId()))
+                .filter(r -> employee.getId().equals(r.getUserId()))
                 .orElseThrow(() -> new ResourceNotFoundException("AllowanceRequest", "id", requestId));
         return document(request.getId());
     }

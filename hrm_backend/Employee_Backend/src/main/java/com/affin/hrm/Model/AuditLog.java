@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = {"employee", "company"})
+@ToString(exclude = {"company"})
 @EqualsAndHashCode(of = "id")
 public class AuditLog {
 
@@ -34,9 +34,9 @@ public class AuditLog {
     @Column(length = 1000)
     private String description;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "employee_id")
-    private Employee employee;
+    /** The employee's id in User_Backend (hrm_db_user.employees.id). */
+    @Column(name = "user_id")
+    private Long userId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id")

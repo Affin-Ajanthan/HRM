@@ -12,4 +12,5 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
     List<Department> findByCompanyId(Long companyId);
     List<Department> findByCompanyIdAndActive(Long companyId, Boolean active);
     Optional<Department> findByCompanyIdAndName(Long companyId, String name);
+    List<Department> findByCompanyIdAndNameIgnoreCase(Long companyId, String name);
 }

@@ -15,7 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -31,29 +34,32 @@ public class LeaveService {
     private final LeaveApplicationRepository leaveApplicationRepository;
     private final LeaveBalanceRepository leaveBalanceRepository;
     private final LeaveTypeRepository leaveTypeRepository;
-    private final EmployeeRepository employeeRepository;
+    private final EmployeeDirectory employeeDirectory;
     private final NotificationRepository notificationRepository;
+    private final CompanyRepository companyRepository;
     private final ModelMapper modelMapper;
     private final AuditService auditService;
 
     public LeaveService(LeaveApplicationRepository leaveApplicationRepository,
                         LeaveBalanceRepository leaveBalanceRepository,
                         LeaveTypeRepository leaveTypeRepository,
-                        EmployeeRepository employeeRepository,
+                        EmployeeDirectory employeeDirectory,
                         NotificationRepository notificationRepository,
+                        CompanyRepository companyRepository,
                         ModelMapper modelMapper,
                         AuditService auditService) {
         this.leaveApplicationRepository = leaveApplicationRepository;
         this.leaveBalanceRepository = leaveBalanceRepository;
         this.leaveTypeRepository = leaveTypeRepository;
-        this.employeeRepository = employeeRepository;
+        this.employeeDirectory = employeeDirectory;
         this.notificationRepository = notificationRepository;
+        this.companyRepository = companyRepository;
         this.modelMapper = modelMapper;
         this.auditService = auditService;
     }
 
     public LeaveApplicationDTO applyLeave(LeaveApplicationDTO dto, Long employeeId) {
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeDirectory.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
         LeaveType leaveType = leaveTypeRepository.findById(dto.getLeaveTypeId())
                 .orElseThrow(() -> new ResourceNotFoundException("LeaveType", "id", dto.getLeaveTypeId()));
@@ -67,7 +73,7 @@ public class LeaveService {
         }
 
         int currentYear = LocalDate.now().getYear();
-        Optional<LeaveBalance> balanceOpt = leaveBalanceRepository.findByEmployeeIdAndLeaveTypeIdAndYear(
+        Optional<LeaveBalance> balanceOpt = leaveBalanceRepository.findByUserIdAndLeaveTypeIdAndYear(
                 employeeId, dto.getLeaveTypeId(), currentYear);
 
         if (balanceOpt.isPresent()) {
@@ -80,7 +86,8 @@ public class LeaveService {
         }
 
         LeaveApplication leave = new LeaveApplication();
-        leave.setEmployee(employee);
+        leave.setUserId(employee.getId());
+        leave.setCompanyId(employee.getCompany().getId());
         leave.setLeaveType(leaveType);
         leave.setStartDate(dto.getStartDate());
         leave.setEndDate(dto.getEndDate());
@@ -89,7 +96,7 @@ public class LeaveService {
         leave.setStatus(LeaveApplication.LeaveStatus.PENDING);
 
         LeaveApplication saved = leaveApplicationRepository.save(leave);
-        createNotification(employee.getCompany(), null, "New Leave Request",
+        createNotification(employee.getCompany().getId(), null, "New Leave Request",
                 employee.getFullName() + " has applied for " + leaveType.getName(),
                 Notification.NotificationType.LEAVE_APPROVAL);
         auditService.logAction("APPLY_LEAVE", "LeaveApplication", saved.getId(),
@@ -101,7 +108,7 @@ public class LeaveService {
     public LeaveApplicationDTO approveLeave(Long leaveId, Long approverId) {
         LeaveApplication leave = leaveApplicationRepository.findById(leaveId)
                 .orElseThrow(() -> new ResourceNotFoundException("LeaveApplication", "id", leaveId));
-        Employee approver = employeeRepository.findById(approverId)
+        Employee approver = employeeDirectory.findById(approverId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", approverId));
 
         if (leave.getStatus() != LeaveApplication.LeaveStatus.PENDING) {
@@ -109,12 +116,12 @@ public class LeaveService {
         }
 
         leave.setStatus(LeaveApplication.LeaveStatus.APPROVED);
-        leave.setApprovedBy(approver);
+        leave.setApprovedByUserId(approver.getId());
         leave.setApprovedAt(LocalDateTime.now());
 
         int currentYear = LocalDate.now().getYear();
-        LeaveBalance balance = leaveBalanceRepository.findByEmployeeIdAndLeaveTypeIdAndYear(
-                leave.getEmployee().getId(), leave.getLeaveType().getId(), currentYear)
+        LeaveBalance balance = leaveBalanceRepository.findByUserIdAndLeaveTypeIdAndYear(
+                leave.getUserId(), leave.getLeaveType().getId(), currentYear)
                 .orElseThrow(() -> new ResourceNotFoundException("LeaveBalance not found"));
 
         balance.setUsedDays(balance.getUsedDays() + leave.getNumberOfDays());
@@ -122,18 +129,18 @@ public class LeaveService {
         leaveBalanceRepository.save(balance);
 
         LeaveApplication saved = leaveApplicationRepository.save(leave);
-        createNotification(leave.getEmployee().getCompany(), leave.getEmployee(),
+        createNotification(leave.getCompanyId(), leave.getUserId(),
                 "Leave Approved", "Your leave from " + leave.getStartDate() + " to " + leave.getEndDate() + " has been approved",
                 Notification.NotificationType.LEAVE_APPROVAL);
         auditService.logAction("APPROVE_LEAVE", "LeaveApplication", saved.getId(),
-                "Approved leave application", leave.getEmployee().getCompany().getId());
+                "Approved leave application", leave.getCompanyId());
         return convertToDTO(saved);
     }
 
     public LeaveApplicationDTO rejectLeave(Long leaveId, String reason, Long approverId) {
         LeaveApplication leave = leaveApplicationRepository.findById(leaveId)
                 .orElseThrow(() -> new ResourceNotFoundException("LeaveApplication", "id", leaveId));
-        Employee approver = employeeRepository.findById(approverId)
+        Employee approver = employeeDirectory.findById(approverId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", approverId));
 
         if (leave.getStatus() != LeaveApplication.LeaveStatus.PENDING) {
@@ -142,22 +149,22 @@ public class LeaveService {
 
         leave.setStatus(LeaveApplication.LeaveStatus.REJECTED);
         leave.setRejectionReason(reason);
-        leave.setApprovedBy(approver);
+        leave.setApprovedByUserId(approver.getId());
         leave.setApprovedAt(LocalDateTime.now());
 
         LeaveApplication saved = leaveApplicationRepository.save(leave);
-        createNotification(leave.getEmployee().getCompany(), leave.getEmployee(),
+        createNotification(leave.getCompanyId(), leave.getUserId(),
                 "Leave Rejected", "Your leave request has been rejected. Reason: " + reason,
                 Notification.NotificationType.LEAVE_REJECTION);
         auditService.logAction("REJECT_LEAVE", "LeaveApplication", saved.getId(),
-                "Rejected leave application", leave.getEmployee().getCompany().getId());
+                "Rejected leave application", leave.getCompanyId());
         return convertToDTO(saved);
     }
 
     public void cancelLeave(Long leaveId, Long employeeId) {
         LeaveApplication leave = leaveApplicationRepository.findById(leaveId)
                 .orElseThrow(() -> new ResourceNotFoundException("LeaveApplication", "id", leaveId));
-        if (!leave.getEmployee().getId().equals(employeeId)) {
+        if (!leave.getUserId().equals(employeeId)) {
             throw new BusinessException("Unauthorized to cancel this leave");
         }
         if (leave.getStatus() != LeaveApplication.LeaveStatus.PENDING) {
@@ -166,34 +173,33 @@ public class LeaveService {
         leave.setStatus(LeaveApplication.LeaveStatus.CANCELLED);
         leaveApplicationRepository.save(leave);
         auditService.logAction("CANCEL_LEAVE", "LeaveApplication", leave.getId(),
-                "Cancelled leave application", leave.getEmployee().getCompany().getId());
+                "Cancelled leave application", leave.getCompanyId());
     }
 
     @Transactional(readOnly = true)
     public List<LeaveApplicationDTO> getEmployeeLeaves(Long employeeId) {
-        return leaveApplicationRepository.findByEmployeeId(employeeId).stream()
-                .map(this::convertToDTO).collect(Collectors.toList());
+        return leaveApplicationRepository.findByUserId(employeeId).stream().collect(Collectors.collectingAndThen(Collectors.toList(), this::toDTOs));
     }
 
     @Transactional(readOnly = true)
     public List<LeaveApplicationDTO> getPendingLeaves(Long companyId) {
-        return leaveApplicationRepository.findByCompanyIdAndStatus(companyId, LeaveApplication.LeaveStatus.PENDING).stream()
-                .map(this::convertToDTO).collect(Collectors.toList());
+        return leaveApplicationRepository.findByCompanyIdAndStatus(companyId, LeaveApplication.LeaveStatus.PENDING).stream().collect(Collectors.collectingAndThen(Collectors.toList(), this::toDTOs));
     }
 
     @Transactional(readOnly = true)
     public List<LeaveBalanceDTO> getEmployeeLeaveBalances(Long employeeId) {
         int currentYear = LocalDate.now().getYear();
-        List<LeaveBalance> balances = leaveBalanceRepository.findByEmployeeIdAndYear(employeeId, currentYear);
+        List<LeaveBalance> balances = leaveBalanceRepository.findByUserIdAndYear(employeeId, currentYear);
 
         if (balances.isEmpty()) {
-            Employee employee = employeeRepository.findById(employeeId)
+            Employee employee = employeeDirectory.findById(employeeId)
                     .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
             initializeLeaveBalances(employee, currentYear);
-            balances = leaveBalanceRepository.findByEmployeeIdAndYear(employeeId, currentYear);
+            balances = leaveBalanceRepository.findByUserIdAndYear(employeeId, currentYear);
         }
 
-        return balances.stream().map(this::convertBalanceToDTO).collect(Collectors.toList());
+        Map<Long, Employee> people = employeeDirectory.mapByIds(balances.stream().map(LeaveBalance::getUserId).toList());
+        return balances.stream().map(b -> convertBalanceToDTO(b, people.get(b.getUserId()))).collect(Collectors.toList());
     }
 
     // ── Private helpers ──────────────────────────────────────────
@@ -207,7 +213,8 @@ public class LeaveService {
 
     private void createLeaveBalance(Employee employee, LeaveType leaveType, int year) {
         LeaveBalance balance = new LeaveBalance();
-        balance.setEmployee(employee);
+        balance.setUserId(employee.getId());
+        balance.setCompanyId(employee.getCompany().getId());
         balance.setLeaveType(leaveType);
         balance.setYear(year);
         balance.setTotalDays(leaveType.getDefaultDaysPerYear());
@@ -228,11 +235,11 @@ public class LeaveService {
         return workingDays;
     }
 
-    private void createNotification(Company company, Employee employee, String title,
+    private void createNotification(Long companyId, Long userId, String title,
                                     String message, Notification.NotificationType type) {
         Notification notification = new Notification();
-        notification.setCompany(company);
-        notification.setEmployee(employee);
+        notification.setCompany(companyId != null ? companyRepository.findById(companyId).orElse(null) : null);
+        notification.setUserId(userId);
         notification.setTitle(title);
         notification.setMessage(message);
         notification.setType(type);
@@ -241,29 +248,43 @@ public class LeaveService {
     }
 
     private LeaveApplicationDTO convertToDTO(LeaveApplication leave) {
+        return toDTOs(List.of(leave)).get(0);
+    }
+
+    /** Converts a list with one User_Backend lookup for everyone in it (applicants and approvers). */
+    private List<LeaveApplicationDTO> toDTOs(List<LeaveApplication> leaves) {
+        Set<Long> ids = new HashSet<>();
+        leaves.forEach(l -> { ids.add(l.getUserId()); ids.add(l.getApprovedByUserId()); });
+        Map<Long, Employee> people = employeeDirectory.mapByIds(ids);
+        return leaves.stream().map(l -> convertToDTO(l, people)).collect(Collectors.toList());
+    }
+
+    private LeaveApplicationDTO convertToDTO(LeaveApplication leave, Map<Long, Employee> people) {
         LeaveApplicationDTO dto = modelMapper.map(leave, LeaveApplicationDTO.class);
-        if (leave.getEmployee() != null) {
-            dto.setEmployeeId(leave.getEmployee().getId());
-            dto.setEmployeeName(leave.getEmployee().getFullName());
-            dto.setEmployeeIdNumber(leave.getEmployee().getEmployeeId());
+        dto.setEmployeeId(leave.getUserId());
+        Employee employee = people.get(leave.getUserId());
+        if (employee != null) {
+            dto.setEmployeeName(employee.getFullName());
+            dto.setEmployeeIdNumber(employee.getEmployeeId());
         }
         if (leave.getLeaveType() != null) {
             dto.setLeaveTypeId(leave.getLeaveType().getId());
             dto.setLeaveTypeName(leave.getLeaveType().getName());
         }
         if (leave.getStatus() != null) dto.setStatus(leave.getStatus().name());
-        if (leave.getApprovedBy() != null) {
-            dto.setApprovedBy(leave.getApprovedBy().getId());
-            dto.setApprovedByName(leave.getApprovedBy().getFullName());
+        if (leave.getApprovedByUserId() != null) {
+            dto.setApprovedBy(leave.getApprovedByUserId());
+            Employee approver = people.get(leave.getApprovedByUserId());
+            if (approver != null) dto.setApprovedByName(approver.getFullName());
         }
         return dto;
     }
 
-    private LeaveBalanceDTO convertBalanceToDTO(LeaveBalance balance) {
+    private LeaveBalanceDTO convertBalanceToDTO(LeaveBalance balance, Employee employee) {
         LeaveBalanceDTO dto = modelMapper.map(balance, LeaveBalanceDTO.class);
-        if (balance.getEmployee() != null) {
-            dto.setEmployeeId(balance.getEmployee().getId());
-            dto.setEmployeeName(balance.getEmployee().getFullName());
+        dto.setEmployeeId(balance.getUserId());
+        if (employee != null) {
+            dto.setEmployeeName(employee.getFullName());
         }
         if (balance.getLeaveType() != null) {
             dto.setLeaveTypeId(balance.getLeaveType().getId());

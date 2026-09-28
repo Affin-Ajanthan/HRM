@@ -6,7 +6,6 @@ import com.affin.hrm.exception.ResourceNotFoundException;
 import com.affin.hrm.model.Attendance;
 import com.affin.hrm.model.Employee;
 import com.affin.hrm.repository.AttendanceRepository;
-import com.affin.hrm.repository.EmployeeRepository;
 import org.modelmapper.ModelMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -29,16 +29,16 @@ public class AttendanceService {
     private static final Logger log = LoggerFactory.getLogger(AttendanceService.class);
 
     private final AttendanceRepository attendanceRepository;
-    private final EmployeeRepository employeeRepository;
+    private final EmployeeDirectory employeeDirectory;
     private final ModelMapper modelMapper;
     private final AuditService auditService;
 
     public AttendanceService(AttendanceRepository attendanceRepository,
-                             EmployeeRepository employeeRepository,
+                             EmployeeDirectory employeeDirectory,
                              ModelMapper modelMapper,
                              AuditService auditService) {
         this.attendanceRepository = attendanceRepository;
-        this.employeeRepository = employeeRepository;
+        this.employeeDirectory = employeeDirectory;
         this.modelMapper = modelMapper;
         this.auditService = auditService;
     }
@@ -47,12 +47,12 @@ public class AttendanceService {
         LocalDate today = LocalDate.now();
         ensureNoOpenSession(employeeId, today);
 
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeDirectory.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
 
         Attendance attendance = new Attendance();
-        attendance.setEmployee(employee);
-        attendance.setUserId(employee.getUserId());
+        attendance.setUserId(employee.getId());
+        attendance.setCompanyId(employee.getCompany().getId());
         attendance.setDate(today);
         attendance.setClockInTime(clockInTime != null ? clockInTime : LocalTime.now());
         attendance.setAttendanceType(Attendance.AttendanceType.MANUAL);
@@ -72,7 +72,7 @@ public class AttendanceService {
         attendance.setClockOutTime(clockOutTime != null ? clockOutTime : LocalTime.now());
         Attendance saved = attendanceRepository.save(attendance);
         auditService.logAction("CLOCK_OUT", "Attendance", saved.getId(),
-                "Employee clocked out", attendance.getEmployee().getCompany().getId());
+                "Employee clocked out", attendance.getCompanyId());
         log.info("Employee {} clocked out at {}", employeeId, saved.getClockOutTime());
         return convertToDTO(saved);
     }
@@ -81,12 +81,12 @@ public class AttendanceService {
         LocalDate today = LocalDate.now();
         ensureNoOpenSession(employeeId, today);
 
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeDirectory.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
 
         Attendance attendance = new Attendance();
-        attendance.setEmployee(employee);
-        attendance.setUserId(employee.getUserId());
+        attendance.setUserId(employee.getId());
+        attendance.setCompanyId(employee.getCompany().getId());
         attendance.setDate(today);
         attendance.setClockInTime(LocalTime.now());
         attendance.setClockInLocation(location);
@@ -107,42 +107,42 @@ public class AttendanceService {
         attendance.setClockOutLocation(location);
         Attendance saved = attendanceRepository.save(attendance);
         auditService.logAction("CLOCK_OUT_GPS", "Attendance", saved.getId(),
-                "Employee clocked out via GPS", attendance.getEmployee().getCompany().getId());
+                "Employee clocked out via GPS", attendance.getCompanyId());
         return convertToDTO(saved);
     }
 
     private void ensureNoOpenSession(Long employeeId, LocalDate date) {
-        attendanceRepository.findFirstByEmployeeIdAndDateAndClockOutTimeIsNullOrderByClockInTimeDesc(employeeId, date)
+        attendanceRepository.findFirstByUserIdAndDateAndClockOutTimeIsNullOrderByClockInTimeDesc(employeeId, date)
                 .ifPresent(a -> { throw new BusinessException("Already clocked in. Please clock out first."); });
     }
 
     private Attendance findOpenSession(Long employeeId, LocalDate date) {
-        return attendanceRepository.findFirstByEmployeeIdAndDateAndClockOutTimeIsNullOrderByClockInTimeDesc(employeeId, date)
+        return attendanceRepository.findFirstByUserIdAndDateAndClockOutTimeIsNullOrderByClockInTimeDesc(employeeId, date)
                 .orElseThrow(() -> new BusinessException("No active clock-in session found. Please clock in first."));
     }
 
     @Transactional(readOnly = true)
     public List<AttendanceDTO> getEmployeeAttendance(Long employeeId, LocalDate startDate, LocalDate endDate) {
-        return attendanceRepository.findByEmployeeIdAndDateBetween(employeeId, startDate, endDate)
-                .stream().map(this::convertToDTO).collect(Collectors.toList());
+        return attendanceRepository.findByUserIdAndDateBetween(employeeId, startDate, endDate)
+                .stream().collect(Collectors.collectingAndThen(Collectors.toList(), this::toDTOs));
     }
 
     @Transactional(readOnly = true)
     public List<AttendanceDTO> getDailyAttendance(Long companyId, LocalDate date) {
         return attendanceRepository.findByCompanyIdAndDate(companyId, date)
-                .stream().map(this::convertToDTO).collect(Collectors.toList());
+                .stream().collect(Collectors.collectingAndThen(Collectors.toList(), this::toDTOs));
     }
 
     @Transactional(readOnly = true)
     public List<AttendanceDTO> getAttendanceRange(Long companyId, LocalDate startDate, LocalDate endDate) {
         return attendanceRepository.findByCompanyIdAndDateBetween(companyId, startDate, endDate)
-                .stream().map(this::convertToDTO).collect(Collectors.toList());
+                .stream().collect(Collectors.collectingAndThen(Collectors.toList(), this::toDTOs));
     }
 
     @Transactional(readOnly = true)
     public List<AttendanceDTO> getTodayAttendance(Long employeeId) {
-        return attendanceRepository.findByEmployeeIdAndDateOrderByClockInTimeAsc(employeeId, LocalDate.now())
-                .stream().map(this::convertToDTO).collect(Collectors.toList());
+        return attendanceRepository.findByUserIdAndDateOrderByClockInTimeAsc(employeeId, LocalDate.now())
+                .stream().collect(Collectors.collectingAndThen(Collectors.toList(), this::toDTOs));
     }
 
     public AttendanceDTO requestAdjustment(Long attendanceId, String reason) {
@@ -155,7 +155,7 @@ public class AttendanceService {
 
         Attendance saved = attendanceRepository.save(attendance);
         auditService.logAction("REQUEST_ATTENDANCE_ADJUSTMENT", "Attendance", saved.getId(),
-                "Requested attendance adjustment", attendance.getEmployee().getCompany().getId());
+                "Requested attendance adjustment", attendance.getCompanyId());
         return convertToDTO(saved);
     }
 
@@ -165,7 +165,7 @@ public class AttendanceService {
         attendance.setAdjustmentStatus(Attendance.AdjustmentStatus.APPROVED);
         Attendance saved = attendanceRepository.save(attendance);
         auditService.logAction("APPROVE_ATTENDANCE_ADJUSTMENT", "Attendance", saved.getId(),
-                "Approved attendance adjustment", attendance.getEmployee().getCompany().getId());
+                "Approved attendance adjustment", attendance.getCompanyId());
         return convertToDTO(saved);
     }
 
@@ -175,7 +175,7 @@ public class AttendanceService {
         attendance.setAdjustmentStatus(Attendance.AdjustmentStatus.REJECTED);
         Attendance saved = attendanceRepository.save(attendance);
         auditService.logAction("REJECT_ATTENDANCE_ADJUSTMENT", "Attendance", saved.getId(),
-                "Rejected attendance adjustment", attendance.getEmployee().getCompany().getId());
+                "Rejected attendance adjustment", attendance.getCompanyId());
         return convertToDTO(saved);
     }
 
@@ -183,20 +183,27 @@ public class AttendanceService {
     public List<AttendanceDTO> getPendingAdjustments(Long companyId) {
         return attendanceRepository.findByIsAdjustmentRequestedAndAdjustmentStatus(true, Attendance.AdjustmentStatus.PENDING)
                 .stream()
-                .filter(a -> a.getEmployee().getCompany().getId().equals(companyId))
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
+                .filter(a -> companyId.equals(a.getCompanyId()))
+                .collect(Collectors.collectingAndThen(Collectors.toList(), this::toDTOs));
     }
 
     private AttendanceDTO convertToDTO(Attendance attendance) {
+        return convertToDTO(attendance, employeeDirectory.findById(attendance.getUserId()).orElse(null));
+    }
+
+    /** Converts a list with one User_Backend lookup for all the people in it. */
+    private List<AttendanceDTO> toDTOs(List<Attendance> records) {
+        Map<Long, Employee> people = employeeDirectory.mapByIds(records.stream().map(Attendance::getUserId).toList());
+        return records.stream().map(a -> convertToDTO(a, people.get(a.getUserId()))).collect(Collectors.toList());
+    }
+
+    private AttendanceDTO convertToDTO(Attendance attendance, Employee employee) {
         AttendanceDTO dto = modelMapper.map(attendance, AttendanceDTO.class);
-        if (attendance.getEmployee() != null) {
-            dto.setEmployeeId(attendance.getEmployee().getId());
-            dto.setEmployeeName(attendance.getEmployee().getFullName());
-            dto.setEmployeeIdNumber(attendance.getEmployee().getEmployeeId());
-            if (attendance.getEmployee().getDepartment() != null) {
-                dto.setDepartmentName(attendance.getEmployee().getDepartment().getName());
-            }
+        dto.setEmployeeId(attendance.getUserId());
+        if (employee != null) {
+            dto.setEmployeeName(employee.getFullName());
+            dto.setEmployeeIdNumber(employee.getEmployeeId());
+            dto.setDepartmentName(employee.getDepartment() != null ? employee.getDepartment().getName() : employee.getDepartmentName());
         }
         if (attendance.getAttendanceType() != null) dto.setAttendanceType(attendance.getAttendanceType().name());
         if (attendance.getStatus() != null) dto.setStatus(attendance.getStatus().name());

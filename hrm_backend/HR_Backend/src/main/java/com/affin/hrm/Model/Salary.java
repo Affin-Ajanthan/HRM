@@ -17,7 +17,6 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = {"employee"})
 @EqualsAndHashCode(of = "id")
 public class Salary {
 
@@ -25,9 +24,13 @@ public class Salary {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "employee_id", nullable = false, unique = true)
-    private Employee employee;
+    /** The employee's id in User_Backend (hrm_db_user.employees.id). */
+    @Column(name = "user_id", unique = true)
+    private Long userId;
+
+    /** Id of this database's company the record belongs to. */
+    @Column(name = "company_id")
+    private Long companyId;
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal basicSalary;

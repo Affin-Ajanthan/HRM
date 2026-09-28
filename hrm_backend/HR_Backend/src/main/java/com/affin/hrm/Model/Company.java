@@ -18,7 +18,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = {"departments", "employees"})
+@ToString(exclude = {"departments"})
 @EqualsAndHashCode(of = "id")
 public class Company {
 
@@ -62,10 +62,6 @@ public class Company {
     @JsonIgnore
     @OneToMany(mappedBy = "company", fetch = FetchType.LAZY)
     private List<Department> departments;
-
-    @JsonIgnore
-    @OneToMany(mappedBy = "company", fetch = FetchType.LAZY)
-    private List<Employee> employees;
 
     public enum CompanyStatus {
         PENDING, APPROVED, REJECTED, SUSPENDED

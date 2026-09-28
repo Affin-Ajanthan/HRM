@@ -2,17 +2,15 @@ package com.affin.hrm.controller;
 
 import com.affin.hrm.dto.ApiResponse;
 import com.affin.hrm.model.Company;
-import com.affin.hrm.model.Employee;
 import com.affin.hrm.repository.CompanyRepository;
-import com.affin.hrm.repository.EmployeeRepository;
-import com.affin.hrm.service.EmployeeService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Sync controller — receives employee and company data pushed from other backends.
+ * Sync controller — receives company data pushed from Admin_Backend.
+ * People are not synced here: they live only in User_Backend and are read from there.
  * This endpoint is intentionally unauthenticated for inter-service communication.
  * In production, secure this with an API key or service mesh.
  */
@@ -22,42 +20,10 @@ public class SyncController {
 
     private static final Logger log = LoggerFactory.getLogger(SyncController.class);
 
-    private final EmployeeService employeeService;
-    private final EmployeeRepository employeeRepository;
     private final CompanyRepository companyRepository;
 
-    public SyncController(EmployeeService employeeService,
-                          EmployeeRepository employeeRepository,
-                          CompanyRepository companyRepository) {
-        this.employeeService = employeeService;
-        this.employeeRepository = employeeRepository;
+    public SyncController(CompanyRepository companyRepository) {
         this.companyRepository = companyRepository;
-    }
-
-    @PostMapping("/employee")
-    public ResponseEntity<ApiResponse<String>> syncEmployee(@RequestBody Employee employee) {
-        log.info("Received sync request for employee: {}", employee.getEmail());
-        Employee saved = employeeService.saveEmployee(employee);
-        log.info("Employee synced successfully: {} (ID: {})", saved.getEmail(), saved.getId());
-        return ResponseEntity.ok(ApiResponse.success("Employee synced: " + saved.getEmail(),
-                "Sync completed successfully"));
-    }
-
-    @DeleteMapping("/employee/{id}")
-    public ResponseEntity<ApiResponse<String>> deleteEmployee(@PathVariable Long id) {
-        log.info("Received sync request to delete employee ID: {}", id);
-        try {
-            if (employeeRepository.existsById(id)) {
-                employeeRepository.deleteById(id);
-                log.info("Deleted employee ID: {} from HR_Backend", id);
-            } else {
-                log.info("Employee ID {} does not exist in HR_Backend", id);
-            }
-        } catch (Exception e) {
-            log.warn("Error deleting employee ID {} during sync: {}", id, e.getMessage());
-        }
-        return ResponseEntity.ok(ApiResponse.success("Sync delete completed for employee ID: " + id,
-                "Sync completed successfully"));
     }
 
     @PostMapping("/company")
@@ -75,6 +41,8 @@ public class SyncController {
             companyRepository.save(existing);
             log.info("Company updated successfully: {}", company.getCompanyName());
         } else {
+            // The incoming id belongs to the sender's database; let this one assign its own.
+            company.setId(null);
             companyRepository.save(company);
             log.info("Company created successfully: {}", company.getCompanyName());
         }

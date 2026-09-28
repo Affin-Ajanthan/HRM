@@ -3,7 +3,6 @@ package com.affin.hrm.service;
 import com.affin.hrm.model.Company;
 import com.affin.hrm.model.Employee;
 import com.affin.hrm.model.Notification;
-import com.affin.hrm.repository.EmployeeRepository;
 import com.affin.hrm.repository.NotificationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,12 +19,12 @@ public class NotificationService {
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
     private final NotificationRepository notificationRepository;
-    private final EmployeeRepository employeeRepository;
+    private final EmployeeDirectory employeeDirectory;
 
     public NotificationService(NotificationRepository notificationRepository,
-                               EmployeeRepository employeeRepository) {
+                               EmployeeDirectory employeeDirectory) {
         this.notificationRepository = notificationRepository;
-        this.employeeRepository = employeeRepository;
+        this.employeeDirectory = employeeDirectory;
     }
 
     /**
@@ -49,11 +48,12 @@ public class NotificationService {
             notificationRepository.save(globalNotification);
 
             // 2. Also notify each individual ADMIN user account in DB
-            List<Employee> adminUsers = employeeRepository.findByRole(Employee.Role.ADMIN);
+            List<Employee> adminUsers = employeeDirectory.findAll().stream()
+                    .filter(e -> e.getRole() == Employee.Role.ADMIN).toList();
             for (Employee admin : adminUsers) {
                 try {
                     Notification userNotification = new Notification();
-                    userNotification.setEmployee(admin);
+                    userNotification.setUserId(admin.getId());
                     userNotification.setCompany(company);
                     userNotification.setTitle(title);
                     userNotification.setMessage(message);

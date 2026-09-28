@@ -51,32 +51,7 @@ public class HRController {
         return ResponseEntity.ok(ApiResponse.success(employee));
     }
 
-    @PostMapping("/employees")
-    public ResponseEntity<ApiResponse<EmployeeDTO>> createEmployee(@Valid @RequestBody EmployeeDTO dto) {
-        Employee hr = authService.getCurrentEmployee();
-        EmployeeDTO created = employeeService.createEmployee(dto, hr.getCompany().getId());
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(created, "Employee created successfully"));
-    }
-
-    @PutMapping("/employees/{id}")
-    public ResponseEntity<ApiResponse<EmployeeDTO>> updateEmployee(@PathVariable Long id, @Valid @RequestBody EmployeeDTO dto) {
-        EmployeeDTO updated = employeeService.updateEmployee(id, dto);
-        return ResponseEntity.ok(ApiResponse.success(updated, "Employee updated successfully"));
-    }
-
-    @PostMapping("/employees/{id}/deactivate")
-    public ResponseEntity<ApiResponse<Void>> deactivateEmployee(@PathVariable Long id) {
-        employeeService.deactivateEmployee(id);
-        return ResponseEntity.ok(ApiResponse.success(null, "Employee deactivated"));
-    }
-
-    @PostMapping("/employees/{id}/terminate")
-    public ResponseEntity<ApiResponse<Void>> terminateEmployee(@PathVariable Long id,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate terminationDate) {
-        employeeService.terminateEmployee(id, terminationDate);
-        return ResponseEntity.ok(ApiResponse.success(null, "Employee terminated"));
-    }
+    // Creating, editing and removing employees is done in User_Backend (/api/hr/employees there).
 
     // ── Attendance Oversight ─────────────────────────────────────
 

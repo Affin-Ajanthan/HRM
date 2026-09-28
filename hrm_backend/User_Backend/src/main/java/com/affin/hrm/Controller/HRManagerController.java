@@ -47,6 +47,7 @@ public class HRManagerController {
     @GetMapping("/employees/{id}")
     public ResponseEntity<ApiResponse<EmployeeDTO>> getEmployee(@PathVariable Long id) {
         try {
+            employeeService.assertSameCompany(id, authService.getCurrentEmployee());
             EmployeeDTO employee = employeeService.getEmployeeById(id);
             return ResponseEntity.ok(ApiResponse.success(employee, "Employee retrieved successfully"));
         } catch (Exception e) {
@@ -74,6 +75,7 @@ public class HRManagerController {
             @PathVariable Long id,
             @Valid @RequestBody EmployeeDTO employeeDTO) {
         try {
+            employeeService.assertSameCompany(id, authService.getCurrentEmployee());
             EmployeeDTO updated = employeeService.updateEmployee(id, employeeDTO);
             return ResponseEntity.ok(ApiResponse.success(updated, "Employee updated successfully"));
         } catch (Exception e) {
@@ -86,6 +88,7 @@ public class HRManagerController {
     public ResponseEntity<ApiResponse<Void>> deleteEmployee(@PathVariable Long id) {
         try {
             var currentUser = authService.getCurrentEmployee();
+            employeeService.assertSameCompany(id, currentUser);
             employeeService.deleteEmployee(id, currentUser);
             return ResponseEntity.ok(ApiResponse.success(null, "Employee deleted successfully"));
         } catch (Exception e) {
@@ -97,6 +100,7 @@ public class HRManagerController {
     @PutMapping("/employees/{id}/deactivate")
     public ResponseEntity<ApiResponse<Void>> deactivateEmployee(@PathVariable Long id) {
         try {
+            employeeService.assertSameCompany(id, authService.getCurrentEmployee());
             employeeService.deactivateEmployee(id);
             return ResponseEntity.ok(ApiResponse.success(null, "Employee deactivated successfully"));
         } catch (Exception e) {
@@ -110,6 +114,7 @@ public class HRManagerController {
             @PathVariable Long id,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate terminationDate) {
         try {
+            employeeService.assertSameCompany(id, authService.getCurrentEmployee());
             employeeService.terminateEmployee(id, terminationDate);
             return ResponseEntity.ok(ApiResponse.success(null, "Employee terminated successfully"));
         } catch (Exception e) {
@@ -162,6 +167,7 @@ public class HRManagerController {
     @GetMapping("/leaves/employee/{id}")
     public ResponseEntity<ApiResponse<List<LeaveApplicationDTO>>> getEmployeeLeaves(@PathVariable Long id) {
         try {
+            employeeService.assertSameCompany(id, authService.getCurrentEmployee());
             List<LeaveApplicationDTO> leaves = leaveService.getEmployeeLeaves(id);
             return ResponseEntity.ok(ApiResponse.success(leaves, "Employee leaves retrieved"));
         } catch (Exception e) {

@@ -4,6 +4,7 @@ import com.affin.hrm.dto.*;
 import com.affin.hrm.exception.ResourceNotFoundException;
 import com.affin.hrm.model.*;
 import com.affin.hrm.repository.*;
+import com.affin.hrm.service.EmployeeDirectory;
 import com.affin.hrm.service.EmployeeService;
 import com.affin.hrm.service.PayrollService;
 import org.modelmapper.ModelMapper;
@@ -31,7 +32,7 @@ public class InternalController {
 
     private static final Logger log = LoggerFactory.getLogger(InternalController.class);
 
-    private final EmployeeRepository employeeRepository;
+    private final EmployeeDirectory employeeDirectory;
     private final CompanyRepository companyRepository;
     private final DepartmentRepository departmentRepository;
     private final AttendanceRepository attendanceRepository;
@@ -41,7 +42,7 @@ public class InternalController {
     private final SalaryRepository salaryRepository;
     private final ModelMapper modelMapper;
 
-    public InternalController(EmployeeRepository employeeRepository,
+    public InternalController(EmployeeDirectory employeeDirectory,
                               CompanyRepository companyRepository,
                               DepartmentRepository departmentRepository,
                               AttendanceRepository attendanceRepository,
@@ -50,7 +51,7 @@ public class InternalController {
                               PayrollService payrollService,
                               SalaryRepository salaryRepository,
                               ModelMapper modelMapper) {
-        this.employeeRepository = employeeRepository;
+        this.employeeDirectory = employeeDirectory;
         this.companyRepository = companyRepository;
         this.departmentRepository = departmentRepository;
         this.attendanceRepository = attendanceRepository;
@@ -66,7 +67,7 @@ public class InternalController {
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getStats() {
         Map<String, Object> stats = new HashMap<>();
-        stats.put("totalEmployees", employeeRepository.count());
+        stats.put("totalEmployees", (long) employeeDirectory.findAll().size());
         stats.put("totalCompanies", companyRepository.count());
         stats.put("pendingCompanies", companyRepository.countByStatus(Company.CompanyStatus.PENDING));
         stats.put("totalDepartments", departmentRepository.count());
@@ -79,7 +80,7 @@ public class InternalController {
     @GetMapping("/stats/company/{companyId}")
     public ResponseEntity<Map<String, Object>> getCompanyStats(@PathVariable Long companyId) {
         Map<String, Object> stats = new HashMap<>();
-        stats.put("totalEmployees", employeeRepository.countByCompanyIdAndStatus(companyId, Employee.EmployeeStatus.ACTIVE));
+        stats.put("totalEmployees", employeeDirectory.countByCompanyIdAndStatus(companyId, Employee.EmployeeStatus.ACTIVE));
         stats.put("presentToday", attendanceRepository.countPresentByCompanyIdAndDate(companyId, LocalDate.now()));
         stats.put("pendingLeaves", leaveApplicationRepository.countByCompanyIdAndStatus(companyId, LeaveApplication.LeaveStatus.PENDING));
         return ResponseEntity.ok(stats);
@@ -90,7 +91,7 @@ public class InternalController {
     @GetMapping("/employees")
     @Transactional(readOnly = true)
     public ResponseEntity<List<EmployeeDTO>> getAllEmployees() {
-        List<EmployeeDTO> employees = employeeRepository.findAll().stream()
+        List<EmployeeDTO> employees = employeeDirectory.findAll().stream()
                 .map(this::convertToEmployeeDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(employees);
@@ -99,7 +100,7 @@ public class InternalController {
     @GetMapping("/employees/{id}")
     @Transactional(readOnly = true)
     public ResponseEntity<EmployeeDTO> getEmployeeById(@PathVariable Long id) {
-        Employee employee = employeeRepository.findById(id)
+        Employee employee = employeeDirectory.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", id));
         return ResponseEntity.ok(convertToEmployeeDTO(employee));
     }
@@ -107,7 +108,7 @@ public class InternalController {
     @GetMapping("/employees/company/{companyId}")
     @Transactional(readOnly = true)
     public ResponseEntity<List<EmployeeDTO>> getEmployeesByCompany(@PathVariable Long companyId) {
-        List<EmployeeDTO> employees = employeeRepository.findByCompanyId(companyId).stream()
+        List<EmployeeDTO> employees = employeeDirectory.findByCompanyId(companyId).stream()
                 .map(this::convertToEmployeeDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(employees);
@@ -116,32 +117,14 @@ public class InternalController {
     @GetMapping("/employees/admins")
     @Transactional(readOnly = true)
     public ResponseEntity<List<EmployeeDTO>> getAdminUsers() {
-        List<EmployeeDTO> admins = employeeRepository.findAll().stream()
+        List<EmployeeDTO> admins = employeeDirectory.findAll().stream()
                 .filter(e -> e.getRole() == Employee.Role.ADMIN || e.getRole() == Employee.Role.HR_MANAGER)
                 .map(this::convertToEmployeeDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(admins);
     }
 
-    @PutMapping("/employees/{id}/role")
-    public ResponseEntity<EmployeeDTO> updateEmployeeRole(@PathVariable Long id, @RequestParam String role) {
-        Employee employee = employeeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", id));
-        employee.setRole(Employee.Role.valueOf(role.trim().toUpperCase()));
-        employeeRepository.save(employee);
-        log.info("Internal: Updated role for {} to {}", employee.getEmail(), role);
-        return ResponseEntity.ok(convertToEmployeeDTO(employee));
-    }
-
-    @PutMapping("/employees/{id}/status")
-    public ResponseEntity<EmployeeDTO> updateEmployeeStatus(@PathVariable Long id, @RequestParam String status) {
-        Employee employee = employeeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", id));
-        employee.setStatus(Employee.EmployeeStatus.valueOf(status.trim().toUpperCase()));
-        employeeRepository.save(employee);
-        log.info("Internal: Updated status for {} to {}", employee.getEmail(), status);
-        return ResponseEntity.ok(convertToEmployeeDTO(employee));
-    }
+    // Role and status changes are made in User_Backend (/api/internal/users/{id}/role|status), the owner of users.
 
     // ── Companies ────────────────────────────────────────────────
 
@@ -150,7 +133,7 @@ public class InternalController {
         List<CompanyDTO> companies = companyRepository.findAll().stream()
                 .map(c -> {
                     CompanyDTO dto = modelMapper.map(c, CompanyDTO.class);
-                    dto.setEmployeeCount(employeeRepository.countByCompanyIdAndStatus(c.getId(), Employee.EmployeeStatus.ACTIVE));
+                    dto.setEmployeeCount(employeeDirectory.countByCompanyIdAndStatus(c.getId(), Employee.EmployeeStatus.ACTIVE));
                     return dto;
                 })
                 .collect(Collectors.toList());
@@ -162,7 +145,7 @@ public class InternalController {
         Company company = companyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Company", "id", id));
         CompanyDTO dto = modelMapper.map(company, CompanyDTO.class);
-        dto.setEmployeeCount(employeeRepository.countByCompanyIdAndStatus(id, Employee.EmployeeStatus.ACTIVE));
+        dto.setEmployeeCount(employeeDirectory.countByCompanyIdAndStatus(id, Employee.EmployeeStatus.ACTIVE));
         return ResponseEntity.ok(dto);
     }
 
@@ -272,14 +255,9 @@ public class InternalController {
         dto.setEmployeeId(employee.getEmployeeId());
         dto.setFullName(employee.getFullName());
         dto.setEmail(employee.getEmail());
-        dto.setPhone(employee.getPhone());
-        dto.setNic(employee.getNic());
-        dto.setDob(employee.getDob());
-        dto.setAddress(employee.getAddress());
         dto.setDesignation(employee.getDesignation());
         dto.setJoiningDate(employee.getJoiningDate());
         dto.setTerminationDate(employee.getTerminationDate());
-        if (employee.getGender() != null) dto.setGender(employee.getGender().name());
         if (employee.getRole() != null) dto.setRole(employee.getRole().name());
         if (employee.getStatus() != null) dto.setStatus(employee.getStatus().name());
 
@@ -331,17 +309,17 @@ public class InternalController {
     }
 
     @GetMapping("/salaries/employee/{id}")
-    public ResponseEntity<Salary> getSalaryByEmployeeId(@PathVariable Long id) {
-        Salary salary = salaryRepository.findByEmployeeId(id).orElse(null);
+    public ResponseEntity<Salary> getSalaryByUserId(@PathVariable Long id) {
+        Salary salary = salaryRepository.findByUserId(id).orElse(null);
         return ResponseEntity.ok(salary);
     }
 
     @PostMapping("/salaries")
     public ResponseEntity<Salary> saveSalary(@RequestBody Salary salary) {
-        if (salary.getEmployee() != null && salary.getEmployee().getId() != null) {
-            Employee emp = employeeRepository.findById(salary.getEmployee().getId()).orElse(null);
+        if (salary.getUserId() != null) {
+            Employee emp = employeeDirectory.findById(salary.getUserId()).orElse(null);
             if (emp != null) {
-                salary.setEmployee(emp);
+                salary.setCompanyId(emp.getCompany().getId());
                 BigDecimal basic = salary.getBasicSalary() != null ? salary.getBasicSalary() : BigDecimal.ZERO;
                 BigDecimal house = salary.getHouseAllowance() != null ? salary.getHouseAllowance() : BigDecimal.ZERO;
                 BigDecimal transport = salary.getTransportAllowance() != null ? salary.getTransportAllowance() : BigDecimal.ZERO;
@@ -354,7 +332,7 @@ public class InternalController {
                 salary.setNetSalary(salary.getGrossSalary().subtract(tax).subtract(pf));
 
                 // If already exists, update existing
-                Salary existing = salaryRepository.findByEmployeeId(emp.getId()).orElse(null);
+                Salary existing = salaryRepository.findByUserId(emp.getId()).orElse(null);
                 if (existing != null) {
                     existing.setBasicSalary(basic);
                     existing.setHouseAllowance(house);

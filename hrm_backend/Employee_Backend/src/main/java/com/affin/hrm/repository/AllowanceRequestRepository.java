@@ -10,7 +10,7 @@ import java.util.List;
 @Repository
 public interface AllowanceRequestRepository extends JpaRepository<AllowanceRequest, Long> {
 
-    List<AllowanceRequest> findByEmployeeIdOrderByCreatedAtDesc(Long employeeId);
+    List<AllowanceRequest> findByUserIdOrderByCreatedAtDesc(Long userId);
 
     List<AllowanceRequest> findByEmployeeEmailInOrderByCreatedAtDesc(Collection<String> employeeEmails);
 }

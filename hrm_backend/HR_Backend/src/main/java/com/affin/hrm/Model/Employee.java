@@ -1,96 +1,38 @@
 package com.affin.hrm.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 /**
- * Employee entity — the core user of the HRM system.
+ * Read-only view of a user, loaded from User_Backend (hrm_db_user.employees is the only
+ * table of people). Not stored in this database: HR records reference a person by
+ * {@code user_id}, which is this object's {@link #getId()}.
+ * <p>
+ * {@link #getCompany()} and {@link #getDepartment()} are this database's own company and
+ * department rows, matched by registration number / name (ids differ per database).
  */
-@Entity
-@Table(name = "employees")
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 @ToString(exclude = {"company", "department"})
 @EqualsAndHashCode(of = "id")
 public class Employee {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    /** The user's id in User_Backend. */
     private Long id;
-
-    @Column(nullable = false, unique = true)
     private String employeeId;
-
-    @Column(nullable = false)
     private String fullName;
-
-    @Column(nullable = false, unique = true)
     private String email;
-
-    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY)
-    @Column(nullable = false)
-    private String password;
-
-    private String nic;
-    private LocalDate dob;
-    private String address;
-    private String phone;
-
-    @Enumerated(EnumType.STRING)
-    private Gender gender;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "company_id", nullable = false)
     private Company company;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id")
     private Department department;
-
-    /**
-     * Denormalized copy of the department's name at the time this employee
-     * was saved, stored directly on the employee row (in addition to the
-     * department_id relation above) so it's always available in the
-     * "employees" table itself.
-     */
-    @Column(name = "department_name")
     private String departmentName;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private Role role = Role.EMPLOYEE;
-
     private String designation;
-
-    /** Employment type name (Full-Time, Intern, ...) as set in User_Backend; picks the job role's leave entitlements. */
-    @Column(name = "employment_type", length = 100)
     private String employmentType;
     private LocalDate joiningDate;
     private LocalDate terminationDate;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private EmployeeStatus status = EmployeeStatus.ACTIVE;
-
-    @CreationTimestamp
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
-
-    public enum Gender {
-        MALE, FEMALE, OTHER
-    }
 
     public enum Role {
         ADMIN, HR_MANAGER, EMPLOYEE

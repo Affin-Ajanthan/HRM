@@ -4,7 +4,7 @@ import com.affin.hrm.dto.AllowanceRequestDTO;
 import com.affin.hrm.exception.BusinessException;
 import com.affin.hrm.exception.ResourceNotFoundException;
 import com.affin.hrm.model.Employee;
-import com.affin.hrm.repository.EmployeeRepository;
+import com.affin.hrm.service.EmployeeDirectory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -37,7 +37,7 @@ public class AllowanceRequestClient {
     private static final Logger log = LoggerFactory.getLogger(AllowanceRequestClient.class);
 
     private final RestTemplate restTemplate;
-    private final EmployeeRepository employeeRepository;
+    private final EmployeeDirectory employeeDirectory;
     private final AuditService auditService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -47,10 +47,10 @@ public class AllowanceRequestClient {
     @Value("${service.user-url:http://localhost:5002}")
     private String userServiceUrl;
 
-    public AllowanceRequestClient(RestTemplate restTemplate, EmployeeRepository employeeRepository,
+    public AllowanceRequestClient(RestTemplate restTemplate, EmployeeDirectory employeeDirectory,
                                   AuditService auditService) {
         this.restTemplate = restTemplate;
-        this.employeeRepository = employeeRepository;
+        this.employeeDirectory = employeeDirectory;
         this.auditService = auditService;
     }
 
@@ -116,7 +116,7 @@ public class AllowanceRequestClient {
      * own company scoping.
      */
     private Set<String> companyEmails(Employee hr) {
-        Set<String> emails = employeeRepository.findByCompanyId(hr.getCompany().getId()).stream()
+        Set<String> emails = employeeDirectory.findByCompanyId(hr.getCompany().getId()).stream()
                 .map(Employee::getEmail)
                 .filter(e -> e != null && !e.isBlank())
                 .map(e -> e.trim().toLowerCase(Locale.ROOT))

@@ -5,16 +5,12 @@ import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
-import java.util.Date;
 
 /**
- * JWT utility class for generating and validating tokens.
+ * Validates JWTs issued by User_Backend (the only service that signs tokens).
  */
 @Component
 public class JwtUtil {
@@ -24,30 +20,8 @@ public class JwtUtil {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
-    @Value("${jwt.expiration}")
-    private long jwtExpiration;
-
     private Key getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
-    }
-
-    public String generateToken(Authentication authentication) {
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpiration);
-        String role = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .findFirst()
-                .map(authority -> authority.startsWith("ROLE_") ? authority.substring(5) : authority)
-                .orElse(null);
-
-        return Jwts.builder()
-                .setSubject(userDetails.getUsername())
-                .claim("role", role)
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
-                .compact();
     }
 
     public String getRoleFromToken(String token) {
@@ -60,6 +34,20 @@ public class JwtUtil {
             return claims.get("role", String.class);
         } catch (Exception ex) {
             log.warn("Failed to extract role from token: {}", ex.getMessage());
+            return null;
+        }
+    }
+
+    public Long getUserIdFromToken(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            Number userId = claims.get("userId", Number.class);
+            return userId != null ? userId.longValue() : null;
+        } catch (Exception e) {
             return null;
         }
     }

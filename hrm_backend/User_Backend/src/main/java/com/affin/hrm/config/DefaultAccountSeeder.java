@@ -25,14 +25,6 @@ public class DefaultAccountSeeder implements CommandLineRunner {
         seed("System Admin", "admin@hrm.local", "Admin@123", "ADMIN", "Administration");
         seed("HR Manager", "hr@hrm.local", "Hr@12345", "HR_MANAGER", "Human Resources");
         seed("Default Employee", "employee@hrm.local", "Employee@123", "EMPLOYEE", "General");
-
-        // Push every existing employee (freshly seeded ones included) to the
-        // HR and Employee backends right now.
-        try {
-            authService.syncAllEmployees();
-        } catch (Exception e) {
-            System.err.println("[SEED] Post-seed sync to HR/Employee backends failed: " + e.getMessage());
-        }
     }
 
     private void seed(String fullName, String email, String password, String role, String department) {

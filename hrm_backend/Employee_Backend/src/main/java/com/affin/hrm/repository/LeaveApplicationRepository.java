@@ -22,6 +22,8 @@ public interface LeaveApplicationRepository extends JpaRepository<LeaveApplicati
     @Query("SELECT la FROM LeaveApplication la WHERE la.companyId = :companyId")
     List<LeaveApplication> findByCompanyId(@Param("companyId") Long companyId);
 
+    List<LeaveApplication> findByCompanyIdOrderByCreatedAtDesc(Long companyId);
+
     @Query("SELECT la FROM LeaveApplication la WHERE la.userId = :userId " +
            "AND la.status IN ('PENDING', 'APPROVED') " +
            "AND ((la.startDate <= :endDate AND la.endDate >= :startDate))")

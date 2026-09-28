@@ -119,6 +119,7 @@ public class LeaveService {
                 .orElseThrow(() -> new ResourceNotFoundException("LeaveApplication", "id", leaveId));
         Employee approver = employeeDirectory.findById(approverId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", approverId));
+        assertSameCompany(leave, approver);
 
         if (leave.getStatus() != LeaveApplication.LeaveStatus.PENDING) {
             throw new BusinessException("Leave application is not in pending status");
@@ -147,10 +148,15 @@ public class LeaveService {
     }
 
     public LeaveApplicationDTO rejectLeave(Long leaveId, String reason, Long approverId) {
+        if (reason == null || reason.isBlank()) {
+            throw new BusinessException("A comment is required to reject a leave request");
+        }
+        reason = reason.trim();
         LeaveApplication leave = leaveApplicationRepository.findById(leaveId)
                 .orElseThrow(() -> new ResourceNotFoundException("LeaveApplication", "id", leaveId));
         Employee approver = employeeDirectory.findById(approverId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", approverId));
+        assertSameCompany(leave, approver);
 
         if (leave.getStatus() != LeaveApplication.LeaveStatus.PENDING) {
             throw new BusinessException("Leave application is not in pending status");
@@ -200,6 +206,12 @@ public class LeaveService {
                 .collect(Collectors.toList());
     }
 
+    /** Every leave request in the company, newest first — the HR leave management table. */
+    @Transactional(readOnly = true)
+    public List<LeaveApplicationDTO> getCompanyLeaves(Long companyId) {
+        return toDTOs(leaveApplicationRepository.findByCompanyIdOrderByCreatedAtDesc(companyId));
+    }
+
     @Transactional(readOnly = true)
     public List<LeaveApplicationDTO> getPendingLeaves(Long companyId) {
         return leaveApplicationRepository.findByCompanyIdAndStatus(companyId, LeaveApplication.LeaveStatus.PENDING).stream().collect(Collectors.collectingAndThen(Collectors.toList(), this::toDTOs));
@@ -241,6 +253,14 @@ public class LeaveService {
         balance.setTotalDays(total);
         balance.setRemainingDays(total - balance.getUsedDays());
         return leaveBalanceRepository.save(balance);
+    }
+
+    /** HR may only act on leave requests of their own company; any other reads as not found. */
+    private void assertSameCompany(LeaveApplication leave, Employee hr) {
+        if (hr.getRole() == Employee.Role.ADMIN) return;
+        if (hr.getCompany() == null || !hr.getCompany().getId().equals(leave.getCompanyId())) {
+            throw new ResourceNotFoundException("LeaveApplication", "id", leave.getId());
+        }
     }
 
     private int calculateWorkingDays(LocalDate startDate, LocalDate endDate) {
@@ -286,6 +306,7 @@ public class LeaveService {
         if (employee != null) {
             dto.setEmployeeName(employee.getFullName());
             dto.setEmployeeIdNumber(employee.getEmployeeId());
+            dto.setDepartmentName(employee.getDepartmentName());
         }
         dto.setLeaveTypeId(leave.getLeaveTypeId());
         dto.setLeaveTypeName(leave.getLeaveTypeName());

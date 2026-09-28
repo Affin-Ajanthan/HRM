@@ -88,9 +88,7 @@ public class DepartmentController {
         department.setActive(true);
 
         if (dto.getManagerId() != null) {
-            Employee manager = employeeDirectory.findById(dto.getManagerId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", dto.getManagerId()));
-            department.setManagerUserId(manager.getId());
+            department.setManagerUserId(companyEmployee(dto.getManagerId(), company.getId()).getId());
         }
 
         // Job roles are saved together with the department (cascade) so they
@@ -133,9 +131,7 @@ public class DepartmentController {
         if (dto.getActive() != null) department.setActive(dto.getActive());
 
         if (dto.getManagerId() != null) {
-            Employee manager = employeeDirectory.findById(dto.getManagerId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", dto.getManagerId()));
-            department.setManagerUserId(manager.getId());
+            department.setManagerUserId(companyEmployee(dto.getManagerId(), hr.getCompany().getId()).getId());
         } else if (dto.getManagerId() == null && dto.getManagerName() == null) {
             department.setManagerUserId(null);
         }
@@ -221,8 +217,7 @@ public class DepartmentController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        Employee manager = employeeDirectory.findById(managerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", managerId));
+        Employee manager = companyEmployee(managerId, hr.getCompany().getId());
 
         department.setManagerUserId(manager.getId());
         Department saved = departmentRepository.save(department);
@@ -231,6 +226,13 @@ public class DepartmentController {
     }
 
     // ===== helpers =====
+
+    /** An employee of the given company; anyone else reads as not found. */
+    private Employee companyEmployee(Long employeeId, Long companyId) {
+        return employeeDirectory.findById(employeeId)
+                .filter(e -> e.getCompany() != null && companyId.equals(e.getCompany().getId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", employeeId));
+    }
 
     /** Rejects a department name that another department in the same company already uses (case-insensitive). */
     private void assertDepartmentNameAvailable(Long companyId, String name, Long excludeId) {

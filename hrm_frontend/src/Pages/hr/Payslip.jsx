@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Download, Eye, Send, Calendar, X, DollarSign, Plus, SlidersHorizontal, Inbox } from "lucide-react";
+import { Search, Download, Eye, Send, Calendar, X, DollarSign, Plus, SlidersHorizontal, Inbox, ChevronLeft, ChevronRight } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { hrApi, userHrApi } from "../../services/api";
 import AdditionalPaymentsModal from "./AdditionalPaymentsModal";
@@ -30,6 +30,8 @@ const HRPayslip = () => {
   const [showAllowanceRequests, setShowAllowanceRequests] = useState(false);
   // Approved allowance request to add as a row in the Individual Allowance & Deduction popup
   const [approvedAllowance, setApprovedAllowance] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ROWS_PER_PAGE = 5;
 
   useEffect(() => {
     const s = localStorage.getItem("user");
@@ -130,6 +132,20 @@ const HRPayslip = () => {
     p.designation.toLowerCase().includes(q)
   );
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ROWS_PER_PAGE));
+  const paginated = filtered.slice(
+    (currentPage - 1) * ROWS_PER_PAGE,
+    currentPage * ROWS_PER_PAGE
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterMonth]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
   const statusBadge = (s) => ({
     Configured: "bg-emerald-100 text-emerald-700",
     Adjusted: "bg-violet-100 text-violet-700",
@@ -223,7 +239,7 @@ const HRPayslip = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filtered.map((p, i) => (
+                {paginated.map((p, i) => (
                   <tr key={p.email} className={`hover:bg-teal-50/40 transition-colors ${i%2===1?"bg-gray-50/40":""}`}>
                     <td className="px-5 py-3.5 font-mono font-semibold text-gray-700">{p.empId}</td>
                     <td className="px-5 py-3.5 font-medium text-gray-800">{p.name}</td>
@@ -249,6 +265,13 @@ const HRPayslip = () => {
                     </td>
                   </tr>
                 ))}
+                {!isLoading && paginated.length > 0 && paginated.length < ROWS_PER_PAGE &&
+                  Array.from({ length: ROWS_PER_PAGE - paginated.length }).map((_, idx) => (
+                    <tr key={`filler-${idx}`} aria-hidden="true">
+                      <td colSpan={10} className="px-5 py-3.5">&nbsp;</td>
+                    </tr>
+                  ))
+                }
                 {!isLoading && filtered.length === 0 && (
                   <tr><td colSpan={10} className="text-center py-10 text-gray-400">{searchTerm ? "No employees match your search" : "No employees found"}</td></tr>
                 )}
@@ -258,6 +281,53 @@ const HRPayslip = () => {
               </tbody>
             </table>
           </div>
+
+          {!isLoading && filtered.length > 0 && (
+            <div className="flex flex-col items-center gap-2 px-5 py-4 border-t border-gray-100">
+              <div className="flex items-center justify-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="h-8 w-8 rounded-lg flex items-center justify-center text-gray-500 border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft size={15} />
+                </button>
+                {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setCurrentPage(p)}
+                    className={`h-8 min-w-[2rem] px-2 rounded-lg text-xs font-semibold transition-colors ${
+                      p === currentPage
+                        ? "bg-gradient-to-r from-teal-500 to-emerald-600 text-white shadow-sm"
+                        : "text-gray-600 border border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-8 w-8 rounded-lg flex items-center justify-center text-gray-500 border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Next page"
+                >
+                  <ChevronRight size={15} />
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 font-medium">
+                Showing{" "}
+                <strong className="text-gray-800">
+                  {(currentPage - 1) * ROWS_PER_PAGE + 1}-
+                  {Math.min(currentPage * ROWS_PER_PAGE, filtered.length)}
+                </strong>{" "}
+                of <strong className="text-gray-800">{filtered.length}</strong> employees
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

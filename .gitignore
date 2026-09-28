@@ -4,14 +4,17 @@
 
 
 # ─── Environment & Secrets ─────────────
+# Real env files hold passwords/secrets — never commit
 .env
-.env.example
 .env.local
 .env.*.local
+.env.staging
+.env.production
 *.env
 
-# Keep example env files
+# Templates with placeholders only — these ARE committed
 !.env.example
+!.env.staging.example
 !*.env.example
 
 

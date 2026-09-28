@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, X, Save, Building2, Briefcase, History, ChevronRight } from "lucide-react";
+import { ArrowLeft, Plus, X, Save, Building2, Briefcase, History, ChevronRight, Pencil, Trash2, Loader2 } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { hrApi } from "../../services/api";
 
@@ -36,8 +36,11 @@ const SalaryAssign = () => {
   // popup state
   const [activeRole, setActiveRole] = useState(null);
   const [rows, setRows] = useState([newRow()]);
+  const [removedIds, setRemovedIds] = useState([]);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const [deletingId, setDeletingId] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   useEffect(() => {
     const s = localStorage.getItem("user");
@@ -87,6 +90,7 @@ const SalaryAssign = () => {
   const openRole = (role) => {
     const existing = history.filter(p => p.jobRoleId === role.id);
     setActiveRole(role);
+    setRemovedIds([]);
     setRows(existing.length
       ? existing.map(p => ({
           key: `existing-${p.id}`,
@@ -99,10 +103,42 @@ const SalaryAssign = () => {
       : [newRow()]);
     setFormError("");
   };
+
+  // Opened from a row in the history table below: switches to that row's department first so the
+  // job role picker and popup header line up with what's being edited.
+  const editHistoryRow = (row) => {
+    setDepartmentId(String(row.departmentId));
+    openRole({ id: row.jobRoleId, jobTitle: row.jobRoleTitle });
+  };
+
+  const deleteHistoryRow = async (row) => {
+    try {
+      setDeletingId(row.id);
+      await hrApi.deleteBasicPayment(row.id);
+      setConfirmDeleteId(null);
+      setMessage(`✓ Salary row deleted for ${row.jobRoleTitle} (${row.employmentTypeName})`);
+      setTimeout(() => setMessage(""), 3000);
+      loadHistory(departmentId);
+    } catch (e) {
+      setPageError(errorText(e, "Failed to delete salary row"));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const closeModal = () => { if (!saving) setActiveRole(null); };
 
   const updateRow = (key, field, value) => setRows(prev => prev.map(r => (r.key === key ? { ...r, [field]: value } : r)));
-  const removeRow = (key) => setRows(prev => (prev.length > 1 ? prev.filter(r => r.key !== key) : prev));
+  const removeRow = (key) => setRows(prev => {
+    if (prev.length === 1) return prev;
+    const row = prev.find(r => r.key === key);
+    // Removing a row that already exists in the database queues it for deletion on save,
+    // rather than just hiding it locally and leaving the old row behind.
+    if (row && row.key.startsWith("existing-")) {
+      setRemovedIds(ids => [...ids, Number(row.key.replace("existing-", ""))]);
+    }
+    return prev.filter(r => r.key !== key);
+  });
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -121,7 +157,12 @@ const SalaryAssign = () => {
         allowance: num(r.allowance),
         deduction: num(r.deduction),
       })));
+      // Apply any deletions queued by removing an existing row above
+      for (const id of removedIds) {
+        await hrApi.deleteBasicPayment(id);
+      }
       setActiveRole(null);
+      setRemovedIds([]);
       setMessage(`✓ ${res.message || "Salaries saved"} for ${activeRole.jobTitle}. All ${activeRole.jobTitle} employees are updated.`);
       setTimeout(() => setMessage(""), 4000);
       loadHistory(departmentId);
@@ -210,7 +251,7 @@ const SalaryAssign = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white text-xs">
-                  {["Department", "Job Role", "Employment Type", "Period", "Basic", "Allowance", "Deduction", "Total Salary", "Employees", "Set By", "Last Updated"].map(h => (
+                  {["Department", "Job Role", "Employment Type", "Period", "Basic", "Allowance", "Deduction", "Total Salary", "Employees", "Set By", "Last Updated", "Actions"].map(h => (
                     <th key={h} className="px-5 py-3.5 text-left font-semibold whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -229,10 +270,31 @@ const SalaryAssign = () => {
                     <td className="px-5 py-3 text-gray-600">{p.employeeCount ?? "—"}</td>
                     <td className="px-5 py-3 text-gray-500">{p.createdByName || "—"}</td>
                     <td className="px-5 py-3 text-gray-400 whitespace-nowrap">{p.updatedAt ? p.updatedAt.replace("T", " ").slice(0, 16) : "—"}</td>
+                    <td className="px-5 py-3">
+                      {confirmDeleteId === p.id ? (
+                        <div className="flex items-center gap-1.5 whitespace-nowrap">
+                          <button onClick={() => deleteHistoryRow(p)} disabled={deletingId === p.id}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-semibold disabled:opacity-50 transition-colors">
+                            {deletingId === p.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />} Confirm
+                          </button>
+                          <button onClick={() => setConfirmDeleteId(null)} disabled={deletingId === p.id}
+                            className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold disabled:opacity-50 transition-colors">
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-1">
+                          <button onClick={() => editHistoryRow(p)} title="Edit this salary row"
+                            className="p-1.5 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"><Pencil size={14} /></button>
+                          <button onClick={() => setConfirmDeleteId(p.id)} title="Delete this salary row"
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={14} /></button>
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {history.length === 0 && (
-                  <tr><td colSpan={11} className="text-center py-10 text-gray-400">No job role salaries added yet</td></tr>
+                  <tr><td colSpan={12} className="text-center py-10 text-gray-400">No job role salaries added yet</td></tr>
                 )}
               </tbody>
             </table>

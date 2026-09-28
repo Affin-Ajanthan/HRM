@@ -11,6 +11,7 @@ import com.affin.hrm.repository.BasicPaymentRepository;
 import com.affin.hrm.repository.EmploymentTypeRepository;
 import com.affin.hrm.repository.JobRoleLeaveAllocationRepository;
 import com.affin.hrm.repository.JobRoleRepository;
+import com.affin.hrm.repository.LeaveApplicationRepository;
 import com.affin.hrm.repository.LeaveTypeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,7 @@ public class LeaveConfigService {
     private final JobRoleRepository jobRoleRepository;
     private final JobRoleLeaveAllocationRepository allocationRepository;
     private final BasicPaymentRepository basicPaymentRepository;
+    private final LeaveApplicationRepository leaveApplicationRepository;
     private final AuditService auditService;
 
     private static final int MAX_NAME_LENGTH = 100;
@@ -46,12 +48,14 @@ public class LeaveConfigService {
                               JobRoleRepository jobRoleRepository,
                               JobRoleLeaveAllocationRepository allocationRepository,
                               BasicPaymentRepository basicPaymentRepository,
+                              LeaveApplicationRepository leaveApplicationRepository,
                               AuditService auditService) {
         this.leaveTypeRepository = leaveTypeRepository;
         this.employmentTypeRepository = employmentTypeRepository;
         this.jobRoleRepository = jobRoleRepository;
         this.allocationRepository = allocationRepository;
         this.basicPaymentRepository = basicPaymentRepository;
+        this.leaveApplicationRepository = leaveApplicationRepository;
         this.auditService = auditService;
     }
 
@@ -87,6 +91,62 @@ public class LeaveConfigService {
         }
         log.info("{} added {} leave type(s) for company {}", hr.getEmail(), created.size(), companyId);
         return created;
+    }
+
+    /** Renames a leave type. The new name must not already be used by another active type. */
+    public LeaveTypeDTO updateLeaveType(Long id, String name, Employee hr) {
+        Long companyId = hr.getCompany().getId();
+        LeaveType type = leaveTypeRepository.findById(id)
+                .filter(t -> t.getCompany() != null && t.getCompany().getId().equals(companyId))
+                .orElseThrow(() -> new ResourceNotFoundException("LeaveType", "id", id));
+
+        String newName = name == null ? "" : name.trim().replaceAll("\\s+", " ");
+        if (newName.isEmpty()) {
+            throw new BusinessException("Leave type name is required");
+        }
+        if (newName.length() > MAX_NAME_LENGTH) {
+            throw new BusinessException("Leave type name must be at most " + MAX_NAME_LENGTH + " characters");
+        }
+        boolean taken = activeLeaveTypes(companyId).stream()
+                .anyMatch(t -> !t.getId().equals(id) && t.getName().trim().equalsIgnoreCase(newName));
+        if (taken) {
+            throw new BusinessException("A leave type named '" + newName + "' already exists");
+        }
+
+        String oldName = type.getName();
+        type.setName(newName);
+        LeaveType saved = leaveTypeRepository.save(type);
+        audit("UPDATE", "LeaveType", saved.getId(), "Renamed leave type '" + oldName + "' to '" + newName + "'", companyId);
+        log.info("{} renamed leave type {} to '{}' for company {}", hr.getEmail(), id, newName, companyId);
+        return toDTO(saved);
+    }
+
+    /**
+     * Removes a leave type permanently from the database. Blocked while it is still used by a
+     * job role's leave entitlements, or referenced by any employee's leave applications.
+     */
+    public void deleteLeaveType(Long id, Employee hr) {
+        Long companyId = hr.getCompany().getId();
+        LeaveType type = leaveTypeRepository.findById(id)
+                .filter(t -> t.getCompany() != null && t.getCompany().getId().equals(companyId))
+                .orElseThrow(() -> new ResourceNotFoundException("LeaveType", "id", id));
+
+        long inUse = allocationRepository.countByLeaveTypeId(id);
+        if (inUse > 0) {
+            throw new BusinessException("Cannot delete '" + type.getName() + "': it has " + inUse
+                    + " leave entitlement(s) assigned. Remove those first.");
+        }
+        long applications = leaveApplicationRepository.countByLeaveTypeId(id);
+        if (applications > 0) {
+            throw new BusinessException("Cannot delete '" + type.getName() + "': it has " + applications
+                    + " leave application(s) recorded against it.");
+        }
+
+        String name = type.getName();
+        leaveTypeRepository.delete(type);
+        leaveTypeRepository.flush();
+        audit("DELETE", "LeaveType", id, "Deleted leave type: " + name, companyId);
+        log.info("{} deleted leave type {} ('{}') for company {}", hr.getEmail(), id, name, companyId);
     }
 
     // ── Employment types ─────────────────────────────────────────
@@ -245,6 +305,23 @@ public class LeaveConfigService {
         audit("ASSIGN_LEAVE", "JobRole", jobRole.getId(),
                 "Assigned " + saved.size() + " leave entitlement(s) to " + title(jobRole), companyId);
         return saved;
+    }
+
+    /**
+     * Removes a single leave entitlement row (one job role + employment type + leave type).
+     */
+    public void deleteAllocation(Long id, Employee hr) {
+        Long companyId = hr.getCompany().getId();
+        JobRoleLeaveAllocation allocation = allocationRepository.findById(id)
+                .filter(a -> a.getCompany() != null && a.getCompany().getId().equals(companyId))
+                .orElseThrow(() -> new ResourceNotFoundException("LeaveAllocation", "id", id));
+
+        String description = "Removed " + allocation.getLeaveType().getName() + " ("
+                + allocation.getEmploymentType().getName() + ") from " + title(allocation.getJobRole());
+        allocationRepository.delete(allocation);
+        allocationRepository.flush();
+        audit("DELETE", "JobRoleLeaveAllocation", id, description, companyId);
+        log.info("{} deleted leave allocation {} for company {}", hr.getEmail(), id, companyId);
     }
 
     // ── Employee entitlements ────────────────────────────────────

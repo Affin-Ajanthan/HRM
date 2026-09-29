@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { DollarSign, Download, Eye, Calendar, TrendingUp, FileText, CreditCard, X, Filter, Search, Wallet, Plus } from "lucide-react";
+import { DollarSign, Download, Eye, Calendar, TrendingUp, FileText, CreditCard, X, Filter, Search, Wallet, Plus, RefreshCw } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { employeeApi } from "../../services/api";
 import {
@@ -14,6 +14,50 @@ const PAYSLIP_COLS = "grid-cols-[1.4fr_1.1fr_1fr_1fr_1.1fr_0.8fr_150px]";
 const money = (n) => (Number(n) || 0).toLocaleString();
 
 const PERIOD_LABELS = { MONTHLY: "Monthly", WEEKLY: "Weekly", ANNUAL: "Annual" };
+const MONTH_NAMES = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+const escapeHtml = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const rs = (n) => `Rs. ${(Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+// Opens a printable payslip; choose "Save as PDF" in the print dialog to download it.
+const printPayslip = (p, user, info) => {
+  const w = window.open("", "_blank", "width=820,height=900");
+  if (!w) { alert("Please allow pop-ups for this site to download your payslip."); return; }
+  const earn = Number(p.basicSalary || 0) + Number(p.totalAllowances || 0);
+  const row = (l, v, cls = "") => `<tr class="${cls}"><td>${escapeHtml(l)}</td><td class="r">${escapeHtml(v)}</td></tr>`;
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Payslip ${MONTH_NAMES[p.month]} ${p.year}</title>
+  <style>
+    body{font-family:Segoe UI,Arial,sans-serif;color:#1e293b;margin:32px;}
+    h1{font-size:22px;margin:0;color:#0369a1} .sub{color:#64748b;font-size:13px;margin:4px 0 20px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+    .grid div{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:13px}
+    .grid b{display:block;font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+    table{width:100%;border-collapse:collapse;margin-bottom:18px;font-size:14px}
+    th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;padding:6px 0;border-bottom:2px solid #e2e8f0}
+    td{padding:7px 0;border-bottom:1px solid #f1f5f9} .r{text-align:right} .tot td{font-weight:700;border-top:2px solid #cbd5e1}
+    .net{background:#0369a1;color:#fff;border-radius:10px;padding:16px 20px;display:flex;justify-content:space-between;font-size:18px;font-weight:700}
+    .foot{margin-top:24px;color:#94a3b8;font-size:11px;text-align:center}
+    @media print{body{margin:14mm}}
+  </style></head><body>
+  <h1>Payslip — ${escapeHtml(MONTH_NAMES[p.month])} ${escapeHtml(p.year)}</h1>
+  <p class="sub">${escapeHtml(info.company || "")}</p>
+  <div class="grid">
+    <div><b>Employee</b>${escapeHtml(user.fullName)}</div><div><b>Email</b>${escapeHtml(user.email)}</div>
+    <div><b>Department</b>${escapeHtml(info.department || "—")}</div><div><b>Designation</b>${escapeHtml(info.designation || "—")}</div>
+    <div><b>Working days</b>${escapeHtml(p.workingDays ?? "—")}</div><div><b>Days present</b>${escapeHtml(p.presentDays ?? "—")}</div>
+  </div>
+  <table><thead><tr><th>Earnings</th><th class="r">Amount</th></tr></thead><tbody>
+    ${row("Basic Salary", rs(p.basicSalary))}${row("Allowances", rs(p.totalAllowances))}${row("Total Earnings", rs(earn), "tot")}
+  </tbody></table>
+  <table><thead><tr><th>Deductions</th><th class="r">Amount</th></tr></thead><tbody>
+    ${row("Total Deductions", rs(p.totalDeductions), "tot")}
+  </tbody></table>
+  <div class="net"><span>Net Salary</span><span>${escapeHtml(rs(p.netSalary))}</span></div>
+  <p class="foot">Computer-generated payslip · ${escapeHtml(new Date().toLocaleDateString())}</p>
+  <script>window.onload=function(){setTimeout(function(){window.print()},250)}</script>
+  </body></html>`);
+  w.document.close();
+};
 
 const Payslip = () => {
   const navigate = useNavigate();
@@ -22,6 +66,7 @@ const Payslip = () => {
   const [viewingPayslip, setViewingPayslip] = useState(null);
   const [payslips, setPayslips] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [paySheet, setPaySheet] = useState(null);
   const [paySheetLoading, setPaySheetLoading] = useState(false);
   const [paySheetError, setPaySheetError] = useState("");
@@ -33,41 +78,51 @@ const Payslip = () => {
     else navigate("/login");
   }, [navigate]);
 
-  useEffect(() => {
-    if (user) {
-      const getMyPayslips = async () => {
-        setIsLoading(true);
-        try {
-          const response = await employeeApi.getPayslips();
-          setPayslips(response.data || []);
-        } catch (e) {
-          console.error("Failed to load payslips:", e);
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      getMyPayslips();
-
-      // Current salary from HR: job role basic payment + individual allowances / deductions
-      const getMyPaySheet = async () => {
-        setPaySheetLoading(true);
-        setPaySheetError("");
-        try {
-          const response = await employeeApi.getPaySheet();
-          setPaySheet(response.data || null);
-        } catch (e) {
-          setPaySheetError((e.message || "Failed to load your salary").replace(/^\d{3}:\s*/, ""));
-        } finally {
-          setPaySheetLoading(false);
-        }
-      };
-      getMyPaySheet();
+  const loadPayslips = async (quiet = false) => {
+    if (!quiet) setIsLoading(true);
+    setLoadError("");
+    try {
+      const response = await employeeApi.getPayslips();
+      setPayslips(response.data || []);
+    } catch (e) {
+      console.error("Failed to load payslips:", e);
+      setLoadError((e.message || "Could not load your payslips").replace(/^\d{3}:\s*/, ""));
+    } finally {
+      setIsLoading(false);
     }
-  }, [user]);
+  };
 
-  const handleDownload = (p) => alert(`Downloading payslip for ${p.month}`);
+  useEffect(() => {
+    if (!user) return undefined;
+    loadPayslips();
 
-  const getMonthName = (m) => ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][m] || "";
+    // Current salary from HR: job role basic payment + individual allowances / deductions
+    (async () => {
+      setPaySheetLoading(true);
+      setPaySheetError("");
+      try {
+        const response = await employeeApi.getPaySheet();
+        setPaySheet(response.data || null);
+      } catch (e) {
+        setPaySheetError((e.message || "Failed to load your salary").replace(/^\d{3}:\s*/, ""));
+      } finally {
+        setPaySheetLoading(false);
+      }
+    })();
+
+    // New payslips sent by HR show up when the employee comes back to this tab
+    const onFocus = () => loadPayslips(true);
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDownload = (p) => printPayslip(p, user, {
+    department: paySheet?.departmentName,
+    designation: paySheet?.designation,
+    company: user.companyName,
+  });
+
+  const getMonthName = (m) => MONTH_NAMES[m] || "";
 
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -93,9 +148,13 @@ const Payslip = () => {
 
   if (!user) return null;
 
-  const lastNet = payslips.length > 0 ? payslips[0].netSalary : 0;
-  const totalNet = payslips.reduce((acc, p) => acc + p.netSalary, 0);
+  // Real figures from the payslips HR has sent (latest month first)
+  const latest = [...payslips].sort((a, b) => (b.year - a.year) || (b.month - a.month))[0];
+  const lastNet = latest ? Number(latest.netSalary) || 0 : 0;
+  const totalNet = payslips.reduce((acc, p) => acc + (Number(p.netSalary) || 0), 0);
   const avgNet = payslips.length > 0 ? Math.round(totalNet / payslips.length) : 0;
+  const thisYear = new Date().getFullYear();
+  const ytdNet = payslips.filter((p) => p.year === thisYear).reduce((acc, p) => acc + (Number(p.netSalary) || 0), 0);
 
   const isFiltering = searchTerm || selectedYear !== "ALL";
 
@@ -125,18 +184,30 @@ const Payslip = () => {
       title="Payslip"
       subtitle="View and download your salary payslips"
       actions={
-        <EmpButton onClick={() => setShowAllowanceForm(true)}>
-          <Plus size={17} strokeWidth={2.5} /> Request for Allowance
-        </EmpButton>
+        <div className="flex items-center gap-2">
+          <EmpButton variant="secondary" onClick={() => loadPayslips()} disabled={isLoading}>
+            <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} /> Refresh
+          </EmpButton>
+          <EmpButton onClick={() => setShowAllowanceForm(true)}>
+            <Plus size={17} strokeWidth={2.5} /> Request for Allowance
+          </EmpButton>
+        </div>
       }
     >
       <div className="space-y-6">
+        {loadError && (
+          <div role="alert" className="flex items-center justify-between gap-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+            <span>{loadError}</span>
+            <button onClick={() => loadPayslips()} className="font-semibold underline">Try again</button>
+          </div>
+        )}
+
         {/* Summary cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
           {[
-            { label: "Last Salary",   value: `Rs. ${lastNet.toLocaleString()}`, icon: <CreditCard size={20} />, tone: CARD_TONES.blue, sub: payslips.length > 0 ? `${getMonthName(payslips[0].month)} ${payslips[0].year}` : "N/A" },
-            { label: "Avg. Monthly",  value: `Rs. ${avgNet.toLocaleString()}`, icon: <TrendingUp size={20} />, tone: CARD_TONES.green, sub: "All time" },
-            { label: "Total Earnings",  value: `Rs. ${totalNet.toLocaleString()}`, icon: <DollarSign size={20} />, tone: CARD_TONES.yellow, sub: "Year to date" },
+            { label: "Last Salary",   value: `Rs. ${lastNet.toLocaleString()}`, icon: <CreditCard size={20} />, tone: CARD_TONES.blue, sub: latest ? `${getMonthName(latest.month)} ${latest.year}` : "No payslip yet" },
+            { label: "Avg. Monthly",  value: `Rs. ${avgNet.toLocaleString()}`, icon: <TrendingUp size={20} />, tone: CARD_TONES.green, sub: payslips.length ? `Across ${payslips.length} payslip${payslips.length === 1 ? "" : "s"}` : "No payslip yet" },
+            { label: "Total Earnings",  value: `Rs. ${ytdNet.toLocaleString()}`, icon: <DollarSign size={20} />, tone: CARD_TONES.yellow, sub: `Net pay in ${thisYear}` },
             { label: "Total Payslips",value: payslips.length, icon: <FileText size={20} />, tone: CARD_TONES.purple, sub: "Available" },
           ].map(s => (
             <SummaryCard key={s.label} icon={s.icon} title={s.label} value={s.value} description={s.sub} className={s.tone} />
@@ -314,7 +385,10 @@ const Payslip = () => {
                 {[
                   ["Employee Name", user.fullName],
                   ["Email", user.email],
-                  ["Role", user.role]
+                  ["Department", paySheet?.departmentName],
+                  ["Designation", paySheet?.designation],
+                  ["Days Present", viewingPayslip.presentDays != null ? `${viewingPayslip.presentDays} of ${viewingPayslip.workingDays ?? "—"}` : null],
+                  ["Status", viewingPayslip.status || "PAID"]
                 ].map(([l,v]) => (
                   <div key={l}><p className="text-slate-400 text-xs">{l}</p><p className="font-semibold text-slate-800">{v || "N/A"}</p></div>
                 ))}
@@ -323,30 +397,27 @@ const Payslip = () => {
                 <h3 className="font-semibold text-slate-800 mb-3">Earnings & Allowances</h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between py-2 border-b border-slate-100">
-                    <span className="text-slate-600">Basic Salary</span><span className="font-semibold">Rs. {viewingPayslip.basicSalary.toLocaleString()}</span>
+                    <span className="text-slate-600">Basic Salary</span><span className="font-semibold">Rs. {money(viewingPayslip.basicSalary)}</span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-slate-100">
-                    <span className="text-slate-600">Other Allowances</span><span className="font-semibold">Rs. {viewingPayslip.totalAllowances.toLocaleString()}</span>
+                    <span className="text-slate-600">Other Allowances</span><span className="font-semibold">Rs. {money(viewingPayslip.totalAllowances)}</span>
                   </div>
                   <div className="flex justify-between py-2.5 px-3 bg-slate-50 border border-slate-100 rounded-lg font-semibold text-emerald-700">
-                    <span>Total Earnings</span><span>Rs. {(viewingPayslip.basicSalary + viewingPayslip.totalAllowances).toLocaleString()}</span>
+                    <span>Total Earnings</span><span>Rs. {money(Number(viewingPayslip.basicSalary) + Number(viewingPayslip.totalAllowances))}</span>
                   </div>
                 </div>
               </div>
               <div>
                 <h3 className="font-semibold text-slate-800 mb-3">Deductions</h3>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between py-2 border-b border-slate-100">
-                    <span className="text-slate-600">Total Deductions</span><span className="font-semibold">Rs. {viewingPayslip.totalDeductions.toLocaleString()}</span>
-                  </div>
                   <div className="flex justify-between py-2.5 px-3 bg-slate-50 border border-slate-100 rounded-lg font-semibold text-red-600">
-                    <span>Total Deductions</span><span>Rs. {viewingPayslip.totalDeductions.toLocaleString()}</span>
+                    <span>Total Deductions</span><span>Rs. {money(viewingPayslip.totalDeductions)}</span>
                   </div>
                 </div>
               </div>
               <div className={`${EMP_GRADIENT} text-white p-5 rounded-lg flex justify-between items-center`}>
                 <span className="text-lg font-bold">Net Salary</span>
-                <span className="text-2xl font-bold">Rs. {viewingPayslip.netSalary.toLocaleString()}</span>
+                <span className="text-2xl font-bold">Rs. {money(viewingPayslip.netSalary)}</span>
               </div>
               <div className="flex gap-3">
                 <EmpButton onClick={() => handleDownload(viewingPayslip)} className="flex-1">

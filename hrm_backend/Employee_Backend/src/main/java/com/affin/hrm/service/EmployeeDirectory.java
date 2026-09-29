@@ -39,7 +39,7 @@ public class EmployeeDirectory {
     private final CompanyRepository companyRepository;
     private final DepartmentRepository departmentRepository;
 
-    @Value("${service.user-url:http://localhost:5002}")
+    @Value("${service.user-url:http://localhost:5004}")
     private String userServiceUrl;
 
     public EmployeeDirectory(RestTemplateBuilder restTemplateBuilder,

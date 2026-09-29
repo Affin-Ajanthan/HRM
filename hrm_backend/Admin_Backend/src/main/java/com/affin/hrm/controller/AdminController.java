@@ -76,6 +76,12 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success(result, "Company approved"));
     }
 
+    @PostMapping("/companies/{id}/resend-credentials")
+    public ResponseEntity<ApiResponse<CompanyDTO>> resendCredentials(@PathVariable Long id) {
+        CompanyDTO result = adminService.resendHrCredentials(id);
+        return ResponseEntity.ok(ApiResponse.success(result, "HR credentials re-issued"));
+    }
+
     @PostMapping("/companies/{id}/reject")
     public ResponseEntity<ApiResponse<CompanyDTO>> rejectCompany(@PathVariable Long id, @RequestParam(required = false) String reason) {
         CompanyDTO result = adminService.rejectCompany(id, reason);

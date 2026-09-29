@@ -40,6 +40,10 @@ public class AdditionalPayment {
     private String employeeCode;
     private String employeeName;
 
+    /** Id of the employee's allowance request this row came from (null when HR typed it in). */
+    @Column(name = "source_request_id", unique = true)
+    private Long sourceRequestId;
+
     @Column(nullable = false)
     private String name;
 

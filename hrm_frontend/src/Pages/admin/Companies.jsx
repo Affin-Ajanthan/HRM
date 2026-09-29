@@ -80,14 +80,40 @@ const AdminCompanies = () => {
         },
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok || data.success === false) {
-        throw new Error(data.message || "Failed to approve company application.");
+        throw new Error(data.message || `Failed to approve company application (HTTP ${res.status}).`);
       }
 
-      setSuccessMsg("Company approved successfully! HR Account credentials have been generated and emailed to the client.");
+      setSuccessMsg(`Company approved! The HR account (${viewingCompany?.email || "company email"}) was created and its login details were emailed to the client.`);
       setViewingCompany(null);
       fetchCompanies();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResend = async (id) => {
+    setActionLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${ADMIN_URL}/admin/companies/${id}/resend-credentials`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.success === false) {
+        throw new Error(data.message || `Failed to resend credentials (HTTP ${res.status}).`);
+      }
+      setSuccessMsg("A new temporary password was saved for the HR account and emailed to the client.");
+      setViewingCompany(null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -113,9 +139,9 @@ const AdminCompanies = () => {
         },
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok || data.success === false) {
-        throw new Error(data.message || "Failed to reject company application.");
+        throw new Error(data.message || `Failed to reject company application (HTTP ${res.status}).`);
       }
 
       setSuccessMsg("Company application rejected and rejection notification email sent to client.");
@@ -141,7 +167,7 @@ const AdminCompanies = () => {
     const nameStr = (c.companyName || c.name || "").toLowerCase();
     const indStr = (c.industry || "").toLowerCase();
     const matchesSearch = nameStr.includes(searchTerm.toLowerCase()) || indStr.includes(searchTerm.toLowerCase());
-    
+
     const statusVal = (c.status || "").toLowerCase();
     const matchesStatus =
       filterStatus === "all" ||
@@ -164,7 +190,7 @@ const AdminCompanies = () => {
   return (
     <PageLayout role="admin" activePage="Companies" title="Company Management" subtitle="Review, approve, and manage all registered company requests">
       <div className="space-y-6">
-        
+
         {/* Success Alert */}
         {successMsg && (
           <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-5 py-4 rounded-2xl text-xs flex items-center justify-between shadow-sm">
@@ -277,7 +303,7 @@ const AdminCompanies = () => {
                       </td>
                       <td className="px-5 py-3.5">
                         <button
-                          onClick={() => setViewingCompany(c)}
+                          onClick={() => { setError(null); setSuccessMsg(null); setViewingCompany(c); }}
                           className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-semibold text-xs transition-colors"
                         >
                           <Eye size={14} /> Inspect & Action
@@ -296,7 +322,7 @@ const AdminCompanies = () => {
       {viewingCompany && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-100">
-            
+
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-700 text-white">
               <div>
@@ -357,6 +383,13 @@ const AdminCompanies = () => {
                 </span>
               </div>
 
+              {error && !rejectingCompany && (
+                <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs flex items-start gap-2">
+                  <AlertCircle size={16} className="shrink-0 text-red-500 mt-0.5" />
+                  <span className="break-words">{error}</span>
+                </div>
+              )}
+
               {/* Action Buttons for Pending Applications */}
               {(viewingCompany.status || "").toUpperCase() === "PENDING" && (
                 <div className="flex gap-3 pt-3 border-t border-gray-100">
@@ -366,7 +399,7 @@ const AdminCompanies = () => {
                     className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-semibold text-xs shadow-md transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                    Approve & Provision HR Account
+                    {actionLoading ? "Creating HR account & sending email..." : "Approve & Provision HR Account"}
                   </button>
                   <button
                     onClick={() => setRejectingCompany(viewingCompany)}
@@ -377,6 +410,16 @@ const AdminCompanies = () => {
                     Reject Application
                   </button>
                 </div>
+              )}
+
+              {(viewingCompany.status || "").toUpperCase() === "APPROVED" && (
+                <button
+                  onClick={() => handleResend(viewingCompany.id)}
+                  disabled={actionLoading}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-semibold text-xs shadow-md transition-colors disabled:opacity-50"
+                >
+                  {actionLoading ? "Resetting HR password & sending email..." : "Resend HR Credentials (new temporary password)"}
+                </button>
               )}
 
               <button

@@ -25,18 +25,15 @@ public class SyncController {
 
     private final CompanyRepo companyRepo;
     private final EmployeeRepo employeeRepo;
-    private final com.affin.hrm.Repo.UserRepo userRepo;
     private final PasswordEncoder passwordEncoder;
     private final AuthService authService;
 
     public SyncController(CompanyRepo companyRepo,
                           EmployeeRepo employeeRepo,
-                          com.affin.hrm.Repo.UserRepo userRepo,
                           PasswordEncoder passwordEncoder,
                           AuthService authService) {
         this.companyRepo = companyRepo;
         this.employeeRepo = employeeRepo;
-        this.userRepo = userRepo;
         this.passwordEncoder = passwordEncoder;
         this.authService = authService;
     }
@@ -166,29 +163,19 @@ public class SyncController {
             }
         }
 
-        Employee saved = employeeRepo.save(employee);
-        log.info("[USER_BACKEND SYNC SUCCESS] Employee synced to hrm_db_user ID: {}, Email: {}, Company: {}, mustChangePassword: {}",
-                saved.getId(), saved.getEmail(), saved.getCompany() != null ? saved.getCompany().getCompanyName() : "None", saved.getMustChangePassword());
+        Employee saved = employeeRepo.saveAndFlush(employee);
 
-        // Also update legacy users table if present
-        try {
-            com.affin.hrm.Model.User legacyUser = userRepo.findByEmailIgnoreCase(email).orElseGet(() -> {
-                com.affin.hrm.Model.User u = new com.affin.hrm.Model.User();
-                u.setEmail(email);
-                return u;
-            });
-            if (fullName != null) legacyUser.setFullName(fullName);
-            if (password != null && !password.isBlank()) {
-                String encoded = isBcryptHash(password) ? password : passwordEncoder.encode(password);
-                legacyUser.setPassword(encoded);
-            }
-            if (employeeIdStr != null) legacyUser.setEmployeeId(employeeIdStr);
-            if (roleStr != null) legacyUser.setRole(roleStr);
-            userRepo.save(legacyUser);
-            log.info("[USER_BACKEND SYNC SUCCESS] Legacy user synced to hrm_db_user users table for {}", email);
-        } catch (Exception e) {
-            log.warn("Failed to sync legacy users table for {}: {}", email, e.getMessage());
+        // The plain password we received is the one that gets emailed: prove the stored hash matches it
+        if (password != null && !password.isBlank() && !isBcryptHash(password)
+                && !passwordEncoder.matches(password, saved.getPassword())) {
+            log.error("[USER_BACKEND SYNC] Stored password hash does not match the password sent for {}", email);
+            return ResponseEntity.status(500).body("Password verification failed after saving " + email);
         }
+        if (password != null && !password.isBlank()) {
+            log.info("[USER_BACKEND SYNC] Password for {} saved as BCrypt hash and verified against the supplied password", email);
+        }
+        log.info("[USER_BACKEND SYNC SUCCESS] Employee synced to hrm_db_user ID: {}, Email: {}, Company: {}, mustChangePassword: {} (employees table only)",
+                saved.getId(), saved.getEmail(), saved.getCompany() != null ? saved.getCompany().getCompanyName() : "None", saved.getMustChangePassword());
 
         return ResponseEntity.ok("Employee synced to hrm_db_user successfully");
     }

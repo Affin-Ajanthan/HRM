@@ -35,6 +35,9 @@ public class AllowanceRequestDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    /** Set by HR_Backend: an approved request already added to the employee's individual allowances. */
+    private boolean addedToPay;
+
     /** Body sent to Employee_Backend to approve or reject a request. */
     @Data
     @NoArgsConstructor

@@ -9,10 +9,10 @@
  */
 
 // ─── Base URLs from environment variables ─────────────────────
-export const BASE_URL     = import.meta.env.VITE_API_BASE_URL     || "http://localhost:5005/api";
-export const AUTH_URL     = import.meta.env.VITE_AUTH_URL          || "http://localhost:5002/api";
-export const EMPLOYEE_URL = import.meta.env.VITE_EMPLOYEE_URL     || "http://localhost:5006/api";
-export const ADMIN_URL    = import.meta.env.VITE_ADMIN_URL         || "http://localhost:5007/api";
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5005/api";
+export const AUTH_URL = import.meta.env.VITE_AUTH_URL || "http://localhost:5004/api";
+export const EMPLOYEE_URL = import.meta.env.VITE_EMPLOYEE_URL || "http://localhost:5006/api";
+export const ADMIN_URL = import.meta.env.VITE_ADMIN_URL || "http://localhost:5007/api";
 
 async function parseErrorMessage(res) {
   let errMsg = "";
@@ -162,16 +162,16 @@ export const authApi = {
 // ─── EMPLOYEE DATA ────────────────────────────────────────────
 export const employeeApi = {
   // Profile
-  getProfile:       () => request("GET", `${EMPLOYEE_URL}/employee/profile`),
-  updateProfile:    (data) => request("PUT", `${EMPLOYEE_URL}/employee/profile`, data),
+  getProfile: () => request("GET", `${EMPLOYEE_URL}/employee/profile`),
+  updateProfile: (data) => request("PUT", `${EMPLOYEE_URL}/employee/profile`, data),
 
   // Attendance
-  clockIn:          () => request("POST", `${EMPLOYEE_URL}/employee/attendance/clock-in`),
-  clockOut:         () => request("POST", `${EMPLOYEE_URL}/employee/attendance/clock-out`),
-  clockInGPS:       (latitude, longitude) => request("POST", `${EMPLOYEE_URL}/employee/attendance/clock-in-gps?latitude=${latitude}&longitude=${longitude}`),
-  clockOutGPS:      (latitude, longitude) => request("POST", `${EMPLOYEE_URL}/employee/attendance/clock-out-gps?latitude=${latitude}&longitude=${longitude}`),
-  getTodayAttendance:    () => request("GET", `${EMPLOYEE_URL}/employee/attendance/today`),
-  getAttendanceHistory:  (startDate, endDate) => {
+  clockIn: () => request("POST", `${EMPLOYEE_URL}/employee/attendance/clock-in`),
+  clockOut: () => request("POST", `${EMPLOYEE_URL}/employee/attendance/clock-out`),
+  clockInGPS: (latitude, longitude) => request("POST", `${EMPLOYEE_URL}/employee/attendance/clock-in-gps?latitude=${latitude}&longitude=${longitude}`),
+  clockOutGPS: (latitude, longitude) => request("POST", `${EMPLOYEE_URL}/employee/attendance/clock-out-gps?latitude=${latitude}&longitude=${longitude}`),
+  getTodayAttendance: () => request("GET", `${EMPLOYEE_URL}/employee/attendance/today`),
+  getAttendanceHistory: (startDate, endDate) => {
     const params = new URLSearchParams();
     if (startDate) params.append("startDate", startDate);
     if (endDate) params.append("endDate", endDate);
@@ -181,25 +181,25 @@ export const employeeApi = {
     request("POST", `${EMPLOYEE_URL}/employee/attendance/adjustment-request?attendanceId=${attendanceId}&reason=${encodeURIComponent(reason)}`),
 
   // Leave
-  getLeaveTypes:    () => request("GET", `${EMPLOYEE_URL}/employee/leave/types`),
-  applyLeave:       (data) => request("POST", `${EMPLOYEE_URL}/employee/leave/apply`, data),
-  getLeaves:        () => request("GET", `${EMPLOYEE_URL}/employee/leave`),
-  cancelLeave:      (leaveId) => request("POST", `${EMPLOYEE_URL}/employee/leave/${leaveId}/cancel`),
-  getLeaveBalance:  () => request("GET", `${EMPLOYEE_URL}/employee/leave/balance`),
+  getLeaveTypes: () => request("GET", `${EMPLOYEE_URL}/employee/leave/types`),
+  applyLeave: (data) => request("POST", `${EMPLOYEE_URL}/employee/leave/apply`, data),
+  getLeaves: () => request("GET", `${EMPLOYEE_URL}/employee/leave`),
+  cancelLeave: (leaveId) => request("POST", `${EMPLOYEE_URL}/employee/leave/${leaveId}/cancel`),
+  getLeaveBalance: () => request("GET", `${EMPLOYEE_URL}/employee/leave/balance`),
 
   // Payslips
-  getPayslips:        () => request("GET", `${EMPLOYEE_URL}/employee/payslips`),
-  getPayslipDetails:  (id) => request("GET", `${EMPLOYEE_URL}/employee/payslips/${id}`),
+  getPayslips: () => request("GET", `${EMPLOYEE_URL}/employee/payslips`),
+  getPayslipDetails: (id) => request("GET", `${EMPLOYEE_URL}/employee/payslips/${id}`),
   // Current salary from HR (job role basic payment + individual allowances / deductions)
-  getPaySheet:        () => request("GET", `${EMPLOYEE_URL}/employee/pay-sheet`),
+  getPaySheet: () => request("GET", `${EMPLOYEE_URL}/employee/pay-sheet`),
 
   // Allowance requests (hrm_db_employee.allowance_requests); formData: name, amount, description, document (PDF)
-  getAllowanceRequests:   () => request("GET", `${EMPLOYEE_URL}/employee/allowance-requests`),
-  requestAllowance:       (formData) => requestForm("POST", `${EMPLOYEE_URL}/employee/allowance-requests`, formData),
-  getAllowanceDocument:   (id) => requestBlob(`${EMPLOYEE_URL}/employee/allowance-requests/${id}/document`),
+  getAllowanceRequests: () => request("GET", `${EMPLOYEE_URL}/employee/allowance-requests`),
+  requestAllowance: (formData) => requestForm("POST", `${EMPLOYEE_URL}/employee/allowance-requests`, formData),
+  getAllowanceDocument: (id) => requestBlob(`${EMPLOYEE_URL}/employee/allowance-requests/${id}/document`),
 
   // Notifications
-  getNotifications:   () => request("GET", `${EMPLOYEE_URL}/employee/notifications`),
+  getNotifications: () => request("GET", `${EMPLOYEE_URL}/employee/notifications`),
   markNotificationAsRead: (id) => request("PUT", `${EMPLOYEE_URL}/employee/notifications/${id}/read`),
 };
 
@@ -208,22 +208,22 @@ export const employeeApi = {
 // the same `employees` table that registration writes to, instead of the
 // synced copy in hrm_db_hr.
 export const userHrApi = {
-  getEmployees:       () => request("GET", `${AUTH_URL}/hr/employees`),
-  getEmployee:        (id) => request("GET", `${AUTH_URL}/hr/employees/${id}`),
-  updateEmployee:     (id, data) => request("PUT", `${AUTH_URL}/hr/employees/${id}`, data),
+  getEmployees: () => request("GET", `${AUTH_URL}/hr/employees`),
+  getEmployee: (id) => request("GET", `${AUTH_URL}/hr/employees/${id}`),
+  updateEmployee: (id, data) => request("PUT", `${AUTH_URL}/hr/employees/${id}`, data),
   deactivateEmployee: (id) => request("PUT", `${AUTH_URL}/hr/employees/${id}/deactivate`),
-  deleteEmployee:     (id) => request("DELETE", `${AUTH_URL}/hr/employees/${id}`),
+  deleteEmployee: (id) => request("DELETE", `${AUTH_URL}/hr/employees/${id}`),
 };
 
 // ─── HR DATA ─────────────────────────────────────────────────
 export const hrApi = {
   // Employees
-  getEmployees:     () => request("GET", `${BASE_URL}/hr/employees`),
-  getEmployee:      (id) => request("GET", `${BASE_URL}/hr/employees/${id}`),
-  createEmployee:   (data) => request("POST", `${BASE_URL}/hr/employees`, data),
-  updateEmployee:   (id, data) => request("PUT", `${BASE_URL}/hr/employees/${id}`, data),
+  getEmployees: () => request("GET", `${BASE_URL}/hr/employees`),
+  getEmployee: (id) => request("GET", `${BASE_URL}/hr/employees/${id}`),
+  createEmployee: (data) => request("POST", `${BASE_URL}/hr/employees`, data),
+  updateEmployee: (id, data) => request("PUT", `${BASE_URL}/hr/employees/${id}`, data),
   deactivateEmployee: (id) => request("POST", `${BASE_URL}/hr/employees/${id}/deactivate`),
-  deleteEmployee:   (id) => request("DELETE", `${BASE_URL}/hr/employees/${id}`).catch(() => request("POST", `${BASE_URL}/hr/employees/${id}/deactivate`)),
+  deleteEmployee: (id) => request("DELETE", `${BASE_URL}/hr/employees/${id}`).catch(() => request("POST", `${BASE_URL}/hr/employees/${id}/deactivate`)),
 
   // Attendance — served by Employee_Backend (hrm_db_employee is the source of
   // truth for clock-in/out records; HR_Backend's own attendance table is never
@@ -237,100 +237,104 @@ export const hrApi = {
   // Leave requests — employees apply in Employee_Backend (hrm_db_employee), so HR reviews them there
   getLeaveRequests: () => request("GET", `${EMPLOYEE_URL}/hr/leave`),
   getPendingLeaves: () => request("GET", `${EMPLOYEE_URL}/hr/leave/pending`),
-  approveLeave:     (leaveId) => request("POST", `${EMPLOYEE_URL}/hr/leave/${leaveId}/approve`),
-  rejectLeave:      (leaveId, reason) => request("POST", `${EMPLOYEE_URL}/hr/leave/${leaveId}/reject?reason=${encodeURIComponent(reason)}`),
+  approveLeave: (leaveId) => request("POST", `${EMPLOYEE_URL}/hr/leave/${leaveId}/approve`),
+  rejectLeave: (leaveId, reason) => request("POST", `${EMPLOYEE_URL}/hr/leave/${leaveId}/reject?reason=${encodeURIComponent(reason)}`),
+  getOnLeaveCount: (date) => request("GET", `${EMPLOYEE_URL}/hr/leave/on-leave-count${date ? '?date=' + date : ''}`),
 
   // Leave configuration — leave types and per-job-role entitlements (hrm_db_hr)
-  getLeaveTypes:        () => request("GET", `${BASE_URL}/hr/leave-types`),
-  createLeaveTypes:     (names) => request("POST", `${BASE_URL}/hr/leave-types`, { names }),
-  updateLeaveType:      (id, name) => request("PUT", `${BASE_URL}/hr/leave-types/${id}`, { name }),
-  deleteLeaveType:      (id) => request("DELETE", `${BASE_URL}/hr/leave-types/${id}`),
-  getEmploymentTypes:   () => request("GET", `${BASE_URL}/hr/employment-types`),
+  getLeaveTypes: () => request("GET", `${BASE_URL}/hr/leave-types`),
+  createLeaveTypes: (names) => request("POST", `${BASE_URL}/hr/leave-types`, { names }),
+  updateLeaveType: (id, name) => request("PUT", `${BASE_URL}/hr/leave-types/${id}`, { name }),
+  deleteLeaveType: (id) => request("DELETE", `${BASE_URL}/hr/leave-types/${id}`),
+  getEmploymentTypes: () => request("GET", `${BASE_URL}/hr/employment-types`),
   createEmploymentTypes: (names) => request("POST", `${BASE_URL}/hr/employment-types`, { names }),
   updateEmploymentType: (id, name) => request("PUT", `${BASE_URL}/hr/employment-types/${id}`, { name }),
   deleteEmploymentType: (id) => request("DELETE", `${BASE_URL}/hr/employment-types/${id}`),
-  getLeaveAllocations:  (departmentId) => request("GET", `${BASE_URL}/hr/leave-allocations${departmentId ? `?departmentId=${departmentId}` : ""}`),
+  getLeaveAllocations: (departmentId) => request("GET", `${BASE_URL}/hr/leave-allocations${departmentId ? `?departmentId=${departmentId}` : ""}`),
   saveLeaveAllocations: (jobRoleId, allocations) => request("POST", `${BASE_URL}/hr/leave-allocations`, { jobRoleId, allocations }),
   deleteLeaveAllocation: (id) => request("DELETE", `${BASE_URL}/hr/leave-allocations/${id}`),
 
   // Work locations (hrm_db_hr.work_locations)
-  getWorkLocations:    () => request("GET", `${BASE_URL}/hr/work-locations`),
+  getWorkLocations: () => request("GET", `${BASE_URL}/hr/work-locations`),
   createWorkLocations: (names) => request("POST", `${BASE_URL}/hr/work-locations`, { names }),
-  updateWorkLocation:  (id, name) => request("PUT", `${BASE_URL}/hr/work-locations/${id}`, { name }),
-  deleteWorkLocation:  (id) => request("DELETE", `${BASE_URL}/hr/work-locations/${id}`),
+  updateWorkLocation: (id, name) => request("PUT", `${BASE_URL}/hr/work-locations/${id}`, { name }),
+  deleteWorkLocation: (id) => request("DELETE", `${BASE_URL}/hr/work-locations/${id}`),
 
   // Departments — saved in hrm_db_hr via the HR_Backend (this service owns
   // department + job role data). Only an HR Manager or Admin (guarded by
   // hrsrc's own role checks) can add, update, deactivate a department, or
   // assign a department manager.
-  getDepartments:     () => request("GET", `${BASE_URL}/hr/departments`),
-  createDepartment:   (data) => request("POST", `${BASE_URL}/hr/departments`, data),
-  updateDepartment:   (id, data) => request("PUT", `${BASE_URL}/hr/departments/${id}`, data),
-  deleteDepartment:   (id) => request("DELETE", `${BASE_URL}/hr/departments/${id}`),
+  getDepartments: () => request("GET", `${BASE_URL}/hr/departments`),
+  createDepartment: (data) => request("POST", `${BASE_URL}/hr/departments`, data),
+  updateDepartment: (id, data) => request("PUT", `${BASE_URL}/hr/departments/${id}`, data),
+  deleteDepartment: (id) => request("DELETE", `${BASE_URL}/hr/departments/${id}`),
   deactivateDepartment: (id) => request("PUT", `${BASE_URL}/hr/departments/${id}/deactivate`),
-  assignDeptManager:  (id, managerId) => request("PUT", `${BASE_URL}/hr/departments/${id}/manager?managerId=${managerId}`),
+  assignDeptManager: (id, managerId) => request("PUT", `${BASE_URL}/hr/departments/${id}/manager?managerId=${managerId}`),
 
   // Payroll / Salaries
-  getSalaries:        () => request("GET", `${BASE_URL}/hr/salaries`),
-  getEmployeeSalary:  (id) => request("GET", `${BASE_URL}/hr/salaries/employee/${id}`),
-  saveSalary:         (data) => request("POST", `${BASE_URL}/hr/salaries`, data),
-  generatePayroll:    (month, year) => request("POST", `${BASE_URL}/hr/payroll/generate?month=${month}&year=${year}`),
+  getSalaries: () => request("GET", `${BASE_URL}/hr/salaries`),
+  getEmployeeSalary: (id) => request("GET", `${BASE_URL}/hr/salaries/employee/${id}`),
+  saveSalary: (data) => request("POST", `${BASE_URL}/hr/salaries`, data),
+  generatePayroll: (month, year) => request("POST", `${BASE_URL}/hr/payroll/generate?month=${month}&year=${year}`),
+  // Send one employee's payslip for the month (creates / refreshes it and notifies the employee)
+  sendPayslip: (email, month, year) => request("POST", `${BASE_URL}/hr/payroll/send`, { email, month, year }),
 
   // Job role salaries (hrm_db_hr.basic_payments)
-  getBasicPayments:   (departmentId) => request("GET", `${BASE_URL}/hr/basic-payments${departmentId ? `?departmentId=${departmentId}` : ""}`),
-  saveBasicPayments:  (jobRoleId, payments) => request("POST", `${BASE_URL}/hr/basic-payments`, { jobRoleId, payments }),
+  getBasicPayments: (departmentId) => request("GET", `${BASE_URL}/hr/basic-payments${departmentId ? `?departmentId=${departmentId}` : ""}`),
+  saveBasicPayments: (jobRoleId, payments) => request("POST", `${BASE_URL}/hr/basic-payments`, { jobRoleId, payments }),
   deleteBasicPayment: (id) => request("DELETE", `${BASE_URL}/hr/basic-payments/${id}`),
   // Individual allowances / deductions (hrm_db_hr.additional_payments)
-  getAdditionalPayments:  (employeeEmail) => request("GET", `${BASE_URL}/hr/additional-payments${employeeEmail ? `?employeeEmail=${encodeURIComponent(employeeEmail)}` : ""}`),
+  getAdditionalPayments: (employeeEmail) => request("GET", `${BASE_URL}/hr/additional-payments${employeeEmail ? `?employeeEmail=${encodeURIComponent(employeeEmail)}` : ""}`),
   saveAdditionalPayments: (data) => request("POST", `${BASE_URL}/hr/additional-payments`, data),
   // Pay sheets for the given employees: [{ email, employeeCode, fullName, departmentName, designation, employmentType }]
-  getPaySheets:       (employees) => request("POST", `${BASE_URL}/hr/payroll/sheet`, employees),
+  getPaySheets: (employees) => request("POST", `${BASE_URL}/hr/payroll/sheet`, employees),
   // Employees' allowance requests (stored by Employee_Backend), reviewed by HR
-  getAllowanceRequests:    () => request("GET", `${BASE_URL}/hr/allowance-requests`),
-  getAllowanceDocument:    (id) => requestBlob(`${BASE_URL}/hr/allowance-requests/${id}/document`),
+  getAllowanceRequests: () => request("GET", `${BASE_URL}/hr/allowance-requests`),
+  getAllowanceDocument: (id) => requestBlob(`${BASE_URL}/hr/allowance-requests/${id}/document`),
   approveAllowanceRequest: (id, comment) => request("POST", `${BASE_URL}/hr/allowance-requests/${id}/approve`, { comment }),
-  rejectAllowanceRequest:  (id, comment) => request("POST", `${BASE_URL}/hr/allowance-requests/${id}/reject`, { comment }),
+  addAllowanceToPay: (id) => request("POST", `${BASE_URL}/hr/allowance-requests/${id}/add-to-pay`),
+  rejectAllowanceRequest: (id, comment) => request("POST", `${BASE_URL}/hr/allowance-requests/${id}/reject`, { comment }),
 
   // Reports & Analytics
-  getHRDashboardStats:() => request("GET", `${BASE_URL}/hr/dashboard/stats`),
+  getHRDashboardStats: () => request("GET", `${BASE_URL}/hr/dashboard/stats`),
   getWorkforceReport: () => request("GET", `${BASE_URL}/hr/reports/workforce`),
-  getAttendanceReport:() => request("GET", `${BASE_URL}/hr/reports/attendance-summary`),
-  getLeaveReport:     () => request("GET", `${BASE_URL}/hr/reports/leave-summary`),
-  getPayrollReport:   () => request("GET", `${BASE_URL}/hr/reports/payroll-summary`),
+  getAttendanceReport: () => request("GET", `${BASE_URL}/hr/reports/attendance-summary`),
+  getLeaveReport: () => request("GET", `${BASE_URL}/hr/reports/leave-summary`),
+  getPayrollReport: () => request("GET", `${BASE_URL}/hr/reports/payroll-summary`),
 };
 
 // ─── ADMIN DATA ───────────────────────────────────────────────
 export const adminApi = {
   // Dashboard
   getDashboardStats: () => request("GET", `${ADMIN_URL}/admin/stats`),
-  getCompanyStats:   (companyId) => request("GET", `${ADMIN_URL}/admin/stats/company/${companyId}`),
+  getCompanyStats: (companyId) => request("GET", `${ADMIN_URL}/admin/stats/company/${companyId}`),
 
   // Companies
-  getCompanies:      () => request("GET", `${ADMIN_URL}/admin/companies`),
-  getCompany:        (id) => request("GET", `${ADMIN_URL}/admin/companies/${id}`),
-  createCompany:     (data) => request("POST", `${ADMIN_URL}/admin/companies`, data),
-  updateCompany:     (id, data) => request("PUT", `${ADMIN_URL}/admin/companies/${id}`, data),
-  approveCompany:    (id) => request("POST", `${ADMIN_URL}/admin/companies/${id}/approve`),
-  rejectCompany:     (id, reason) => request("POST", `${ADMIN_URL}/admin/companies/${id}/reject?reason=${encodeURIComponent(reason)}`),
-  suspendCompany:    (id, reason) => request("POST", `${ADMIN_URL}/admin/companies/${id}/suspend?reason=${encodeURIComponent(reason)}`),
+  getCompanies: () => request("GET", `${ADMIN_URL}/admin/companies`),
+  getCompany: (id) => request("GET", `${ADMIN_URL}/admin/companies/${id}`),
+  createCompany: (data) => request("POST", `${ADMIN_URL}/admin/companies`, data),
+  updateCompany: (id, data) => request("PUT", `${ADMIN_URL}/admin/companies/${id}`, data),
+  approveCompany: (id) => request("POST", `${ADMIN_URL}/admin/companies/${id}/approve`),
+  rejectCompany: (id, reason) => request("POST", `${ADMIN_URL}/admin/companies/${id}/reject?reason=${encodeURIComponent(reason)}`),
+  suspendCompany: (id, reason) => request("POST", `${ADMIN_URL}/admin/companies/${id}/suspend?reason=${encodeURIComponent(reason)}`),
 
   // Users
-  getSystemUsers:    () => request("GET", `${ADMIN_URL}/admin/users`),
+  getSystemUsers: () => request("GET", `${ADMIN_URL}/admin/users`),
   getUsersByCompany: (companyId) => request("GET", `${ADMIN_URL}/admin/users/company/${companyId}`),
-  getAdminUsers:     () => request("GET", `${ADMIN_URL}/admin/users/admins`),
-  updateUserRole:    (id, role) => request("PUT", `${ADMIN_URL}/admin/users/${id}/role?role=${encodeURIComponent(role)}`),
-  updateUserStatus:  (id, status) => request("PUT", `${ADMIN_URL}/admin/users/${id}/status?status=${encodeURIComponent(status)}`),
+  getAdminUsers: () => request("GET", `${ADMIN_URL}/admin/users/admins`),
+  updateUserRole: (id, role) => request("PUT", `${ADMIN_URL}/admin/users/${id}/role?role=${encodeURIComponent(role)}`),
+  updateUserStatus: (id, status) => request("PUT", `${ADMIN_URL}/admin/users/${id}/status?status=${encodeURIComponent(status)}`),
   resetUserPassword: (id, password) => request("POST", `${ADMIN_URL}/admin/users/${id}/reset-password`, { password }),
 
   // Audit Logs
-  getAuditLogs:      (companyId) => request("GET", `${ADMIN_URL}/admin/audit-logs${companyId ? '?companyId=' + companyId : ''}`),
+  getAuditLogs: (companyId) => request("GET", `${ADMIN_URL}/admin/audit-logs${companyId ? '?companyId=' + companyId : ''}`),
   getAuditLogsByRange: (startDate, endDate) => request("GET", `${ADMIN_URL}/admin/audit-logs/range?startDate=${startDate}&endDate=${endDate}`),
 
   // System Configuration
   getConfigurations: () => request("GET", `${ADMIN_URL}/admin/config`),
-  getConfiguration:  (key) => request("GET", `${ADMIN_URL}/admin/config/${key}`),
+  getConfiguration: (key) => request("GET", `${ADMIN_URL}/admin/config/${key}`),
   updateConfiguration: (key, value) => request("PUT", `${ADMIN_URL}/admin/config/${key}`, { value }),
 
   // Auth (admin-specific login)
-  login:             (email, password) => request("POST", `${ADMIN_URL}/auth/login`, { email, password }),
+  login: (email, password) => request("POST", `${ADMIN_URL}/auth/login`, { email, password }),
 };

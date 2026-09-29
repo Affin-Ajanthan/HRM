@@ -31,7 +31,7 @@ const makeApi = (base) => ({
       headers: _headers(),
       body: JSON.stringify(body),
     });
-    if (!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.message||`HTTP ${res.status}`); }
+    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.message || `HTTP ${res.status}`); }
     return res.json();
   },
   put: async (path, body) => {
@@ -67,7 +67,7 @@ const Toast = ({ toasts, removeToast }) => (
       <div key={t.id} className={`flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium
         ${t.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
           : t.type === "error" ? "bg-red-50 text-red-700 border border-red-200"
-          : "bg-blue-50 text-blue-700 border border-blue-200"}`}>
+            : "bg-blue-50 text-blue-700 border border-blue-200"}`}>
         {t.type === "success" ? <CheckCircle size={15} /> : t.type === "error" ? <XCircle size={15} /> : <AlertCircle size={15} />}
         {t.message}
         <button onClick={() => removeToast(t.id)} className="ml-1 opacity-60 hover:opacity-100"><X size={13} /></button>
@@ -91,9 +91,9 @@ const newRole = () => ({ _k: `${Date.now()}-${Math.random()}`, title: "", descri
 
 // ─── DEPARTMENT FORM MODAL ────────────────────────────────────────────────────
 const DeptFormModal = ({ open, onClose, onSave, initDept, initRoles, employees }) => {
-  const [dept, setDept]   = useState({ name: "", description: "", managerId: "", active: true });
+  const [dept, setDept] = useState({ name: "", description: "", managerId: "", active: true });
   const [roles, setRoles] = useState([newRole()]);
-  const [errs, setErrs]   = useState({});
+  const [errs, setErrs] = useState({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -114,8 +114,8 @@ const DeptFormModal = ({ open, onClose, onSave, initDept, initRoles, employees }
 
   const setRole = (i, f, v) => setRoles(p => p.map((r, idx) => idx === i ? { ...r, [f]: v } : r));
   const addRole = () => setRoles(p => [...p, newRole()]);
-  const rmRole  = (i) => setRoles(p => p.filter((_, idx) => idx !== i));
-  const clrErr  = (k) => setErrs(p => { const n = { ...p }; delete n[k]; return n; });
+  const rmRole = (i) => setRoles(p => p.filter((_, idx) => idx !== i));
+  const clrErr = (k) => setErrs(p => { const n = { ...p }; delete n[k]; return n; });
 
   const validate = () => {
     const e = {};
@@ -354,7 +354,7 @@ const ConfirmDialog = ({ open, title, message, onConfirm, onCancel }) => {
 
 // ─── DEPARTMENT DETAIL VIEW ───────────────────────────────────────────────────
 const DeptDetail = ({ dept, employees, onBack, onEdit, addToast }) => {
-  const [roles, setRoles]   = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const loadRoles = useCallback(async () => {
@@ -428,32 +428,32 @@ const DeptDetail = ({ dept, employees, onBack, onEdit, addToast }) => {
           ? <div className="flex justify-center py-10"><Loader className="animate-spin text-indigo-400" size={22} /></div>
           : roles.length === 0
             ? <div className="py-10 text-center text-gray-400">
-                <Briefcase size={34} className="mx-auto mb-2 opacity-20" />
-                <p className="text-sm">No job roles — click Edit to add some</p>
-              </div>
+              <Briefcase size={34} className="mx-auto mb-2 opacity-20" />
+              <p className="text-sm">No job roles — click Edit to add some</p>
+            </div>
             : <div className="divide-y divide-gray-50">
-                {roles.map(r => (
-                  <div key={r.id} className="flex items-center justify-between px-5 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                        <Tag size={14} className="text-indigo-500" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-800">{r.title}</p>
-                        {r.description && <p className="text-xs text-gray-400 mt-0.5">{r.description}</p>}
-                        {(r.minSalary || r.maxSalary) && (
-                          <p className="text-xs text-emerald-600 font-medium mt-0.5">
-                            LKR {r.minSalary?.toLocaleString()} – {r.maxSalary?.toLocaleString()}
-                          </p>
-                        )}
-                      </div>
+              {roles.map(r => (
+                <div key={r.id} className="flex items-center justify-between px-5 py-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                      <Tag size={14} className="text-indigo-500" />
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${r.active ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-400"}`}>
-                      {r.active ? "Active" : "Inactive"}
-                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">{r.title}</p>
+                      {r.description && <p className="text-xs text-gray-400 mt-0.5">{r.description}</p>}
+                      {(r.minSalary || r.maxSalary) && (
+                        <p className="text-xs text-emerald-600 font-medium mt-0.5">
+                          LKR {r.minSalary?.toLocaleString()} – {r.maxSalary?.toLocaleString()}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                ))}
-              </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${r.active ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-400"}`}>
+                    {r.active ? "Active" : "Inactive"}
+                  </span>
+                </div>
+              ))}
+            </div>
         }
       </div>
 
@@ -490,13 +490,13 @@ const DeptDetail = ({ dept, employees, onBack, onEdit, addToast }) => {
 // ─── DEPARTMENT MANAGEMENT SECTION ───────────────────────────────────────────
 const DepartmentSection = ({ employees, addToast }) => {
   const [departments, setDepts] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [search, setSearch]     = useState("");
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editDept, setEditDept] = useState(null);
   const [editRoles, setEditRoles] = useState([]);
-  const [confirm, setConfirm]   = useState({ open: false, id: null, name: "" });
-  const [viewId, setViewId]     = useState(null);
+  const [confirm, setConfirm] = useState({ open: false, id: null, name: "" });
+  const [viewId, setViewId] = useState(null);
 
   const loadDepts = useCallback(async () => {
     try {
@@ -510,7 +510,7 @@ const DepartmentSection = ({ employees, addToast }) => {
   useEffect(() => { loadDepts(); }, [loadDepts]);
 
   const openCreate = () => { setEditDept(null); setEditRoles([]); setFormOpen(true); };
-  const openEdit   = async (dept) => {
+  const openEdit = async (dept) => {
     setEditDept(dept);
     try { const r = await api.get(`/departments/${dept.id}/job-roles`); setEditRoles(r.data || []); }
     catch { setEditRoles([]); }
@@ -530,7 +530,7 @@ const DepartmentSection = ({ employees, addToast }) => {
     }
     for (const role of rolesPayload) {
       if (role.id) await api.put(`/departments/job-roles/${role.id}`, role);
-      else         await api.post(`/departments/${deptId}/job-roles`, role);
+      else await api.post(`/departments/${deptId}/job-roles`, role);
     }
     setFormOpen(false);
     loadDepts();
@@ -593,10 +593,10 @@ const DepartmentSection = ({ employees, addToast }) => {
       {/* Gradient stat cards — same style as Attendance / Leave */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
         {[
-          { label:"Total Departments", value:departments.length,                              icon:Building2,   from:"from-blue-500",   to:"to-blue-600",    sub:"All departments"  },
-          { label:"Active",            value:departments.filter(d=>d.active).length,          icon:CheckCircle, from:"from-green-500",  to:"to-emerald-600", sub:"Currently active" },
-          { label:"Inactive",          value:departments.filter(d=>!d.active).length,         icon:XCircle,     from:"from-red-500",    to:"to-red-600",     sub:"Deactivated"      },
-          { label:"Total Employees",   value:(employees||[]).length,                          icon:Users,       from:"from-indigo-500", to:"to-indigo-600",  sub:"Across all depts" },
+          { label: "Total Departments", value: departments.length, icon: Building2, from: "from-blue-500", to: "to-blue-600", sub: "All departments" },
+          { label: "Active", value: departments.filter(d => d.active).length, icon: CheckCircle, from: "from-green-500", to: "to-emerald-600", sub: "Currently active" },
+          { label: "Inactive", value: departments.filter(d => !d.active).length, icon: XCircle, from: "from-red-500", to: "to-red-600", sub: "Deactivated" },
+          { label: "Total Employees", value: (employees || []).length, icon: Users, from: "from-indigo-500", to: "to-indigo-600", sub: "Across all depts" },
         ].map(({ label, value, icon: Icon, from, to, sub }) => (
           <div key={label} className={`bg-gradient-to-br ${from} ${to} p-6 rounded-xl shadow-lg text-white hover:scale-105 transition-transform`}>
             <div className="flex items-center justify-between mb-2">
@@ -736,8 +736,8 @@ const employmentTypeBadge = (type) => {
 // ─── EMPLOYEE SECTION ─────────────────────────────────────────────────────────
 const EmployeeSection = ({ toast, onAddClick, refreshKey }) => {
   const [employees, setEmployees] = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [search, setSearch]       = useState("");
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
@@ -766,10 +766,10 @@ const EmployeeSection = ({ toast, onAddClick, refreshKey }) => {
     e.departmentName?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const active     = employees.filter(e => e.status === "ACTIVE").length;
-  const inactive   = employees.filter(e => e.status === "INACTIVE").length;
+  const active = employees.filter(e => e.status === "ACTIVE").length;
+  const inactive = employees.filter(e => e.status === "INACTIVE").length;
   const terminated = employees.filter(e => e.status === "TERMINATED").length;
-  const fullTime   = employees.filter(e => (e.employmentType || e.employment_type || "").toUpperCase().includes("FULL")).length;
+  const fullTime = employees.filter(e => (e.employmentType || e.employment_type || "").toUpperCase().includes("FULL")).length;
 
   const statusBadge = (s) => {
     const c = { ACTIVE: "bg-emerald-100 text-emerald-700", INACTIVE: "bg-gray-100 text-gray-600", TERMINATED: "bg-red-100 text-red-700" };
@@ -777,12 +777,12 @@ const EmployeeSection = ({ toast, onAddClick, refreshKey }) => {
   };
 
   const statCards = [
-    { label: "Total Employees", value: employees.length,  icon: Users,       from: "from-blue-500",   to: "to-blue-600",    sub: "All staff"          },
-    { label: "Active",          value: active,            icon: UserCheck,   from: "from-green-500",  to: "to-emerald-600", sub: "Currently working"  },
-    { label: "Inactive",        value: inactive,          icon: Clock,       from: "from-yellow-500", to: "to-orange-500",  sub: "On hold"            },
-    { label: "Terminated",      value: terminated,        icon: UserX,       from: "from-red-500",    to: "to-red-600",     sub: "No longer active"   },
-    { label: "Full Time",       value: fullTime,          icon: Award,       from: "from-indigo-500", to: "to-indigo-600",  sub: "Full-time staff"    },
-    { label: "Showing",         value: filtered.length,   icon: Search,      from: "from-purple-500", to: "to-purple-600",  sub: "After filter"       },
+    { label: "Total Employees", value: employees.length, icon: Users, from: "from-blue-500", to: "to-blue-600", sub: "All staff" },
+    { label: "Active", value: active, icon: UserCheck, from: "from-green-500", to: "to-emerald-600", sub: "Currently working" },
+    { label: "Inactive", value: inactive, icon: Clock, from: "from-yellow-500", to: "to-orange-500", sub: "On hold" },
+    { label: "Terminated", value: terminated, icon: UserX, from: "from-red-500", to: "to-red-600", sub: "No longer active" },
+    { label: "Full Time", value: fullTime, icon: Award, from: "from-indigo-500", to: "to-indigo-600", sub: "Full-time staff" },
+    { label: "Showing", value: filtered.length, icon: Search, from: "from-purple-500", to: "to-purple-600", sub: "After filter" },
   ];
 
   return (
@@ -880,19 +880,19 @@ const EmployeeSection = ({ toast, onAddClick, refreshKey }) => {
 
 // ─── ATTENDANCE SECTION ───────────────────────────────────────────────────────
 const AttendanceSection = () => {
-  const [searchTerm, setSearchTerm]   = useState("");
-  const [filterDate, setFilterDate]   = useState(new Date().toISOString().split("T")[0]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterDate, setFilterDate] = useState(new Date().toISOString().split("T")[0]);
   const [filterStatus, setFilterStatus] = useState("all");
 
   const attendanceData = [
-    { id:1, empId:"EMP001", name:"John Doe",       department:"IT",        date:"2026-01-21", checkIn:"09:00 AM", checkOut:"06:00 PM", status:"Present",  workHours:"9h 0m"  },
-    { id:2, empId:"EMP002", name:"Jane Smith",      department:"HR",        date:"2026-01-21", checkIn:"08:45 AM", checkOut:"05:45 PM", status:"Present",  workHours:"9h 0m"  },
-    { id:3, empId:"EMP003", name:"Mike Johnson",    department:"Finance",   date:"2026-01-21", checkIn:"-",        checkOut:"-",        status:"Absent",   workHours:"-"      },
-    { id:4, empId:"EMP004", name:"Sarah Williams",  department:"IT",        date:"2026-01-21", checkIn:"09:15 AM", checkOut:"-",        status:"Half Day", workHours:"4h 30m" },
-    { id:5, empId:"EMP005", name:"David Brown",     department:"Marketing", date:"2026-01-21", checkIn:"09:30 AM", checkOut:"06:30 PM", status:"Present",  workHours:"9h 0m"  },
+    { id: 1, empId: "EMP001", name: "John Doe", department: "IT", date: "2026-01-21", checkIn: "09:00 AM", checkOut: "06:00 PM", status: "Present", workHours: "9h 0m" },
+    { id: 2, empId: "EMP002", name: "Jane Smith", department: "HR", date: "2026-01-21", checkIn: "08:45 AM", checkOut: "05:45 PM", status: "Present", workHours: "9h 0m" },
+    { id: 3, empId: "EMP003", name: "Mike Johnson", department: "Finance", date: "2026-01-21", checkIn: "-", checkOut: "-", status: "Absent", workHours: "-" },
+    { id: 4, empId: "EMP004", name: "Sarah Williams", department: "IT", date: "2026-01-21", checkIn: "09:15 AM", checkOut: "-", status: "Half Day", workHours: "4h 30m" },
+    { id: 5, empId: "EMP005", name: "David Brown", department: "Marketing", date: "2026-01-21", checkIn: "09:30 AM", checkOut: "06:30 PM", status: "Present", workHours: "9h 0m" },
   ];
 
-  const stats = { totalEmployees:45, present:38, absent:5, halfDay:2, late:8, onTime:30 };
+  const stats = { totalEmployees: 45, present: 38, absent: 5, halfDay: 2, late: 8, onTime: 30 };
 
   const filtered = attendanceData.filter(r => {
     const s = searchTerm.toLowerCase();
@@ -902,12 +902,12 @@ const AttendanceSection = () => {
   });
 
   const statCards = [
-    { label:"Total Employees", value:stats.totalEmployees, icon:Users,      from:"from-blue-500",   to:"to-blue-600"    },
-    { label:"Present",         value:stats.present,        icon:CheckCircle, from:"from-green-500",  to:"to-emerald-600" },
-    { label:"Absent",          value:stats.absent,         icon:XCircle,     from:"from-red-500",    to:"to-red-600"     },
-    { label:"Half Day",        value:stats.halfDay,        icon:Clock,       from:"from-yellow-500", to:"to-orange-500"  },
-    { label:"Late",            value:stats.late,           icon:UserX,       from:"from-purple-500", to:"to-purple-600"  },
-    { label:"On Time",         value:stats.onTime,         icon:UserCheck,   from:"from-indigo-500", to:"to-indigo-600"  },
+    { label: "Total Employees", value: stats.totalEmployees, icon: Users, from: "from-blue-500", to: "to-blue-600" },
+    { label: "Present", value: stats.present, icon: CheckCircle, from: "from-green-500", to: "to-emerald-600" },
+    { label: "Absent", value: stats.absent, icon: XCircle, from: "from-red-500", to: "to-red-600" },
+    { label: "Half Day", value: stats.halfDay, icon: Clock, from: "from-yellow-500", to: "to-orange-500" },
+    { label: "Late", value: stats.late, icon: UserX, from: "from-purple-500", to: "to-purple-600" },
+    { label: "On Time", value: stats.onTime, icon: UserCheck, from: "from-indigo-500", to: "to-indigo-600" },
   ];
 
   const statusStyle = s => s === "Present" ? "bg-green-100 text-green-700" : s === "Absent" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700";
@@ -925,7 +925,7 @@ const AttendanceSection = () => {
         </div>
         <div className="text-right">
           <p className="text-xs text-gray-400 font-medium">Today's Date</p>
-          <p className="text-base font-bold text-gray-700">{new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</p>
+          <p className="text-base font-bold text-gray-700">{new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
         </div>
       </div>
 
@@ -978,7 +978,7 @@ const AttendanceSection = () => {
         <table className="w-full">
           <thead>
             <tr className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm">
-              {["Emp ID","Employee Name","Department","Date","Check In","Check Out","Work Hours","Status"].map(h => (
+              {["Emp ID", "Employee Name", "Department", "Date", "Check In", "Check Out", "Work Hours", "Status"].map(h => (
                 <th key={h} className="px-5 py-4 text-left font-semibold">{h}</th>
               ))}
             </tr>
@@ -1009,20 +1009,20 @@ const AttendanceSection = () => {
 
 // ─── LEAVE SECTION ────────────────────────────────────────────────────────────
 const LeaveSection = () => {
-  const [searchTerm, setSearchTerm]     = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [viewing, setViewing]           = useState(null);
+  const [viewing, setViewing] = useState(null);
   const [leaveRequests, setLeaveRequests] = useState([
-    { id:1, empId:"EMP001", name:"John Doe",      department:"IT",        leaveType:"Sick Leave",   startDate:"2026-01-25", endDate:"2026-01-27", days:3, reason:"Medical checkup and recovery", appliedOn:"2026-01-20", status:"Pending"  },
-    { id:2, empId:"EMP002", name:"Jane Smith",     department:"HR",        leaveType:"Casual Leave", startDate:"2026-02-01", endDate:"2026-02-03", days:3, reason:"Personal work",               appliedOn:"2026-01-19", status:"Pending"  },
-    { id:3, empId:"EMP003", name:"Mike Johnson",   department:"Finance",   leaveType:"Annual Leave", startDate:"2026-01-22", endDate:"2026-01-23", days:2, reason:"Family function",             appliedOn:"2026-01-18", status:"Approved" },
-    { id:4, empId:"EMP004", name:"Sarah Williams", department:"IT",        leaveType:"Sick Leave",   startDate:"2026-01-20", endDate:"2026-01-20", days:1, reason:"Fever",                       appliedOn:"2026-01-19", status:"Rejected" },
-    { id:5, empId:"EMP005", name:"David Brown",    department:"Marketing", leaveType:"Casual Leave", startDate:"2026-02-05", endDate:"2026-02-07", days:3, reason:"Vacation trip",               appliedOn:"2026-01-21", status:"Pending"  },
+    { id: 1, empId: "EMP001", name: "John Doe", department: "IT", leaveType: "Sick Leave", startDate: "2026-01-25", endDate: "2026-01-27", days: 3, reason: "Medical checkup and recovery", appliedOn: "2026-01-20", status: "Pending" },
+    { id: 2, empId: "EMP002", name: "Jane Smith", department: "HR", leaveType: "Casual Leave", startDate: "2026-02-01", endDate: "2026-02-03", days: 3, reason: "Personal work", appliedOn: "2026-01-19", status: "Pending" },
+    { id: 3, empId: "EMP003", name: "Mike Johnson", department: "Finance", leaveType: "Annual Leave", startDate: "2026-01-22", endDate: "2026-01-23", days: 2, reason: "Family function", appliedOn: "2026-01-18", status: "Approved" },
+    { id: 4, empId: "EMP004", name: "Sarah Williams", department: "IT", leaveType: "Sick Leave", startDate: "2026-01-20", endDate: "2026-01-20", days: 1, reason: "Fever", appliedOn: "2026-01-19", status: "Rejected" },
+    { id: 5, empId: "EMP005", name: "David Brown", department: "Marketing", leaveType: "Casual Leave", startDate: "2026-02-05", endDate: "2026-02-07", days: 3, reason: "Vacation trip", appliedOn: "2026-01-21", status: "Pending" },
   ]);
 
   const stats = {
-    total:    leaveRequests.length,
-    pending:  leaveRequests.filter(r => r.status === "Pending").length,
+    total: leaveRequests.length,
+    pending: leaveRequests.filter(r => r.status === "Pending").length,
     approved: leaveRequests.filter(r => r.status === "Approved").length,
     rejected: leaveRequests.filter(r => r.status === "Rejected").length,
   };
@@ -1034,16 +1034,16 @@ const LeaveSection = () => {
     return matchSearch && matchStatus;
   });
 
-  const approve = id => { setLeaveRequests(p => p.map(r => r.id === id ? { ...r, status:"Approved" } : r)); setViewing(null); };
-  const reject  = id => { setLeaveRequests(p => p.map(r => r.id === id ? { ...r, status:"Rejected" } : r)); setViewing(null); };
+  const approve = id => { setLeaveRequests(p => p.map(r => r.id === id ? { ...r, status: "Approved" } : r)); setViewing(null); };
+  const reject = id => { setLeaveRequests(p => p.map(r => r.id === id ? { ...r, status: "Rejected" } : r)); setViewing(null); };
 
   const statusStyle = s => s === "Approved" ? "bg-green-100 text-green-700" : s === "Rejected" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700";
 
   const statCards = [
-    { label:"Total Requests", value:stats.total,    icon:FileText,    from:"from-blue-500",   to:"to-blue-600",    sub:"All time"          },
-    { label:"Pending",        value:stats.pending,  icon:Clock,       from:"from-yellow-500", to:"to-orange-500",  sub:"Awaiting approval"  },
-    { label:"Approved",       value:stats.approved, icon:CheckCircle, from:"from-green-500",  to:"to-emerald-600", sub:"Granted leaves"     },
-    { label:"Rejected",       value:stats.rejected, icon:XCircle,     from:"from-red-500",    to:"to-red-600",     sub:"Denied requests"    },
+    { label: "Total Requests", value: stats.total, icon: FileText, from: "from-blue-500", to: "to-blue-600", sub: "All time" },
+    { label: "Pending", value: stats.pending, icon: Clock, from: "from-yellow-500", to: "to-orange-500", sub: "Awaiting approval" },
+    { label: "Approved", value: stats.approved, icon: CheckCircle, from: "from-green-500", to: "to-emerald-600", sub: "Granted leaves" },
+    { label: "Rejected", value: stats.rejected, icon: XCircle, from: "from-red-500", to: "to-red-600", sub: "Denied requests" },
   ];
 
   return (
@@ -1098,7 +1098,7 @@ const LeaveSection = () => {
         <table className="w-full">
           <thead>
             <tr className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm">
-              {["Emp ID","Employee","Department","Leave Type","Duration","Days","Applied On","Status","Actions"].map(h => (
+              {["Emp ID", "Employee", "Department", "Leave Type", "Duration", "Days", "Applied On", "Status", "Actions"].map(h => (
                 <th key={h} className="px-5 py-4 text-left font-semibold">{h}</th>
               ))}
             </tr>
@@ -1192,20 +1192,20 @@ const LeaveSection = () => {
 // counted server-side from the employees table). `limit` shows only the busiest
 // N departments; omit it to show every department (used inside the "view all" modal).
 const DIST_COLORS = [
-  { from: "from-blue-500",   to: "to-cyan-500",   color: "text-blue-600" },
-  { from: "from-green-500",  to: "to-emerald-500", color: "text-green-600" },
-  { from: "from-purple-500", to: "to-pink-500",   color: "text-purple-600" },
+  { from: "from-blue-500", to: "to-cyan-500", color: "text-blue-600" },
+  { from: "from-green-500", to: "to-emerald-500", color: "text-green-600" },
+  { from: "from-purple-500", to: "to-pink-500", color: "text-purple-600" },
   { from: "from-orange-500", to: "to-yellow-500", color: "text-orange-600" },
-  { from: "from-red-500",    to: "to-pink-500",   color: "text-red-600" },
-  { from: "from-teal-500",   to: "to-cyan-500",   color: "text-teal-600" },
-  { from: "from-indigo-500", to: "to-blue-500",   color: "text-indigo-600" },
-  { from: "from-pink-500",   to: "to-rose-500",   color: "text-pink-600" },
+  { from: "from-red-500", to: "to-pink-500", color: "text-red-600" },
+  { from: "from-teal-500", to: "to-cyan-500", color: "text-teal-600" },
+  { from: "from-indigo-500", to: "to-blue-500", color: "text-indigo-600" },
+  { from: "from-pink-500", to: "to-rose-500", color: "text-pink-600" },
 ];
 
 const DistributionBars = ({ departments, limit }) => {
   const sorted = [...departments].sort((a, b) => (b.employeeCount || 0) - (a.employeeCount || 0));
-  const shown  = limit ? sorted.slice(0, limit) : sorted;
-  const max    = Math.max(1, ...sorted.map((d) => d.employeeCount || 0));
+  const shown = limit ? sorted.slice(0, limit) : sorted;
+  const max = Math.max(1, ...sorted.map((d) => d.employeeCount || 0));
 
   if (sorted.length === 0) {
     return (
@@ -1240,18 +1240,19 @@ const DistributionBars = ({ departments, limit }) => {
 
 // ─── MAIN DASHBOARD ───────────────────────────────────────────────────────────
 const HRDashboard = () => {
-  const [user, setUser]             = useState(null);
+  const [user, setUser] = useState(null);
   const [activeMenu, setActiveMenu] = useState("Overview");
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [showAddEmployee, setShowAddEmployee] = useState(false);
-  const [stats, setStats]           = useState({ totalDepartments: 0, totalEmployees: 0, pendingLeaves: 0, todayPresent: 0 });
+  const [stats, setStats] = useState({ totalDepartments: 0, totalEmployees: 0, pendingLeaves: 0, todayPresent: 0 });
   const [pendingLeaves, setPendingLeaves] = useState([]);
+  const [pendingAllowances, setPendingAllowances] = useState([]); // employees' allowance requests waiting for HR
   const [departments, setDepartments] = useState([]);
   const [employees, setEmployees] = useState([]); // real accounts from User_Backend — source of truth for headcount
   const [showDeptModal, setShowDeptModal] = useState(false);
   const [empRefresh, setEmpRefresh] = useState(0);
   const navigate = useNavigate();
-  const toast    = useToast();
+  const toast = useToast();
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -1277,17 +1278,18 @@ const HRDashboard = () => {
       //                           (hrApi.getDailyAttendance), same source the
       //                           Attendance page and Employee page use
       //   • Pending Leaves     -> the real leave table (hrApi.getPendingLeaves)
-      const [deptsRes, employeesRes, leavesRes, attendanceRes] = await Promise.all([
+      const [deptsRes, employeesRes, leavesRes, attendanceRes, allowanceRes] = await Promise.all([
         hrApi.getDepartments().catch(() => ({ data: [] })),
         userApi.get("/hr/employees").catch(() => ({ data: [] })),
         hrApi.getPendingLeaves().catch(() => ({ data: [] })),
         hrApi.getDailyAttendance(today).catch(() => ({ data: [] })),
+        hrApi.getAllowanceRequests().catch(() => ({ data: [] })),
       ]);
 
-      const deptList     = Array.isArray(deptsRes?.data) ? deptsRes.data : [];
+      const deptList = Array.isArray(deptsRes?.data) ? deptsRes.data : [];
       const employeeList = Array.isArray(employeesRes?.data) ? employeesRes.data : [];
-      const leaveList    = Array.isArray(leavesRes?.data) ? leavesRes.data : [];
-      const sessions     = Array.isArray(attendanceRes?.data) ? attendanceRes.data : [];
+      const leaveList = Array.isArray(leavesRes?.data) ? leavesRes.data : [];
+      const sessions = Array.isArray(attendanceRes?.data) ? attendanceRes.data : [];
 
       // Same grouping logic the Attendance page and Employee page use: collapse
       // every clock-in/out session into one row per employee for today, then
@@ -1297,17 +1299,18 @@ const HRDashboard = () => {
       setDepartments(deptList);
       setEmployees(employeeList);
       setPendingLeaves(leaveList);
+      setPendingAllowances((Array.isArray(allowanceRes?.data) ? allowanceRes.data : []).filter((r) => r.status === "PENDING"));
       setStats({
         totalDepartments: deptList.length,
         totalEmployees: employeeList.length,
         todayPresent: presentToday,
         pendingLeaves: leaveList.length,
       });
-    } catch {}
+    } catch { }
   };
 
   const handleApproveLeave = async (id) => { try { await hrApi.approveLeave(id); toast.addToast("Leave approved", "success"); fetchDashboardData(); } catch { toast.addToast("Failed to approve", "error"); } };
-  const handleRejectLeave  = async (id) => {
+  const handleRejectLeave = async (id) => {
     const reason = window.prompt("Reason for rejection:");
     if (reason === null) return;
     try { await hrApi.rejectLeave(id, reason || "Rejected"); toast.addToast("Leave rejected", "success"); fetchDashboardData(); } catch { toast.addToast("Failed to reject", "error"); }
@@ -1338,13 +1341,13 @@ const HRDashboard = () => {
   }, [activeMenu, navigate]);
 
   const menuItems = [
-    { name: "Overview",         icon: LayoutDashboard, path: null },
-    { name: "Employees",        icon: Users,           path: "/hr/employees" },
-    { name: "Departments",      icon: Building2,       path: "/hr/departments" },
-    { name: "Attendance",       icon: CalendarCheck,   path: "/hr/attendance" },
-    { name: "Leave Management", icon: FileText,        path: "/hr/leave" },
-    { name: "Payroll",          icon: DollarSign,      path: "/hr/payslip" },
-    { name: "Reports",          icon: BarChart3,       path: "/hr/report" },
+    { name: "Overview", icon: LayoutDashboard, path: null },
+    { name: "Employees", icon: Users, path: "/hr/employees" },
+    { name: "Departments", icon: Building2, path: "/hr/departments" },
+    { name: "Attendance", icon: CalendarCheck, path: "/hr/attendance" },
+    { name: "Leave Management", icon: FileText, path: "/hr/leave" },
+    { name: "Payroll", icon: DollarSign, path: "/hr/payslip" },
+    { name: "Reports", icon: BarChart3, path: "/hr/report" },
   ];
 
   if (!user) return (
@@ -1463,7 +1466,7 @@ const HRDashboard = () => {
             <p className="text-xs text-gray-400">HR Management Dashboard</p>
           </div>
           <div className="flex items-center gap-3">
-            <button className="relative p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors">
+            <button onClick={() => stats.pendingLeaves > 0 && navigate("/hr/leave")} title={stats.pendingLeaves > 0 ? "Pending leave requests" : "No pending leave requests"} className="relative p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors">
               <Bell size={20} />
               {stats.pendingLeaves > 0 && (
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
@@ -1488,10 +1491,10 @@ const HRDashboard = () => {
             <div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                 {[
-                  { label: "Total Departments", val: stats.totalDepartments, sub: "All departments",         icon: Building2,   from: "from-blue-500",   to: "to-blue-600",   tc: "text-blue-100",   path: "/hr/departments" },
-                  { label: "Total Employees",   val: stats.totalEmployees,   sub: "Across all departments",  icon: Users,       from: "from-green-500",  to: "to-emerald-600", tc: "text-green-100",  path: "/hr/employees"   },
-                  { label: "Today Present",     val: stats.todayPresent,     sub: "Checked in today",        icon: UserCheck,   from: "from-purple-500", to: "to-pink-600",    tc: "text-purple-100", path: "/hr/attendance"  },
-                  { label: "Pending Leaves",    val: stats.pendingLeaves,    sub: "Awaiting approval",       icon: Clock,       from: "from-yellow-500", to: "to-orange-500",  tc: "text-yellow-100", path: "/hr/leave"       },
+                  { label: "Total Departments", val: stats.totalDepartments, sub: "All departments", icon: Building2, from: "from-blue-500", to: "to-blue-600", tc: "text-blue-100", path: "/hr/departments" },
+                  { label: "Total Employees", val: stats.totalEmployees, sub: "Across all departments", icon: Users, from: "from-green-500", to: "to-emerald-600", tc: "text-green-100", path: "/hr/employees" },
+                  { label: "Today Present", val: stats.todayPresent, sub: "Checked in today", icon: UserCheck, from: "from-purple-500", to: "to-pink-600", tc: "text-purple-100", path: "/hr/attendance" },
+                  { label: "Pending Leaves", val: stats.pendingLeaves, sub: "Awaiting approval", icon: Clock, from: "from-yellow-500", to: "to-orange-500", tc: "text-yellow-100", path: "/hr/leave" },
                 ].map(({ label, val, sub, icon: Icon, from, to, tc, path }) => (
                   <div
                     key={label}
@@ -1513,19 +1516,22 @@ const HRDashboard = () => {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                 <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
                   <h3 className="text-xl font-bold mb-6 flex items-center justify-between text-gray-800">
-                    <span className="flex items-center"><div className="bg-yellow-100 p-2 rounded-lg mr-3"><FileText className="text-yellow-600" size={24} /></div>Pending Leave Requests</span>
-                    <span className="text-sm text-gray-500 font-normal bg-yellow-100 px-3 py-1 rounded-full">{pendingLeaves.length} pending</span>
+                    <span onClick={() => navigate("/hr/leave")} role="link" tabIndex={0} title="Open Leave Management"
+                      onKeyDown={(e) => { if (e.key === "Enter") navigate("/hr/leave"); }}
+                      className="flex items-center cursor-pointer hover:text-yellow-700 transition-colors"><div className="bg-yellow-100 p-2 rounded-lg mr-3"><FileText className="text-yellow-600" size={24} /></div>Pending Leave Requests</span>
+                    <button onClick={() => navigate("/hr/leave")} title="Open Leave Management"
+                      className="text-sm text-gray-500 font-normal bg-yellow-100 hover:bg-yellow-200 px-3 py-1 rounded-full transition-colors">{pendingLeaves.length} pending · View all →</button>
                   </h3>
                   <div className="space-y-3">
                     {pendingLeaves.length === 0
                       ? <div className="text-center py-8 text-gray-400"><CheckCircle size={32} className="mx-auto mb-2 opacity-30" /><p className="text-sm">No pending leave requests</p></div>
                       : pendingLeaves.slice(0, 5).map((leave) => (
-                        <div key={leave.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition">
+                        <div key={leave.id} onClick={() => navigate("/hr/leave")} title="Open Leave Management" className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition cursor-pointer">
                           <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600 flex-shrink-0">{leave.employeeName?.split(" ").map(n => n[0]).join("").slice(0, 2)}</div>
                           <div className="flex-1"><p className="font-semibold">{leave.employeeName}</p><p className="text-sm text-gray-500">{leave.leaveTypeName} • {leave.numberOfDays} day(s)</p><p className="text-xs text-gray-400">{leave.startDate} → {leave.endDate}</p></div>
                           <div className="flex gap-2">
-                            <button onClick={() => handleApproveLeave(leave.id)} className="bg-green-500 text-white px-3 py-1.5 rounded-lg hover:bg-green-600 transition flex items-center gap-1 text-sm"><CheckCircle size={14} /> Approve</button>
-                            <button onClick={() => handleRejectLeave(leave.id)} className="bg-red-500 text-white px-3 py-1.5 rounded-lg hover:bg-red-600 transition flex items-center gap-1 text-sm"><XCircle size={14} /> Reject</button>
+                            <button onClick={(e) => { e.stopPropagation(); handleApproveLeave(leave.id); }} className="bg-green-500 text-white px-3 py-1.5 rounded-lg hover:bg-green-600 transition flex items-center gap-1 text-sm"><CheckCircle size={14} /> Approve</button>
+                            <button onClick={(e) => { e.stopPropagation(); handleRejectLeave(leave.id); }} className="bg-red-500 text-white px-3 py-1.5 rounded-lg hover:bg-red-600 transition flex items-center gap-1 text-sm"><XCircle size={14} /> Reject</button>
                           </div>
                         </div>
                       ))}
@@ -1540,6 +1546,27 @@ const HRDashboard = () => {
                     <button onClick={() => navigate("/hr/report")} className="w-full bg-purple-500 text-white py-3 px-4 rounded-lg hover:bg-purple-600 transition flex items-center justify-center gap-2 font-medium"><BarChart3 size={20} /> Export Report</button>
                     <button onClick={() => navigate("/hr/departments")} className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition flex items-center justify-center gap-2 font-medium"><Building2 size={20} /> Manage Departments</button>
                   </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 mb-6">
+                <h3 className="text-xl font-bold mb-6 flex items-center justify-between text-gray-800">
+                  <span className="flex items-center"><div className="bg-emerald-100 p-2 rounded-lg mr-3"><DollarSign className="text-emerald-600" size={24} /></div>Pending Allowance Requests</span>
+                  <span className="flex items-center gap-3">
+                    <span className="text-sm text-gray-500 font-normal bg-emerald-100 px-3 py-1 rounded-full">{pendingAllowances.length} pending</span>
+                    <button onClick={() => navigate("/hr/payroll/allowance-requests")} className="text-sm font-semibold text-white bg-emerald-500 hover:bg-emerald-600 px-3 py-1.5 rounded-lg transition">Review requests</button>
+                  </span>
+                </h3>
+                <div className="space-y-3">
+                  {pendingAllowances.length === 0
+                    ? <div className="text-center py-8 text-gray-400"><CheckCircle size={32} className="mx-auto mb-2 opacity-30" /><p className="text-sm">No pending allowance requests</p></div>
+                    : pendingAllowances.slice(0, 5).map((r) => (
+                      <div key={r.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition">
+                        <div className="h-12 w-12 bg-emerald-100 rounded-full flex items-center justify-center font-bold text-emerald-600 flex-shrink-0">{(r.employeeName || r.employeeEmail || "?").split(" ").map(n => n[0]).join("").slice(0, 2)}</div>
+                        <div className="flex-1 min-w-0"><p className="font-semibold">{r.employeeName || r.employeeEmail}</p><p className="text-sm text-gray-500 truncate">{r.name} • Rs.{(Number(r.amount) || 0).toLocaleString()}</p><p className="text-xs text-gray-400">Requested {(r.createdAt || "").replace("T", " ").slice(0, 16)}</p></div>
+                        <button onClick={() => navigate("/hr/payroll/allowance-requests")} className="bg-emerald-500 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-600 transition text-sm">Review</button>
+                      </div>
+                    ))}
                 </div>
               </div>
 
@@ -1559,7 +1586,7 @@ const HRDashboard = () => {
                 <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
                   <h3 className="text-xl font-bold mb-6 flex items-center text-gray-800"><div className="bg-yellow-100 p-2 rounded-lg mr-3"><Award className="text-yellow-600" size={24} /></div>Top Performers This Month</h3>
                   <div className="space-y-3">
-                    {[{medal:"🥇",initials:"AK",name:"Alice Kim",dept:"Engineering",pct:"98%",bg:"bg-blue-500",wrap:"from-yellow-50 to-orange-50"},{medal:"🥈",initials:"MB",name:"Michael Brown",dept:"Sales",pct:"95%",bg:"bg-purple-500",wrap:"bg-gray-50"},{medal:"🥉",initials:"EW",name:"Emma Wilson",dept:"Finance",pct:"93%",bg:"bg-green-500",wrap:"bg-gray-50"}].map(p => (
+                    {[{ medal: "🥇", initials: "AK", name: "Alice Kim", dept: "Engineering", pct: "98%", bg: "bg-blue-500", wrap: "from-yellow-50 to-orange-50" }, { medal: "🥈", initials: "MB", name: "Michael Brown", dept: "Sales", pct: "95%", bg: "bg-purple-500", wrap: "bg-gray-50" }, { medal: "🥉", initials: "EW", name: "Emma Wilson", dept: "Finance", pct: "93%", bg: "bg-green-500", wrap: "bg-gray-50" }].map(p => (
                       <div key={p.name} className={`flex items-center gap-3 p-3 bg-gradient-to-r ${p.wrap} rounded-lg`}>
                         <div className="text-2xl">{p.medal}</div>
                         <div className={`h-10 w-10 ${p.bg} rounded-full flex items-center justify-center font-bold text-white flex-shrink-0`}>{p.initials}</div>

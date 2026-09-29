@@ -290,17 +290,37 @@ public class InternalController {
      * of companyId in this database are used, as before.
      */
     @PostMapping("/payroll/generate")
-    public ResponseEntity<List<PayslipDTO>> generateBulkPayroll(@RequestParam Long companyId,
-                                                                @RequestParam Integer month,
-                                                                @RequestParam Integer year,
-                                                                @RequestBody(required = false) List<String> emails) {
+    public ResponseEntity<Map<String, Object>> generateBulkPayroll(@RequestParam Long companyId,
+                                                                   @RequestParam Integer month,
+                                                                   @RequestParam Integer year,
+                                                                   @RequestBody(required = false) List<String> emails) {
         log.info("Internal: Bulk payroll generation requested for company: {}, month: {}, year: {}, emails: {}",
                 companyId, month, year, emails == null ? "none" : emails.size());
-        List<PayslipDTO> generated = emails != null
-                ? payrollService.generateBulkPayrollForEmails(emails, month, year)
-                : payrollService.generateBulkPayroll(companyId, month, year).stream()
-                        .map(PayrollService::toDTO).collect(java.util.stream.Collectors.toList());
-        return ResponseEntity.ok(generated);
+        PayrollService.BulkResult result;
+        if (emails != null) {
+            result = payrollService.generateBulkPayrollForEmails(emails, month, year);
+        } else {
+            result = new PayrollService.BulkResult();
+            payrollService.generateBulkPayroll(companyId, month, year).stream()
+                    .map(PayrollService::toDTO).forEach(result.getGenerated()::add);
+        }
+        Map<String, Object> body = new HashMap<>();
+        body.put("generated", result.getGenerated());
+        body.put("skipped", result.getSkipped());
+        return ResponseEntity.ok(body);
+    }
+
+    /** Sends one employee's payslip for the month (body: { email, month, year }). */
+    @PostMapping("/payroll/send")
+    public ResponseEntity<PayslipDTO> sendPayslip(@RequestBody Map<String, Object> body) {
+        String email = body.get("email") == null ? null : String.valueOf(body.get("email"));
+        Integer month = body.get("month") == null ? null : Integer.valueOf(String.valueOf(body.get("month")));
+        Integer year = body.get("year") == null ? null : Integer.valueOf(String.valueOf(body.get("year")));
+        if (email == null || email.isBlank() || month == null || year == null || month < 1 || month > 12) {
+            return ResponseEntity.badRequest().build();
+        }
+        log.info("Internal: payslip send requested for {} ({}/{})", email, month, year);
+        return ResponseEntity.ok(payrollService.sendPayslipByEmail(email.trim(), month, year));
     }
 
     @GetMapping("/salaries")

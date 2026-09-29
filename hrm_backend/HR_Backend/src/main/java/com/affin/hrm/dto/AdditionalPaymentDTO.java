@@ -20,6 +20,9 @@ public class AdditionalPaymentDTO {
     private String employeeCode;
     private String employeeName;
 
+    /** Allowance request this row was created from, if any. */
+    private Long sourceRequestId;
+
     private String name;
     /** ALLOWANCE or DEDUCTION */
     private String type;

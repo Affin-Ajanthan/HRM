@@ -57,8 +57,26 @@ public class AuthController {
     public ResponseEntity<ApiResponse<?>> register(@Valid @RequestBody RegisterRequest request) {
         try {
             var employee = authService.register(request);
-            return ResponseEntity.ok(ApiResponse.success(employee, "Registration successful"));
+
+            // Return a flat summary, NOT the JPA entity. The entity holds lazy Hibernate proxies
+            // (department.company, ...) that Jackson cannot serialize, which made the response
+            // fail with a 500 *after* the employee had already been saved.
+            Map<String, Object> summary = new HashMap<>();
+            summary.put("id", employee.getId());
+            summary.put("employeeId", employee.getEmployeeId());
+            summary.put("fullName", employee.getFullName());
+            summary.put("email", employee.getEmail());
+            summary.put("role", employee.getRole() != null ? employee.getRole().name() : null);
+            summary.put("status", employee.getStatus() != null ? employee.getStatus().name() : null);
+            return ResponseEntity.ok(ApiResponse.success(summary, "Registration successful"));
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            String cause = String.valueOf(e.getMostSpecificCause() != null ? e.getMostSpecificCause().getMessage() : e.getMessage()).toLowerCase();
+            String msg = cause.contains("email") ? "Employee with email already exists"
+                    : cause.contains("employee_id") || cause.contains("employeeid") ? "Employee ID already exists"
+                    : "Could not save employee: conflicts with existing data";
+            return ResponseEntity.badRequest().body(ApiResponse.error("Registration failed: " + msg));
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Registration failed: " + e.getMessage()));
         }

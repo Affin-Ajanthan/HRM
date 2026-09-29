@@ -28,12 +28,19 @@ const HRAttendance = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [totalEmployees, setTotalEmployees] = useState(0);
+  const [onLeaveToday, setOnLeaveToday] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const ROWS_PER_PAGE = 9;
 
   const now = useNow(filterDate === toLocalDateString(new Date()));
   const rows = useMemo(() => groupSessionsByEmployee(rawSessions, now), [rawSessions, now]);
   const stats = useMemo(() => calculateStats(rows), [rows]);
+
+  // Absent isn't its own attendance status — it's everyone who isn't
+  // accounted for by a present-type attendance record or an approved leave.
+  // Clamped at 0 so it can never show a negative number while data is
+  // still loading (e.g. totalEmployees hasn't arrived yet).
+  const absentToday = Math.max(0, totalEmployees - (stats.present + onLeaveToday));
 
   const filtered = rows.filter((r) =>
     ((r.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -69,8 +76,23 @@ const HRAttendance = () => {
     if (!user) return;
     fetchAttendance();
     fetchEmployeeCount();
+    fetchOnLeaveCount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, filterDate]);
+
+  // "On Leave Today" card — count of employees whose approved leave covers
+  // the selected date. Recomputed whenever the selected date changes, same
+  // as the attendance records.
+  const fetchOnLeaveCount = async () => {
+    try {
+      const res = await hrApi.getOnLeaveCount(filterDate);
+      const count = typeof res?.data === "number" ? res.data : 0;
+      setOnLeaveToday(count);
+    } catch (err) {
+      console.error("Failed to load on-leave count:", err);
+      setOnLeaveToday(0);
+    }
+  };
 
   // Total Employee card — real headcount from the employee database,
   // same source used by the Employee and Department pages.
@@ -156,8 +178,8 @@ const HRAttendance = () => {
           {[
             { label: "Total Employee", value: totalEmployees, description: "Registered in employee database", gradient: "from-teal-400 to-emerald-500", icon: <Users size={20} /> },
             { label: "Today Present", value: stats.present, description: "From today's attendance records", gradient: "from-yellow-400 to-yellow-500", icon: <UserCheck size={20} /> },
-            { label: "On Leave Today", value: "—", description: "Not implemented yet", gradient: "from-amber-400 to-orange-500", icon: <CalendarOff size={20} /> },
-            { label: "Absent Today", value: "—", description: "Not implemented yet", gradient: "from-red-400 to-rose-500", icon: <UserX size={20} /> },
+            { label: "On Leave Today", value: onLeaveToday, description: "Employees on approved leave", gradient: "from-amber-400 to-orange-500", icon: <CalendarOff size={20} /> },
+            { label: "Absent Today", value: absentToday, description: "Total − (present + on leave)", gradient: "from-red-400 to-rose-500", icon: <UserX size={20} /> },
           ].map(s => (
             <div key={s.label} className={`bg-gradient-to-br ${s.gradient} p-5 rounded-2xl text-white shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 min-h-[108px] flex flex-col justify-center`}>
               <div className="flex items-start justify-between">

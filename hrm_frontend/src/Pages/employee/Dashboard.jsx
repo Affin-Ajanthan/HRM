@@ -17,9 +17,13 @@ const EmployeeDashboard = () => {
     presentDays: 0,
     leaveBalance: 0,
     pendingLeaves: 0,
-    lastSalary: "0.00",
+    lastSalary: null,
+    lastSalaryPeriod: "No payslip yet",
   });
   const [notifications, setNotifications] = useState([]);
+  // Real numbers behind "My Month" and "Upcoming Leave"
+  const [monthStats, setMonthStats] = useState({ attendancePct: null, punctualPct: null, leaveUsedPct: null, leaveUsed: 0, leaveTotal: 0 });
+  const [upcomingLeaves, setUpcomingLeaves] = useState([]);
   const [todaySessions, setTodaySessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [clockInLoading, setClockInLoading] = useState(false);
@@ -42,37 +46,64 @@ const EmployeeDashboard = () => {
 
   useEffect(() => {
     if (user) {
+      // Each card loads independently, so one failing endpoint never shows made-up numbers for the others
       const loadDashboardData = async () => {
-        try {
-          // Fetch Notifications
-          const notRes = await employeeApi.getNotifications();
-          setNotifications(notRes.data || []);
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const [notRes, leavesRes, balRes, payRes, attRes] = await Promise.allSettled([
+          employeeApi.getNotifications(),
+          employeeApi.getLeaves(),
+          employeeApi.getLeaveBalance(),
+          employeeApi.getPayslips(),
+          employeeApi.getAttendanceHistory(), // defaults to the current month
+        ]);
+        const list = (r) => (r.status === "fulfilled" && Array.isArray(r.value?.data) ? r.value.data : []);
 
-          // Fetch Leaves to count pending
-          const leavesRes = await employeeApi.getLeaves();
-          const pendingCount = (leavesRes.data || []).filter(l => l.status === "PENDING" || l.status === "Pending").length;
+        setNotifications(list(notRes));
 
-          // Fetch Leave Balance
-          const balRes = await employeeApi.getLeaveBalance();
-          const totalBalance = (balRes.data || []).reduce((sum, b) => sum + (b.daysAvailable || 0), 0);
+        const pendingLeaves = list(leavesRes).filter((l) => String(l.status).toUpperCase() === "PENDING").length;
 
-          // Fetch Payslips for last salary
-          const payRes = await employeeApi.getPayslips();
-          const lastSal = payRes.data && payRes.data.length > 0 ? payRes.data[0].netSalary : 58000; // fallback if no payslip generated yet
+        const leaveBalance = list(balRes).reduce((sum, b) => sum + (Number(b.remainingDays) || 0), 0);
 
-          // Fetch Attendance History to count present days
-          const attRes = await employeeApi.getAttendanceHistory();
-          const presentCount = (attRes.data || []).filter(a => a.status === "PRESENT" || a.status === "Present").length;
+        // Days worked this month: distinct dates with any attendance other than absent
+        const presentDays = new Set(
+          list(attRes).filter((a) => a.date && String(a.status).toUpperCase() !== "ABSENT").map((a) => a.date)
+        ).size;
 
-          setStats({
-            presentDays: presentCount > 0 ? presentCount : 18, // fallback/actual
-            leaveBalance: totalBalance > 0 ? totalBalance : 14,
-            pendingLeaves: pendingCount,
-            lastSalary: lastSal.toLocaleString(),
-          });
-        } catch (e) {
-          console.error("Error loading employee dashboard stats:", e);
+        const latest = [...list(payRes)].sort((a, b) => (b.year - a.year) || (b.month - a.month))[0];
+
+        // Attendance rate = days worked this month / weekdays elapsed so far this month
+        const today = new Date();
+        let weekdays = 0;
+        for (let d = 1; d <= today.getDate(); d++) {
+          const wd = new Date(today.getFullYear(), today.getMonth(), d).getDay();
+          if (wd !== 0 && wd !== 6) weekdays++;
         }
+        const attended = list(attRes).filter((a) => a.date && String(a.status).toUpperCase() !== "ABSENT");
+        const lateDates = new Set(attended.filter((a) => String(a.status).toUpperCase() === "LATE").map((a) => a.date));
+        const leaveTotal = list(balRes).reduce((sum, b) => sum + (Number(b.totalDays) || 0), 0);
+        const leaveUsed = list(balRes).reduce((sum, b) => sum + (Number(b.usedDays) || 0), 0);
+        setMonthStats({
+          attendancePct: weekdays > 0 ? Math.min(100, Math.round((presentDays / weekdays) * 100)) : null,
+          punctualPct: presentDays > 0 ? Math.round(((presentDays - lateDates.size) / presentDays) * 100) : null,
+          leaveUsedPct: leaveTotal > 0 ? Math.round((leaveUsed / leaveTotal) * 100) : null,
+          leaveUsed, leaveTotal,
+        });
+
+        const todayStr = today.toISOString().slice(0, 10);
+        setUpcomingLeaves(
+          list(leavesRes)
+            .filter((l) => ["APPROVED", "PENDING"].includes(String(l.status).toUpperCase()) && l.endDate && String(l.endDate) >= todayStr)
+            .sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)))
+            .slice(0, 4)
+        );
+
+        setStats({
+          presentDays,
+          leaveBalance,
+          pendingLeaves,
+          lastSalary: latest ? (Number(latest.netSalary) || 0).toLocaleString() : null,
+          lastSalaryPeriod: latest ? `${monthNames[latest.month - 1] || ""} ${latest.year}` : "No payslip yet",
+        });
       };
       loadDashboardData();
     }
@@ -165,7 +196,7 @@ const EmployeeDashboard = () => {
             { tone: CARD_TONES.blue,   icon: <ClockIcon size={20} />,    label: "Present Days",   value: stats.presentDays,         sub: "This month"        },
             { tone: CARD_TONES.green,  icon: <Calendar size={20} />,     label: "Leave Balance",  value: stats.leaveBalance,        sub: "Days available"    },
             { tone: CARD_TONES.yellow, icon: <CalendarDays size={20} />, label: "Pending Leaves", value: stats.pendingLeaves,       sub: "Awaiting approval" },
-            { tone: CARD_TONES.purple, icon: <DollarSign size={20} />,   label: "Last Salary",    value: `Rs. ${stats.lastSalary}`, sub: "January 2026"      },
+            { tone: CARD_TONES.purple, icon: <DollarSign size={20} />,   label: "Last Salary",    value: stats.lastSalary != null ? `Rs. ${stats.lastSalary}` : "—", sub: stats.lastSalaryPeriod },
           ].map(c => (
             <SummaryCard key={c.label} icon={c.icon} title={c.label} value={c.value} description={c.sub} className={c.tone} />
           ))}
@@ -244,64 +275,59 @@ const EmployeeDashboard = () => {
           </div>
         </div> */}
 
-        {/* ── Performance + Upcoming Events ── */}
+        {/* ── My Month + Upcoming Leave (real data) ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Performance */}
           <div className="bg-gradient-to-br from-white to-employee-50 p-6 rounded-xl border border-employee-100 shadow-sm">
             <h3 className="text-lg font-semibold mb-6 flex items-center text-slate-800">
               <div className="bg-orange-50 p-2 rounded-lg mr-3">
                 <Target className="text-orange-600" size={20} />
               </div>
-              My Performance
+              My Month
             </h3>
             <div className="space-y-4">
               {[
-                { label: "Attendance Rate",    pct: 95 },
-                { label: "Task Completion",    pct: 88 },
-                { label: "Team Collaboration", pct: 92 },
+                { label: "Attendance Rate", pct: monthStats.attendancePct, note: `${stats.presentDays} day${stats.presentDays === 1 ? "" : "s"} worked this month` },
+                { label: "Punctuality", pct: monthStats.punctualPct, note: "Days you arrived on time" },
+                { label: "Leave Used", pct: monthStats.leaveUsedPct, note: `${monthStats.leaveUsed} of ${monthStats.leaveTotal} days this year` },
               ].map(m => (
                 <div key={m.label}>
                   <div className="flex justify-between mb-2">
-                    <span className="text-sm text-slate-600">{m.label}</span>
-                    <span className="text-sm font-semibold text-slate-800">{m.pct}%</span>
+                    <span className="text-sm text-slate-600">{m.label} <span className="text-xs text-slate-400">· {m.note}</span></span>
+                    <span className="text-sm font-semibold text-slate-800">{m.pct != null ? `${m.pct}%` : "—"}</span>
                   </div>
                   <div className="w-full bg-slate-100 rounded-full h-2">
-                    <div className="bg-employee-500 h-2 rounded-full" style={{ width: `${m.pct}%` }} />
+                    <div className="bg-employee-500 h-2 rounded-full" style={{ width: `${m.pct || 0}%` }} />
                   </div>
                 </div>
               ))}
-              <div className="mt-4 p-4 bg-employee-50 border border-employee-100 rounded-lg flex items-center gap-3">
-                <Award className="text-amber-500" size={22} />
-                <div>
-                  <p className="font-semibold text-slate-800">Great Job!</p>
-                  <p className="text-sm text-slate-600">You're performing above average</p>
-                </div>
-              </div>
             </div>
           </div>
 
-          {/* Upcoming Events */}
           <div className="bg-gradient-to-br from-white to-employee-50 p-6 rounded-xl border border-employee-100 shadow-sm">
             <h3 className="text-lg font-semibold mb-6 flex items-center text-slate-800">
               <div className="bg-violet-50 p-2 rounded-lg mr-3">
                 <Calendar className="text-violet-600" size={20} />
               </div>
-              Upcoming Events
+              Upcoming Leave
             </h3>
             <div className="space-y-3">
-              {[
-                { icon: <Calendar size={18} />, tone: "bg-sky-50 text-blue-600",       title: "Team Meeting",        sub: "Tomorrow at 10:00 AM"    },
-                { icon: <Award size={18} />,    tone: "bg-orange-50 text-orange-600", title: "Performance Review",  sub: "Jan 25, 2026 at 2:00 PM" },
-                { icon: <Gift size={18} />,     tone: "bg-rose-50 text-rose-500",     title: "Company Anniversary", sub: "Jan 28, 2026"            },
-              ].map(e => (
-                <div key={e.title} className="flex items-start gap-3 p-3 border border-employee-100 bg-white/70 hover:bg-white rounded-lg transition">
-                  <div className={`${e.tone} p-2 rounded-lg`}>{e.icon}</div>
-                  <div>
-                    <p className="font-medium text-slate-800">{e.title}</p>
-                    <p className="text-sm text-slate-500">{e.sub}</p>
+              {upcomingLeaves.map(l => (
+                <div key={l.id} className="flex items-start gap-3 p-3 border border-employee-100 bg-white/70 hover:bg-white rounded-lg transition">
+                  <div className="bg-sky-50 text-blue-600 p-2 rounded-lg"><CalendarDays size={18} /></div>
+                  <div className="flex-1">
+                    <p className="font-medium text-slate-800">{l.leaveTypeName || "Leave"}</p>
+                    <p className="text-sm text-slate-500">
+                      {l.startDate}{l.endDate && l.endDate !== l.startDate ? ` → ${l.endDate}` : ""} · {l.numberOfDays} day{l.numberOfDays === 1 ? "" : "s"}
+                    </p>
                   </div>
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${String(l.status).toUpperCase() === "APPROVED" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                    {String(l.status).charAt(0) + String(l.status).slice(1).toLowerCase()}
+                  </span>
                 </div>
               ))}
+              {upcomingLeaves.length === 0 && (
+                <div className="text-center py-5 text-gray-400 text-sm">No upcoming leave.</div>
+              )}
             </div>
           </div>
         </div>

@@ -109,6 +109,18 @@ public class HRController {
         return ResponseEntity.ok(ApiResponse.success(leaves));
     }
 
+    // Powers the "On Leave Today" stat card on the HR Attendance page —
+    // counts employees whose APPROVED leave range covers the given date
+    // (defaults to today).
+    @GetMapping("/leave/on-leave-count")
+    public ResponseEntity<ApiResponse<Long>> getOnLeaveCount(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        Employee hr = authService.getCurrentEmployee();
+        if (date == null) date = LocalDate.now();
+        long count = leaveService.getOnLeaveCount(hr.getCompany().getId(), date);
+        return ResponseEntity.ok(ApiResponse.success(count));
+    }
+
     @PostMapping("/leave/{leaveId}/approve")
     public ResponseEntity<ApiResponse<LeaveApplicationDTO>> approveLeave(@PathVariable Long leaveId) {
         Employee hr = authService.getCurrentEmployee();

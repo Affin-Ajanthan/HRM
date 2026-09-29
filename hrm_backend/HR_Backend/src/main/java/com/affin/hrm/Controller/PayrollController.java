@@ -93,7 +93,7 @@ public class PayrollController {
     }
 
     @PostMapping("/payroll/generate")
-    public ResponseEntity<ApiResponse<String>> generatePayroll(@RequestParam Integer month, @RequestParam Integer year) {
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> generatePayroll(@RequestParam Integer month, @RequestParam Integer year) {
         Employee hr = authService.getCurrentEmployee();
         Long companyId = hr.getCompany().getId();
         try {
@@ -102,12 +102,26 @@ public class PayrollController {
             List<String> emails = employeeDirectory.findByCompanyIdAndStatus(companyId, Employee.EmployeeStatus.ACTIVE).stream()
                     .map(Employee::getEmail)
                     .collect(Collectors.toList());
-            List<?> generated = restTemplate.postForObject(url, emails, List.class);
-            int count = generated != null ? generated.size() : 0;
-            return ResponseEntity.ok(ApiResponse.success(null,
-                    "Payroll generated successfully for month: " + month + "/" + year + " (" + count + " payslip(s))"));
+            if (emails.isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("No active employees found in your company."));
+            }
+            // Generating looks each employee up in two other services, so it needs far longer than the default 10s
+            org.springframework.http.client.SimpleClientHttpRequestFactory factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+            factory.setConnectTimeout(5000);
+            factory.setReadTimeout(180_000);
+            RestTemplate slow = new RestTemplate(factory);
+            java.util.Map<?, ?> body = slow.postForObject(url, emails, java.util.Map.class);
+            List<?> generated = body != null && body.get("generated") instanceof List<?> g ? g : List.of();
+            List<?> skipped = body != null && body.get("skipped") instanceof List<?> sk ? sk : List.of();
+
+            java.util.Map<String, Object> data = new java.util.HashMap<>();
+            data.put("generated", generated.size());
+            data.put("skipped", skipped);
+            String msg = "Payslips generated for " + month + "/" + year + ": " + generated.size() + " sent"
+                    + (skipped.isEmpty() ? "" : ", " + skipped.size() + " skipped");
+            return ResponseEntity.ok(ApiResponse.success(data, msg));
         } catch (Exception e) {
-            log.error("Failed to generate payroll in Employee backend: {}", e.getMessage());
+            log.error("Failed to generate payroll in Employee backend: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(ApiResponse.error("Failed to generate payroll: " + e.getMessage()));
         }
     }

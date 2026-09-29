@@ -193,10 +193,10 @@ const EmployeeDashboard = () => {
         {/* ── Stats Cards ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            { tone: CARD_TONES.blue, icon: <ClockIcon size={20} />, label: "Present Days", value: stats.presentDays, sub: "This month" },
-            { tone: CARD_TONES.green, icon: <Calendar size={20} />, label: "Leave Balance", value: stats.leaveBalance, sub: "Days available" },
-            { tone: CARD_TONES.yellow, icon: <CalendarDays size={20} />, label: "Pending Leaves", value: stats.pendingLeaves, sub: "Awaiting approval" },
-            { tone: CARD_TONES.purple, icon: <DollarSign size={20} />, label: "Last Salary", value: stats.lastSalary != null ? `Rs. ${stats.lastSalary}` : "—", sub: stats.lastSalaryPeriod },
+            { tone: CARD_TONES.blue,   icon: <ClockIcon size={20} />,    label: "Present Days",   value: stats.presentDays,         sub: "This month"        },
+            { tone: CARD_TONES.green,  icon: <Calendar size={20} />,     label: "Leave Balance",  value: stats.leaveBalance,        sub: "Days available"    },
+            { tone: CARD_TONES.yellow, icon: <CalendarDays size={20} />, label: "Pending Leaves", value: stats.pendingLeaves,       sub: "Awaiting approval" },
+            { tone: CARD_TONES.purple, icon: <DollarSign size={20} />,   label: "Last Salary",    value: stats.lastSalary != null ? `Rs. ${stats.lastSalary}` : "—", sub: stats.lastSalaryPeriod },
           ].map(c => (
             <SummaryCard key={c.label} icon={c.icon} title={c.label} value={c.value} description={c.sub} className={c.tone} />
           ))}

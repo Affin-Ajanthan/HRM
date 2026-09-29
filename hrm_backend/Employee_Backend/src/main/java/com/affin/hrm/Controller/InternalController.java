@@ -290,17 +290,24 @@ public class InternalController {
      * of companyId in this database are used, as before.
      */
     @PostMapping("/payroll/generate")
-    public ResponseEntity<List<PayslipDTO>> generateBulkPayroll(@RequestParam Long companyId,
-                                                                @RequestParam Integer month,
-                                                                @RequestParam Integer year,
-                                                                @RequestBody(required = false) List<String> emails) {
+    public ResponseEntity<Map<String, Object>> generateBulkPayroll(@RequestParam Long companyId,
+                                                                   @RequestParam Integer month,
+                                                                   @RequestParam Integer year,
+                                                                   @RequestBody(required = false) List<String> emails) {
         log.info("Internal: Bulk payroll generation requested for company: {}, month: {}, year: {}, emails: {}",
                 companyId, month, year, emails == null ? "none" : emails.size());
-        List<PayslipDTO> generated = emails != null
-                ? payrollService.generateBulkPayrollForEmails(emails, month, year)
-                : payrollService.generateBulkPayroll(companyId, month, year).stream()
-                        .map(PayrollService::toDTO).collect(java.util.stream.Collectors.toList());
-        return ResponseEntity.ok(generated);
+        PayrollService.BulkResult result;
+        if (emails != null) {
+            result = payrollService.generateBulkPayrollForEmails(emails, month, year);
+        } else {
+            result = new PayrollService.BulkResult();
+            payrollService.generateBulkPayroll(companyId, month, year).stream()
+                    .map(PayrollService::toDTO).forEach(result.getGenerated()::add);
+        }
+        Map<String, Object> body = new HashMap<>();
+        body.put("generated", result.getGenerated());
+        body.put("skipped", result.getSkipped());
+        return ResponseEntity.ok(body);
     }
 
     /** Sends one employee's payslip for the month (body: { email, month, year }). */

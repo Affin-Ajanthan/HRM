@@ -81,11 +81,11 @@ public class SalaryConfigController {
             @RequestBody List<PaySheetDTO.EmployeeRef> employees) {
         Employee hr = authService.getCurrentEmployee();
         Long companyId = hr.getCompany().getId();
-        Set<String> companyEmails = employeeDirectory.findByCompanyId(companyId).stream()
-                .map(e -> e.getEmail() == null ? "" : e.getEmail().trim().toLowerCase())
-                .collect(Collectors.toSet());
+        // The employee list comes from User_Backend (the same list the Employees page shows). Salaries are
+        // looked up only in this company's basic_payments / additional_payments, so nothing from another
+        // company can leak; employees must not be dropped just because the company matching differs.
         List<PaySheetDTO.EmployeeRef> ownEmployees = employees == null ? List.of() : employees.stream()
-                .filter(ref -> ref.getEmail() != null && companyEmails.contains(ref.getEmail().trim().toLowerCase()))
+                .filter(ref -> ref.getEmail() != null && !ref.getEmail().isBlank())
                 .collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(
                 salaryConfigService.getPaySheets(companyId, ownEmployees)));

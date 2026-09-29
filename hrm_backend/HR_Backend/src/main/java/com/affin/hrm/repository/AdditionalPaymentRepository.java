@@ -13,5 +13,7 @@ public interface AdditionalPaymentRepository extends JpaRepository<AdditionalPay
 
     List<AdditionalPayment> findByCompanyIdAndEmployeeEmailIgnoreCaseOrderByIdAsc(Long companyId, String employeeEmail);
 
+    java.util.Optional<AdditionalPayment> findBySourceRequestId(Long sourceRequestId);
+
     void deleteByCompanyIdAndEmployeeEmailIgnoreCase(Long companyId, String employeeEmail);
 }

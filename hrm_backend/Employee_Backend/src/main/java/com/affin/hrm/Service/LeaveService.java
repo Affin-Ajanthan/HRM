@@ -217,6 +217,13 @@ public class LeaveService {
         return leaveApplicationRepository.findByCompanyIdAndStatus(companyId, LeaveApplication.LeaveStatus.PENDING).stream().collect(Collectors.collectingAndThen(Collectors.toList(), this::toDTOs));
     }
 
+    // Count of employees on an APPROVED leave that covers the given date —
+    // powers the "On Leave Today" stat card on the HR Attendance page.
+    @Transactional(readOnly = true)
+    public long getOnLeaveCount(Long companyId, LocalDate date) {
+        return leaveApplicationRepository.countApprovedOnDate(companyId, date);
+    }
+
     /**
      * This year's balance for every leave type assigned to the employee's job role. Totals follow HR's
      * current assignment, so a change on the HR side shows up here for everyone in that job role.

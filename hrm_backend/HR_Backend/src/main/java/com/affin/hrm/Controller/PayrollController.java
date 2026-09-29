@@ -112,6 +112,36 @@ public class PayrollController {
         }
     }
 
+    /**
+     * Sends one employee's payslip for the month: the Employee backend creates / refreshes it from
+     * the current pay sheet, makes it visible on the employee's Payslip page and notifies them.
+     */
+    @PostMapping("/payroll/send")
+    public ResponseEntity<ApiResponse<PayslipDTO>> sendPayslip(@RequestBody java.util.Map<String, Object> body) {
+        Employee hr = authService.getCurrentEmployee();
+        String email = body.get("email") == null ? "" : String.valueOf(body.get("email")).trim();
+        boolean inCompany = employeeDirectory.findByCompanyId(hr.getCompany().getId()).stream()
+                .anyMatch(e -> e.getEmail() != null && e.getEmail().equalsIgnoreCase(email));
+        if (email.isEmpty() || !inCompany) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error("Employee not found"));
+        }
+        try {
+            PayslipDTO sent = restTemplate.postForObject(employeeServiceUrl + "/api/internal/payroll/send", body, PayslipDTO.class);
+            return ResponseEntity.ok(ApiResponse.success(sent, "Payslip sent"));
+        } catch (org.springframework.web.client.HttpStatusCodeException e) {
+            log.warn("Employee backend refused payslip send for {}: {}", email, e.getResponseBodyAsString());
+            String msg = "Failed to send payslip";
+            try {
+                com.fasterxml.jackson.databind.JsonNode n = new com.fasterxml.jackson.databind.ObjectMapper().readTree(e.getResponseBodyAsString());
+                if (n.hasNonNull("message")) msg = n.get("message").asText();
+            } catch (Exception ignored) { /* keep the generic message */ }
+            return ResponseEntity.badRequest().body(ApiResponse.error(msg));
+        } catch (Exception e) {
+            log.error("Failed to send payslip via Employee backend: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to send payslip: " + e.getMessage()));
+        }
+    }
+
     /** User ids of everyone in the HR user's company — the only salaries they may see or change. */
     private Set<Long> companyUserIds(Employee hr) {
         return employeeDirectory.findByCompanyId(hr.getCompany().getId()).stream()

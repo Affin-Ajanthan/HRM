@@ -303,6 +303,19 @@ public class InternalController {
         return ResponseEntity.ok(generated);
     }
 
+    /** Sends one employee's payslip for the month (body: { email, month, year }). */
+    @PostMapping("/payroll/send")
+    public ResponseEntity<PayslipDTO> sendPayslip(@RequestBody Map<String, Object> body) {
+        String email = body.get("email") == null ? null : String.valueOf(body.get("email"));
+        Integer month = body.get("month") == null ? null : Integer.valueOf(String.valueOf(body.get("month")));
+        Integer year = body.get("year") == null ? null : Integer.valueOf(String.valueOf(body.get("year")));
+        if (email == null || email.isBlank() || month == null || year == null || month < 1 || month > 12) {
+            return ResponseEntity.badRequest().build();
+        }
+        log.info("Internal: payslip send requested for {} ({}/{})", email, month, year);
+        return ResponseEntity.ok(payrollService.sendPayslipByEmail(email.trim(), month, year));
+    }
+
     @GetMapping("/salaries")
     public ResponseEntity<List<Salary>> getAllSalaries(@RequestParam(required = false) List<Long> userIds) {
         List<Salary> salaries = salaryRepository.findAll();

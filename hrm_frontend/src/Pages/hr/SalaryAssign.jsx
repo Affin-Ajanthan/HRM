@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Plus, X, Save, Building2, Briefcase, History, ChevronRight, Pencil, Trash2, Loader2 } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { hrApi } from "../../services/api";
@@ -24,6 +24,9 @@ const fieldCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm foc
 
 const SalaryAssign = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  // A row chosen with the edit button on the Payroll page: opened as soon as the salaries have loaded
+  const pendingEdit = useRef(location.state?.editRow || null);
   const [user, setUser] = useState(null);
   const [departments, setDepartments] = useState([]);
   const [employmentTypes, setEmploymentTypes] = useState([]);
@@ -110,6 +113,16 @@ const SalaryAssign = () => {
     setDepartmentId(String(row.departmentId));
     openRole({ id: row.jobRoleId, jobTitle: row.jobRoleTitle });
   };
+
+  useEffect(() => {
+    if (pendingEdit.current && history.length > 0) {
+      const row = history.find(h => h.id === pendingEdit.current.id) || pendingEdit.current;
+      pendingEdit.current = null;
+      editHistoryRow(row);
+      // Clear the navigation state so a refresh does not re-open the popup
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [history]);
 
   const deleteHistoryRow = async (row) => {
     try {

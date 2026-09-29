@@ -39,4 +39,11 @@ public interface LeaveApplicationRepository extends JpaRepository<LeaveApplicati
 
     @Query("SELECT COUNT(la) FROM LeaveApplication la WHERE la.companyId = :companyId AND la.status = :status")
     long countByCompanyIdAndStatus(@Param("companyId") Long companyId, @Param("status") LeaveApplication.LeaveStatus status);
+
+    // How many employees are on an APPROVED leave that covers a specific day
+    // (their startDate..endDate range includes that day). Used for the
+    // "On Leave Today" stat card on the HR Attendance page.
+    @Query("SELECT COUNT(la) FROM LeaveApplication la WHERE la.companyId = :companyId " +
+           "AND la.status = 'APPROVED' AND la.startDate <= :date AND la.endDate >= :date")
+    long countApprovedOnDate(@Param("companyId") Long companyId, @Param("date") LocalDate date);
 }

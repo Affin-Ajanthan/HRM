@@ -20,8 +20,11 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -42,7 +45,7 @@ public class AdminService {
     private final CompanyRepository companyRepository;
     private final EmailService emailService;
 
-    @Value("${service.user-url:http://localhost:5002}")
+    @Value("${service.user-url:http://localhost:5004}")
     private String userServiceUrl;
 
     @Value("${service.hr-url:http://localhost:5005}")
@@ -217,28 +220,42 @@ public class AdminService {
         Company company = companyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Company", "id", id));
 
+        Company.CompanyStatus previousStatus = company.getStatus();
+        String previousRejection = company.getRejectionReason();
+        String tempPassword = generateTempPassword();
+
+        // 1. Mark approved and make sure the company exists in User_Backend first —
+        //    the HR account row in hrm_db_user.employees needs a company to belong to.
         company.setStatus(Company.CompanyStatus.APPROVED);
         company.setRejectionReason(null);
         Company updated = companyRepository.save(company);
 
-        String tempPassword = generateTempPassword();
-
-        // 1. Sync company to all backends (User_Backend, HR_Backend, Employee_Backend)
-        syncCompanyToBackends(updated);
-
-        // 2. Provision HR Manager user in User_Backend with mustChangePassword = true.
-        //    If that fails, stop before emailing credentials that would not work; approving again retries.
-        String provisionError = provisionHRManagerUser(updated, tempPassword);
-        if (provisionError != null) {
-            throw new BusinessException("Company approved, but its HR Manager account could not be created: "
-                    + provisionError + ". Please try approving again.");
+        String syncError = syncCompanyToUserBackend(updated);
+        if (syncError != null) {
+            throw new BusinessException("Could not approve '" + updated.getCompanyName()
+                    + "': the User service did not accept the company (" + syncError + ").");
         }
 
-        // 3. Send approval email
+        // 2. Create the HR Manager login (hrm_db_user.employees only), mustChangePassword = true.
+        //    If this fails nothing is emailed, the company stays PENDING and the admin can retry.
+        String provisionError = provisionHRManagerUser(updated, tempPassword);
+        if (provisionError != null) {
+            // Undo the company status we already pushed to User_Backend
+            updated.setStatus(previousStatus);
+            updated.setRejectionReason(previousRejection);
+            syncCompanyToUserBackend(updated);
+            throw new BusinessException("Could not create the HR Manager account for '"
+                    + updated.getCompanyName() + "': " + provisionError);
+        }
+
+        // 3. Keep HR_Backend / Employee_Backend copies of the company in step (best effort)
+        syncCompanyToBackends(updated);
+
+        // 4. Email the HR account email + temporary password to the company's contact email
         emailService.sendApprovalEmail(updated.getEmail(), updated.getContactPersonName(), updated.getCompanyName(), tempPassword);
 
-        // 4. Log Audit Action
-        logAction("APPROVE_COMPANY", "Company", id, "Approved company '" + updated.getCompanyName() + "' and provisioned HR Manager account");
+        // 5. Audit
+        logAction("APPROVE_COMPANY", "Company", id, "Approved company '" + updated.getCompanyName() + "' and provisioned HR Manager account " + updated.getEmail());
 
         return mapToDTO(updated);
     }
@@ -273,8 +290,7 @@ public class AdminService {
 
     // ── Inter-Service Sync & Provisioning Helpers ────────────────
 
-    private void syncCompanyToBackends(Company company) {
-        if (company == null) return;
+    private Map<String, Object> buildCompanyPayload(Company company) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("id", company.getId());
         payload.put("companyName", company.getCompanyName());
@@ -289,14 +305,39 @@ public class AdminService {
         payload.put("employeeCount", company.getEmployeeCount());
         payload.put("status", company.getStatus() != null ? company.getStatus().name() : "APPROVED");
         payload.put("rejectionReason", company.getRejectionReason());
+        return payload;
+    }
+
+    /** Pushes the company to User_Backend (hrm_db_user.companies); returns null on success, otherwise the reason. */
+    private String syncCompanyToUserBackend(Company company) {
+        try {
+            restTemplate.postForObject(userServiceUrl + "/api/sync/company", buildCompanyPayload(company), String.class);
+            log.info("Synced company {} to User backend", company.getCompanyName());
+            return null;
+        } catch (Exception e) {
+            String reason = describeRemoteError(e);
+            log.error("Failed to sync company {} to User backend: {}", company.getCompanyName(), reason);
+            return reason;
+        }
+    }
+
+    private String describeRemoteError(Exception e) {
+        if (e instanceof HttpStatusCodeException http) {
+            String body = http.getResponseBodyAsString();
+            return "HTTP " + http.getStatusCode().value() + (body != null && !body.isBlank() ? " - " + body : "");
+        }
+        if (e instanceof ResourceAccessException) {
+            return "User service is not reachable at " + userServiceUrl + " (is it running?)";
+        }
+        return e.getMessage();
+    }
+
+    private void syncCompanyToBackends(Company company) {
+        if (company == null) return;
+        Map<String, Object> payload = buildCompanyPayload(company);
 
         // Sync to User_Backend
-        try {
-            restTemplate.postForObject(userServiceUrl + "/api/sync/company", payload, Object.class);
-            log.info("Synced company {} to User backend", company.getCompanyName());
-        } catch (Exception e) {
-            log.error("Failed to sync company {} to User backend: {}", company.getCompanyName(), e.getMessage());
-        }
+        syncCompanyToUserBackend(company);
 
         // Sync to HR_Backend
         try {
@@ -337,13 +378,58 @@ public class AdminService {
             log.info("Provisioned HR Manager account for company: {} with email: {}", company.getCompanyName(), company.getEmail());
             return null;
         } catch (Exception e) {
-            log.error("Failed to provision HR Manager account for company {}: {}", company.getCompanyName(), e.getMessage());
-            return e.getMessage();
+            String reason = describeRemoteError(e);
+            log.error("Failed to provision HR Manager account for company {}: {}", company.getCompanyName(), reason);
+            return reason;
         }
     }
 
+    /**
+     * One random password per approval. This exact string is (a) sent to User_Backend, which stores
+     * only its BCrypt hash in hrm_db_user.employees, and (b) put in the approval email.
+     * Format: 12 chars, e.g. "kT7@mQ4xRb2N" (no look-alike characters such as 0/O or 1/l/I).
+     */
     private String generateTempPassword() {
-        return "TempPass" + (1000 + new Random().nextInt(9000)) + "!";
+        SecureRandom rnd = new SecureRandom();
+        String upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        String lower = "abcdefghijkmnpqrstuvwxyz";
+        String digits = "23456789";
+        String special = "@#$%&*";
+        List<Character> chars = new ArrayList<>();
+        for (int i = 0; i < 4; i++) chars.add(upper.charAt(rnd.nextInt(upper.length())));
+        for (int i = 0; i < 4; i++) chars.add(lower.charAt(rnd.nextInt(lower.length())));
+        for (int i = 0; i < 3; i++) chars.add(digits.charAt(rnd.nextInt(digits.length())));
+        chars.add(special.charAt(rnd.nextInt(special.length())));
+        Collections.shuffle(chars, rnd);
+        StringBuilder sb = new StringBuilder();
+        for (char c : chars) sb.append(c);
+        return sb.toString();
+    }
+
+    /**
+     * Re-issues the HR Manager login for an already APPROVED company: new password is saved
+     * (hashed) in hrm_db_user.employees and the same password is emailed.
+     */
+    public CompanyDTO resendHrCredentials(Long id) {
+        Company company = companyRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Company", "id", id));
+        if (company.getStatus() != Company.CompanyStatus.APPROVED) {
+            throw new BusinessException("Only approved companies have an HR account. Approve the company first.");
+        }
+        String tempPassword = generateTempPassword();
+
+        String syncError = syncCompanyToUserBackend(company);
+        if (syncError != null) {
+            throw new BusinessException("Could not reach the User service: " + syncError);
+        }
+        String provisionError = provisionHRManagerUser(company, tempPassword);
+        if (provisionError != null) {
+            throw new BusinessException("Could not reset the HR Manager account for '"
+                    + company.getCompanyName() + "': " + provisionError);
+        }
+        emailService.sendApprovalEmail(company.getEmail(), company.getContactPersonName(), company.getCompanyName(), tempPassword);
+        logAction("RESEND_HR_CREDENTIALS", "Company", id, "Re-issued HR Manager credentials for '" + company.getCompanyName() + "'");
+        return mapToDTO(company);
     }
 
     private CompanyDTO mapToDTO(Company company) {

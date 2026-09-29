@@ -5,6 +5,7 @@ import com.affin.hrm.dto.ApiResponse;
 import com.affin.hrm.model.Employee;
 import com.affin.hrm.service.AllowanceRequestClient;
 import com.affin.hrm.service.AuthService;
+import com.affin.hrm.service.SalaryConfigService;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * HR review of employees' allowance requests (stored by Employee_Backend). Approving one is
@@ -27,16 +29,22 @@ public class AllowanceRequestController {
 
     private final AllowanceRequestClient allowanceRequestClient;
     private final AuthService authService;
+    private final SalaryConfigService salaryConfigService;
 
-    public AllowanceRequestController(AllowanceRequestClient allowanceRequestClient, AuthService authService) {
+    public AllowanceRequestController(AllowanceRequestClient allowanceRequestClient, AuthService authService,
+                                      SalaryConfigService salaryConfigService) {
         this.allowanceRequestClient = allowanceRequestClient;
         this.authService = authService;
+        this.salaryConfigService = salaryConfigService;
     }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<AllowanceRequestDTO>>> getRequests() {
         Employee hr = authService.getCurrentEmployee();
-        return ResponseEntity.ok(ApiResponse.success(allowanceRequestClient.getRequests(hr)));
+        List<AllowanceRequestDTO> requests = allowanceRequestClient.getRequests(hr);
+        Set<Long> added = salaryConfigService.getAddedRequestIds(hr.getCompany().getId());
+        requests.forEach(r -> r.setAddedToPay(r.getId() != null && added.contains(r.getId())));
+        return ResponseEntity.ok(ApiResponse.success(requests));
     }
 
     @GetMapping("/{id}/document")
@@ -59,7 +67,20 @@ public class AllowanceRequestController {
                                                                     @RequestBody(required = false) Map<String, String> body) {
         Employee hr = authService.getCurrentEmployee();
         AllowanceRequestDTO reviewed = allowanceRequestClient.review(id, "APPROVED", body == null ? null : body.get("comment"), hr);
-        return ResponseEntity.ok(ApiResponse.success(reviewed, "Allowance request approved"));
+        // Approving adds the allowance to the employee's pay right away (no second "Save" step)
+        salaryConfigService.addApprovedRequest(reviewed, hr);
+        reviewed.setAddedToPay(true);
+        return ResponseEntity.ok(ApiResponse.success(reviewed, "Allowance request approved and added to the employee's pay"));
+    }
+
+    /** Adds an already approved request to the employee's pay (e.g. one approved before this was automatic). */
+    @PostMapping("/{id}/add-to-pay")
+    public ResponseEntity<ApiResponse<AllowanceRequestDTO>> addToPay(@PathVariable Long id) {
+        Employee hr = authService.getCurrentEmployee();
+        AllowanceRequestDTO request = allowanceRequestClient.getRequest(id, hr);
+        salaryConfigService.addApprovedRequest(request, hr);
+        request.setAddedToPay(true);
+        return ResponseEntity.ok(ApiResponse.success(request, "Allowance added to the employee's pay"));
     }
 
     /** Body: { "comment": "reason for rejecting" } */

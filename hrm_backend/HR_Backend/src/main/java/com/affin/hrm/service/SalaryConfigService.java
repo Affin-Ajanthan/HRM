@@ -1,6 +1,7 @@
 package com.affin.hrm.service;
 
 import com.affin.hrm.dto.AdditionalPaymentDTO;
+import com.affin.hrm.dto.AllowanceRequestDTO;
 import com.affin.hrm.dto.BasicPaymentDTO;
 import com.affin.hrm.dto.PaySheetDTO;
 import com.affin.hrm.exception.BusinessException;
@@ -167,7 +168,11 @@ public class SalaryConfigService {
         return rows.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
-    /** Replaces an employee's individual allowances / deductions with the submitted list. */
+    /**
+     * Saves an employee's individual allowances / deductions from the submitted list. Rows that
+     * carry an id are updated in place (so their link to an approved allowance request survives),
+     * rows without an id are added, and saved rows missing from the list are removed.
+     */
     public List<AdditionalPaymentDTO> saveAdditionalPayments(AdditionalPaymentDTO.SaveRequest request, Employee hr) {
         Long companyId = hr.getCompany().getId();
         String email = request.getEmployeeEmail() == null ? "" : request.getEmployeeEmail().trim().toLowerCase();
@@ -176,6 +181,11 @@ public class SalaryConfigService {
         }
         List<AdditionalPaymentDTO> items = request.getItems() == null ? List.of() : request.getItems();
 
+        Map<Long, AdditionalPayment> existing = additionalPaymentRepository
+                .findByCompanyIdAndEmployeeEmailIgnoreCaseOrderByIdAsc(companyId, email).stream()
+                .collect(Collectors.toMap(AdditionalPayment::getId, p -> p, (x, y) -> x, LinkedHashMap::new));
+
+        Set<Long> keptIds = new HashSet<>();
         List<AdditionalPayment> toSave = new ArrayList<>();
         int rowNo = 0;
         for (AdditionalPaymentDTO item : items) {
@@ -196,21 +206,30 @@ public class SalaryConfigService {
             }
             BigDecimal amount = amount(item.getAmount(), where + "amount", true);
 
-            AdditionalPayment p = new AdditionalPayment();
-            p.setCompany(hr.getCompany());
-            p.setEmployeeEmail(email);
+            AdditionalPayment p = item.getId() != null ? existing.get(item.getId()) : null;
+            if (p == null) {
+                p = new AdditionalPayment();
+                p.setCompany(hr.getCompany());
+                p.setEmployeeEmail(email);
+                p.setCreatedById(hr.getId());
+                p.setCreatedByName(hr.getFullName());
+            } else {
+                keptIds.add(p.getId());
+            }
             p.setEmployeeCode(request.getEmployeeCode());
             p.setEmployeeName(request.getEmployeeName());
             p.setName(name);
             p.setType(type);
             p.setAmount(amount);
-            p.setCreatedById(hr.getId());
-            p.setCreatedByName(hr.getFullName());
             toSave.add(p);
         }
 
-        additionalPaymentRepository.deleteByCompanyIdAndEmployeeEmailIgnoreCase(companyId, email);
-        additionalPaymentRepository.flush();
+        List<AdditionalPayment> removed = existing.values().stream()
+                .filter(p -> !keptIds.contains(p.getId())).collect(Collectors.toList());
+        if (!removed.isEmpty()) {
+            additionalPaymentRepository.deleteAll(removed);
+            additionalPaymentRepository.flush();
+        }
         List<AdditionalPaymentDTO> saved = additionalPaymentRepository.saveAll(toSave).stream()
                 .map(this::toDTO).collect(Collectors.toList());
 
@@ -218,6 +237,53 @@ public class SalaryConfigService {
                 "Set " + saved.size() + " individual allowance/deduction(s) for " + email, companyId);
         log.info("{} set {} additional payment(s) for {} in company {}", hr.getEmail(), saved.size(), email, companyId);
         return saved;
+    }
+
+    /**
+     * Adds an approved allowance request to the employee's individual allowances. Safe to call
+     * more than once: a request is added a single time (matched by its id).
+     */
+    public AdditionalPaymentDTO addApprovedRequest(AllowanceRequestDTO request, Employee hr) {
+        if (request == null || request.getId() == null) {
+            throw new BusinessException("Allowance request not found");
+        }
+        if (!"APPROVED".equalsIgnoreCase(request.getStatus())) {
+            throw new BusinessException("Only an approved request can be added to the employee's pay");
+        }
+        Optional<AdditionalPayment> already = additionalPaymentRepository.findBySourceRequestId(request.getId());
+        if (already.isPresent()) {
+            return toDTO(already.get());
+        }
+        String email = request.getEmployeeEmail() == null ? "" : request.getEmployeeEmail().trim().toLowerCase();
+        if (email.isEmpty()) {
+            throw new BusinessException("The request has no employee email");
+        }
+        AdditionalPayment p = new AdditionalPayment();
+        p.setCompany(hr.getCompany());
+        p.setEmployeeEmail(email);
+        p.setEmployeeCode(request.getEmployeeCode());
+        p.setEmployeeName(request.getEmployeeName());
+        p.setSourceRequestId(request.getId());
+        String name = request.getName() == null ? "Allowance" : request.getName().trim().replaceAll("\\s+", " ");
+        p.setName(name.length() > MAX_NAME_LENGTH ? name.substring(0, MAX_NAME_LENGTH) : name);
+        p.setType(AdditionalPayment.Type.ALLOWANCE);
+        p.setAmount(amount(request.getAmount(), "amount", true));
+        p.setCreatedById(hr.getId());
+        p.setCreatedByName(hr.getFullName());
+        AdditionalPayment saved = additionalPaymentRepository.save(p);
+        audit("ADD_APPROVED_ALLOWANCE", "AllowanceRequest", request.getId(),
+                "Added approved allowance '" + saved.getName() + "' to " + email, hr.getCompany().getId());
+        log.info("{} added approved allowance request {} to {}", hr.getEmail(), request.getId(), email);
+        return toDTO(saved);
+    }
+
+    /** Ids of the allowance requests already added to someone's individual allowances. */
+    @Transactional(readOnly = true)
+    public Set<Long> getAddedRequestIds(Long companyId) {
+        return additionalPaymentRepository.findByCompanyIdOrderByIdAsc(companyId).stream()
+                .map(AdditionalPayment::getSourceRequestId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
     }
 
     // ── Pay sheet ────────────────────────────────────────────────
@@ -269,6 +335,13 @@ public class SalaryConfigService {
             sheet.setBasicSalary(match.getBasicSalary());
             sheet.setRoleAllowance(match.getAllowance());
             sheet.setRoleDeduction(match.getDeduction());
+        } else {
+            log.info("No basic payment for {} (dept='{}', designation='{}', type='{}'). Salary rows in company: {}",
+                    ref.getEmail(), ref.getDepartmentName(), ref.getDesignation(), ref.getEmploymentType(),
+                    payments.stream().map(p -> title(p.getJobRole()) + " / " + p.getEmploymentType().getName()).collect(Collectors.toList()));
+            // Tell the UI whether the job role has salary rows for other employment types
+            sheet.setConfiguredEmploymentTypes(paymentsForRole(payments, ref.getDepartmentName(), ref.getDesignation()).stream()
+                    .map(p -> p.getEmploymentType().getName()).distinct().collect(Collectors.toList()));
         }
 
         BigDecimal extraAllowance = BigDecimal.ZERO;
@@ -288,26 +361,48 @@ public class SalaryConfigService {
     }
 
     /**
-     * The basic payment of the job role whose title matches the designation (in the employee's
-     * department when known), for the employee's employment type. If the employee has no
-     * employment type and the job role has a single salary row, that row is used.
+     * The basic payment for an employee: the job role whose title matches the designation, for
+     * the employee's employment type.
+     * <ul>
+     *   <li>Job role: matched by title, preferring the employee's own department. If the
+     *       department names differ (or the employee has none) any department's job role with that
+     *       title is used, so a salary HR added is never missed because of a department spelling.</li>
+     *   <li>Employment type: matched by name ignoring case, spaces, punctuation and "month(s)"
+     *       plurals. With no employment type on the employee, a job role with a single salary row uses it.</li>
+     * </ul>
      */
     private static BasicPayment findBasicPayment(List<BasicPayment> payments, String departmentName,
                                                  String designation, String employmentType) {
-        String title = normalize(designation);
-        if (title.isEmpty()) return null;
-        String dept = normalize(departmentName);
-        String type = normalize(employmentType);
+        List<BasicPayment> forRole = paymentsForRole(payments, departmentName, designation);
+        String type = typeKey(employmentType);
+        if (type.isEmpty()) {
+            return forRole.size() == 1 ? forRole.get(0) : null;
+        }
+        return forRole.stream()
+                .filter(p -> typeKey(p.getEmploymentType().getName()).equals(type))
+                .findFirst()
+                .orElse(null);
+    }
 
-        List<BasicPayment> forRole = payments.stream()
+    /** All salary rows of the job role matching the designation (own department first, else any). */
+    private static List<BasicPayment> paymentsForRole(List<BasicPayment> payments, String departmentName, String designation) {
+        String title = normalize(designation);
+        if (title.isEmpty()) return List.of();
+        String dept = normalize(departmentName);
+        List<BasicPayment> sameTitle = payments.stream()
                 .filter(p -> !Boolean.FALSE.equals(p.getJobRole().getActive()))
                 .filter(p -> normalize(title(p.getJobRole())).equals(title))
-                .filter(p -> dept.isEmpty() || normalize(p.getDepartment().getName()).equals(dept))
                 .collect(Collectors.toList());
-        return forRole.stream()
-                .filter(p -> normalize(p.getEmploymentType().getName()).equals(type))
-                .findFirst()
-                .orElse(type.isEmpty() && forRole.size() == 1 ? forRole.get(0) : null);
+        if (dept.isEmpty()) return sameTitle;
+        List<BasicPayment> sameDept = sameTitle.stream()
+                .filter(p -> normalize(p.getDepartment().getName()).equals(dept))
+                .collect(Collectors.toList());
+        return sameDept.isEmpty() ? sameTitle : sameDept;
+    }
+
+    /** "6 Month Internship", "6 Months  Internship" and "6-month internship" share one key. */
+    private static String typeKey(String value) {
+        return normalize(value).replaceAll("months", "month").replaceAll("[^a-z0-9]", "");
     }
 
     // ── helpers ──────────────────────────────────────────────────
@@ -385,6 +480,7 @@ public class SalaryConfigService {
         dto.setEmployeeEmail(a.getEmployeeEmail());
         dto.setEmployeeCode(a.getEmployeeCode());
         dto.setEmployeeName(a.getEmployeeName());
+        dto.setSourceRequestId(a.getSourceRequestId());
         dto.setName(a.getName());
         dto.setType(a.getType().name());
         dto.setAmount(a.getAmount());

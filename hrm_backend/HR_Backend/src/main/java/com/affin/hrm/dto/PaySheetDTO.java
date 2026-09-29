@@ -41,6 +41,9 @@ public class PaySheetDTO {
 
     private List<AdditionalPaymentDTO> additionalItems = new ArrayList<>();
 
+    /** When not configured: employment types the employee's job role does have a salary row for. */
+    private List<String> configuredEmploymentTypes = new ArrayList<>();
+
     /** An employee to work the pay sheet out for (details from the user database). */
     @Data
     @NoArgsConstructor

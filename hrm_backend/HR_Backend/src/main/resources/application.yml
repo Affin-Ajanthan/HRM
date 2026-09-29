@@ -44,7 +44,7 @@ jwt:
 
 # ── Inter-Service URLs ─────────────────────
 service:
-  user-url: ${USER_SERVICE_URL:http://localhost:5002}
+  user-url: ${USER_SERVICE_URL:http://localhost:5004}
   employee-url: ${EMPLOYEE_SERVICE_URL:http://localhost:5006}
 
 # ── CORS ───────────────────────────────────

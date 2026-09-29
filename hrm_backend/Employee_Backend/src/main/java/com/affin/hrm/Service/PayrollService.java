@@ -6,9 +6,12 @@ import com.affin.hrm.model.Employee;
 import com.affin.hrm.model.Payslip;
 import com.affin.hrm.model.Salary;
 import com.affin.hrm.model.Attendance;
+import com.affin.hrm.model.Notification;
+import com.affin.hrm.repository.NotificationRepository;
 import com.affin.hrm.repository.PayslipRepository;
 import com.affin.hrm.repository.SalaryRepository;
 import com.affin.hrm.repository.AttendanceRepository;
+import com.affin.hrm.exception.BusinessException;
 import com.affin.hrm.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,17 +31,20 @@ public class PayrollService {
     private final SalaryRepository salaryRepository;
     private final AttendanceRepository attendanceRepository;
     private final HrServiceClient hrServiceClient;
+    private final NotificationRepository notificationRepository;
 
     public PayrollService(EmployeeDirectory employeeDirectory,
                           PayslipRepository payslipRepository,
                           SalaryRepository salaryRepository,
                           AttendanceRepository attendanceRepository,
-                          HrServiceClient hrServiceClient) {
+                          HrServiceClient hrServiceClient,
+                          NotificationRepository notificationRepository) {
         this.employeeDirectory = employeeDirectory;
         this.payslipRepository = payslipRepository;
         this.salaryRepository = salaryRepository;
         this.attendanceRepository = attendanceRepository;
         this.hrServiceClient = hrServiceClient;
+        this.notificationRepository = notificationRepository;
     }
 
     public Payslip getOrCreatePayslip(Long employeeId, Integer month, Integer year) {
@@ -74,9 +80,91 @@ public class PayrollService {
             if (email == null || email.isBlank() || !seen.add(email.trim().toLowerCase())) continue;
             employeeDirectory.findByEmailIgnoreCase(email.trim())
                     .filter(emp -> emp.getStatus() == Employee.EmployeeStatus.ACTIVE)
-                    .ifPresent(emp -> generated.add(toDTO(getOrCreatePayslip(emp.getId(), month, year))));
+                    .ifPresent(emp -> {
+                        try {
+                            generated.add(toDTO(deliverPayslip(emp, month, year, false)));
+                        } catch (BusinessException skipped) {
+                            // No salary set up for this employee: nothing real to send, so skip them
+                        }
+                    });
         }
         return generated;
+    }
+
+    /**
+     * "Send" from the HR payroll page: makes sure the employee has an up-to-date payslip for the
+     * month (created, or refreshed from HR's current pay sheet) and always notifies them, so a
+     * payslip can be re-sent to one person at any time.
+     */
+    public PayslipDTO sendPayslipByEmail(String email, Integer month, Integer year) {
+        Employee employee = employeeDirectory.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", "email", email));
+        return toDTO(deliverPayslip(employee, month, year, true));
+    }
+
+    /**
+     * Creates / refreshes the payslip, marks it available to the employee (PAID) and notifies them.
+     * Bulk generation only notifies when the payslip is new; an explicit send always notifies.
+     */
+    private Payslip deliverPayslip(Employee employee, Integer month, Integer year, boolean alwaysNotify) {
+        boolean isNew = payslipRepository.findByUserIdAndMonthAndYear(employee.getId(), month, year).isEmpty();
+        if (isNew && hrServiceClient.findPaySheet(employee.getEmail()).filter(PaySheetDTO::isConfigured).isEmpty()) {
+            // Never invent a salary: without HR's pay sheet there is nothing real to send
+            throw new BusinessException("No salary is set up for " + employee.getFullName()
+                    + ". Add a job role salary first, then send the payslip.");
+        }
+        Payslip payslip = regeneratePayslip(employee, month, year);
+        if (payslip.getStatus() != Payslip.PayslipStatus.PAID) {
+            payslip.setStatus(Payslip.PayslipStatus.PAID);
+            payslip = payslipRepository.save(payslip);
+        }
+        if (isNew || alwaysNotify) notifyPayslip(employee, payslip);
+        return payslip;
+    }
+
+    private void notifyPayslip(Employee employee, Payslip payslip) {
+        try {
+            String monthName = java.time.Month.of(payslip.getMonth())
+                    .getDisplayName(java.time.format.TextStyle.FULL, Locale.ENGLISH);
+            Notification n = new Notification();
+            n.setUserId(employee.getId());
+            n.setTitle("Payslip available");
+            n.setMessage("Your payslip for " + monthName + " " + payslip.getYear()
+                    + " is ready. Net salary: Rs. " + payslip.getNetSalary().setScale(2, RoundingMode.HALF_UP).toPlainString());
+            n.setType(Notification.NotificationType.PAYROLL);
+            n.setIsRead(false);
+            notificationRepository.save(n);
+        } catch (Exception e) {
+            // A failed notification must never block the payslip itself
+        }
+    }
+
+    /**
+     * Used by "Generate All": creates the month's payslip, or refreshes an existing one from HR's
+     * current pay sheet so allowances approved (or salaries changed) after it was first generated
+     * are not left out. Payslips of employees with no pay sheet are kept as they are.
+     */
+    private Payslip regeneratePayslip(Employee employee, Integer month, Integer year) {
+        Optional<Payslip> existing = payslipRepository.findByUserIdAndMonthAndYear(employee.getId(), month, year);
+        if (existing.isEmpty()) {
+            return generatePayslip(employee.getId(), month, year);
+        }
+        Optional<PaySheetDTO> paySheet = hrServiceClient.findPaySheet(employee.getEmail())
+                .filter(PaySheetDTO::isConfigured);
+        if (paySheet.isEmpty()) {
+            return existing.get();
+        }
+        Payslip fresh = fromPaySheet(employee, paySheet.get(), month, year);
+        Payslip payslip = existing.get();
+        payslip.setBasicSalary(fresh.getBasicSalary());
+        payslip.setTotalAllowances(fresh.getTotalAllowances());
+        payslip.setTotalDeductions(fresh.getTotalDeductions());
+        payslip.setGrossSalary(fresh.getGrossSalary());
+        payslip.setNetSalary(fresh.getNetSalary());
+        payslip.setWorkingDays(fresh.getWorkingDays());
+        payslip.setPresentDays(fresh.getPresentDays());
+        payslip.setAbsentDays(fresh.getAbsentDays());
+        return payslipRepository.save(payslip);
     }
 
     public Payslip generatePayslip(Long employeeId, Integer month, Integer year) {

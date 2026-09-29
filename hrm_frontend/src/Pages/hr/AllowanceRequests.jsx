@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { X, FileText, Check, Ban, Search, Clock, CheckCircle, XCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft, FileText, Check, Ban, Search, Clock, CheckCircle, XCircle, SlidersHorizontal } from "lucide-react";
+import { PageLayout } from "../../components/PageLayout";
 import { hrApi } from "../../services/api";
 
 // Server errors come back as "400: <reason>"; show just the reason
@@ -29,11 +31,14 @@ const openPdf = (blob, fileName) => {
 };
 
 /**
- * HR popup listing employees' allowance requests (stored in hrm_db_employee.allowance_requests).
- * Reject needs a comment, which the employee sees in their history. Approve calls onApproved(request)
- * so the page can open the Individual Allowance & Deduction popup with the allowance filled in.
+ * HR page listing employees' allowance requests (stored in hrm_db_employee.allowance_requests).
+ * Reject needs a comment, which the employee sees in their history. Approving adds the allowance
+ * to the employee's pay automatically; a shortcut then opens Individual Allowance & Deduction.
  */
-const AllowanceRequestsModal = ({ onClose, onApproved }) => {
+const HRAllowanceRequests = () => {
+  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [message, setMessage] = useState(null); // { text, email } after an approval
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -57,7 +62,14 @@ const AllowanceRequestsModal = ({ onClose, onApproved }) => {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const s = localStorage.getItem("user");
+    if (!s) { navigate("/login"); return; }
+    const u = JSON.parse(s);
+    if (u.role !== "HR_MANAGER" && u.role !== "ADMIN") { navigate("/unauthorized"); return; }
+    setUser(u);
+    load();
+  }, [navigate]);
 
   const counts = useMemo(() => ({
     ALL: requests.length,
@@ -81,12 +93,20 @@ const AllowanceRequestsModal = ({ onClose, onApproved }) => {
     }
   };
 
+  const announce = (request) => {
+    setMessage({
+      text: `✓ ${money(request.amount)} "${request.name}" added to ${request.employeeName || request.employeeEmail}'s pay`,
+      email: request.employeeEmail,
+    });
+  };
+
   const approve = async (r) => {
     try {
       setBusyId(r.id);
       setError("");
       const res = await hrApi.approveAllowanceRequest(r.id, null);
-      onApproved(res.data || r);
+      await load();
+      announce(res.data || r);
     } catch (e) {
       setError(errorText(e, "Failed to approve the request"));
       load();
@@ -95,8 +115,25 @@ const AllowanceRequestsModal = ({ onClose, onApproved }) => {
     }
   };
 
+  // Approved requests that were never added to the employee's pay (approved before this was automatic)
+  const addToPay = async (r) => {
+    try {
+      setBusyId(r.id);
+      setError("");
+      const res = await hrApi.addAllowanceToPay(r.id);
+      await load();
+      announce(res.data || r);
+    } catch (e) {
+      setError(errorText(e, "Failed to add the allowance to the employee's pay"));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const openReject = (r) => {
     setRejecting(r);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.querySelector("main")?.scrollTo?.({ top: 0, behavior: "smooth" });
     setRejectComment("");
     setRejectError("");
   };
@@ -117,18 +154,55 @@ const AllowanceRequestsModal = ({ onClose, onApproved }) => {
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between p-5 bg-gradient-to-r from-teal-500 to-emerald-600 text-white rounded-t-2xl">
-          <div>
-            <h3 className="text-lg font-bold">Allowance Requests</h3>
-            <p className="text-white/80 text-xs">Requests employees sent with a supporting PDF · approve to add them to the employee's pay</p>
-          </div>
-          <button type="button" onClick={onClose} className="p-1.5 hover:bg-white/20 rounded-xl"><X size={18} /></button>
-        </div>
+  if (!user) return null;
 
-        <div className="p-5 border-b border-gray-100 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+  return (
+    <PageLayout
+      role="hr"
+      activePage="Payroll"
+      title="Allowance Requests"
+      subtitle="Requests employees sent with a supporting PDF · approving adds the allowance to the employee's pay automatically"
+      actions={
+        <button onClick={() => navigate("/hr/payslip")}
+          className="inline-flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors">
+          <ArrowLeft size={16} /> Back to Payroll
+        </button>
+      }
+    >
+      <div className="space-y-6">
+        {message && (
+          <div className="p-4 rounded-lg text-white bg-green-500 flex flex-wrap items-center justify-between gap-3">
+            <span>{message.text}</span>
+            <button onClick={() => navigate("/hr/payroll/individual-allowance", { state: { email: message.email } })}
+              className="inline-flex items-center gap-1.5 bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors">
+              <SlidersHorizontal size={14} /> Open Individual Allowance & Deduction
+            </button>
+          </div>
+        )}
+        {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{error}</div>}
+
+        {/* Reject comment (inline, no popup) */}
+        {rejecting && (
+          <form onSubmit={confirmReject} className="bg-white rounded-2xl shadow-sm border border-red-100 p-5">
+            <h2 className="text-base font-bold text-gray-800">Reject allowance request</h2>
+            <p className="text-xs text-gray-500 mt-0.5 mb-4">{rejecting.employeeName} · {rejecting.name} · {money(rejecting.amount)}</p>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Comment for the employee *</label>
+            <textarea value={rejectComment} onChange={e => setRejectComment(e.target.value)} rows="3" maxLength={1000} autoFocus
+              placeholder="Why is this request rejected?"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 bg-gray-50 resize-none" />
+            {rejectError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 mt-3">{rejectError}</div>}
+            <div className="flex justify-end gap-3 mt-4">
+              <button type="button" onClick={() => setRejecting(null)} disabled={busyId === rejecting.id}
+                className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-semibold transition-colors">Cancel</button>
+              <button type="submit" disabled={busyId === rejecting.id}
+                className="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors">
+                <Ban size={15} /> {busyId === rejecting.id ? "Rejecting..." : "Reject Request"}
+              </button>
+            </div>
+          </form>
+        )}
+
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
           <div className="flex flex-wrap gap-2">
             {["PENDING", "APPROVED", "REJECTED", "ALL"].map(s => (
               <button key={s} onClick={() => setStatusFilter(s)}
@@ -144,14 +218,13 @@ const AllowanceRequestsModal = ({ onClose, onApproved }) => {
           </div>
         </div>
 
-        <div className="overflow-y-auto">
-          {error && <div className="m-5 mb-0 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{error}</div>}
-          <div className="overflow-x-auto p-5">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white text-xs">
                   {["Employee", "Allowance", "Amount", "Description", "Requested On", "Document", "Status", "Actions"].map(h => (
-                    <th key={h} className="px-4 py-3.5 text-left font-semibold whitespace-nowrap first:rounded-tl-xl last:rounded-tr-xl">{h}</th>
+                    <th key={h} className="px-4 py-3.5 text-left font-semibold whitespace-nowrap ">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -196,6 +269,17 @@ const AllowanceRequestsModal = ({ onClose, onApproved }) => {
                             <Ban size={13} /> Reject
                           </button>
                         </div>
+                      ) : r.status === "APPROVED" ? (
+                        r.addedToPay ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-lg whitespace-nowrap">
+                            <Check size={12} /> Added to pay
+                          </span>
+                        ) : (
+                          <button onClick={() => addToPay(r)} disabled={busyId === r.id}
+                            className="inline-flex items-center gap-1 bg-teal-500 hover:bg-teal-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap">
+                            <Check size={13} /> Add to pay
+                          </button>
+                        )
                       ) : (
                         <span className="text-xs text-gray-300">—</span>
                       )}
@@ -215,35 +299,8 @@ const AllowanceRequestsModal = ({ onClose, onApproved }) => {
           </div>
         </div>
       </div>
-
-      {/* Reject comment */}
-      {rejecting && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4">
-          <form onSubmit={confirmReject} className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="p-5 border-b border-gray-100">
-              <h4 className="text-base font-bold text-gray-800">Reject allowance request</h4>
-              <p className="text-xs text-gray-500 mt-0.5">{rejecting.employeeName} · {rejecting.name} · {money(rejecting.amount)}</p>
-            </div>
-            <div className="p-5 space-y-3">
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Comment for the employee *</label>
-              <textarea value={rejectComment} onChange={e => setRejectComment(e.target.value)} rows="4" maxLength={1000} autoFocus
-                placeholder="Why is this request rejected?"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 bg-gray-50 resize-none" />
-              {rejectError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{rejectError}</div>}
-            </div>
-            <div className="flex justify-end gap-3 p-5 border-t border-gray-100">
-              <button type="button" onClick={() => setRejecting(null)} disabled={busyId === rejecting.id}
-                className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-semibold transition-colors">Cancel</button>
-              <button type="submit" disabled={busyId === rejecting.id}
-                className="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors">
-                <Ban size={15} /> {busyId === rejecting.id ? "Rejecting..." : "Reject Request"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-    </div>
+    </PageLayout>
   );
 };
 
-export default AllowanceRequestsModal;
+export default HRAllowanceRequests;

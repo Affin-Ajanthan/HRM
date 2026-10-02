@@ -12,6 +12,7 @@ import logo from "../../assets/logo.jpg";
 import { BASE_URL, AUTH_URL, hrApi } from "../../services/api";
 import AddEmployeeModal from "./AddEmployeeModal";
 import NotificationPopup from "../../components/NotificationPopup";
+import RoleSwitch from "../../components/RoleSwitch";
 import { groupSessionsByEmployee, toLocalDateString } from "../../utils/attendance";
 
 // ─── API helper layer ─────────────────────────────────────────────────────────
@@ -1343,14 +1344,17 @@ const HRDashboard = () => {
     }
   }, [activeMenu, navigate]);
 
+  // Same full menu as every other HR page, so nothing disappears on Overview
   const menuItems = [
     { name: "Overview", icon: LayoutDashboard, path: null },
-    { name: "Employees", icon: Users, path: "/hr/employees" },
     { name: "Departments", icon: Building2, path: "/hr/departments" },
+    { name: "Employees", icon: Users, path: "/hr/employees" },
     { name: "Attendance", icon: CalendarCheck, path: "/hr/attendance" },
     { name: "Leave Management", icon: FileText, path: "/hr/leave" },
     { name: "Payroll", icon: DollarSign, path: "/hr/payslip" },
     { name: "Reports", icon: BarChart3, path: "/hr/report" },
+    { name: "Notifications", icon: Bell, path: "/hr/notifications" },
+    { name: "Profile", icon: User, path: "/hr/profile" },
   ];
 
   if (!user) return (
@@ -1469,6 +1473,7 @@ const HRDashboard = () => {
             <p className="text-xs text-gray-400">HR Management Dashboard</p>
           </div>
           <div className="flex items-center gap-3">
+            <RoleSwitch mode="hr" />
             <button onClick={() => setIsNotificationsOpen(v => !v)} title="Notifications" className="relative p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors">
               <Bell size={20} />
               {unreadCount > 0 && (
@@ -1477,7 +1482,7 @@ const HRDashboard = () => {
                 </span>
               )}
             </button>
-            <div className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
+            <div onClick={() => navigate("/hr/profile")} title="My Profile" className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-400 to-emerald-500 flex items-center justify-center text-white text-xs font-bold shadow">
                 {user.fullName?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
               </div>

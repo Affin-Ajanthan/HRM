@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import logo from "../assets/logo.jpg";
 import NotificationPopup from "./NotificationPopup";
+import RoleSwitch from "./RoleSwitch";
 
 // ─── Nav configs per role ────────────────────────────────────────────────────
 const NAV = {
@@ -35,8 +36,8 @@ const NAV = {
   ],
   hr: [
     { name: "Overview", icon: LayoutDashboard, path: "/hr/dashboard" },
-    { name: "Employees", icon: Users, path: "/hr/employees" },
     { name: "Departments", icon: Building2, path: "/hr/departments" },
+    { name: "Employees", icon: Users, path: "/hr/employees" },
     { name: "Attendance", icon: CalendarCheck, path: "/hr/attendance" },
     { name: "Leave Management", icon: FileText, path: "/hr/leave" },
     { name: "Payroll", icon: DollarSign, path: "/hr/payslip" },
@@ -159,6 +160,7 @@ export const PageLayout = ({ role = "employee", activePage, title, subtitle, act
             {subtitle && <p className="text-xs text-gray-400 hidden md:block">{subtitle}</p>}
           </div>
           <div className="flex items-center gap-3">
+            {(role === "hr" || role === "employee") && <RoleSwitch mode={role} />}
             {actions}
             <button
               onClick={() => setIsNotificationsOpen(v => !v)}
@@ -172,10 +174,10 @@ export const PageLayout = ({ role = "employee", activePage, title, subtitle, act
                 </span>
               )}
             </button>
-            {role === "hr" ? (
+            {role === "hr" || role === "employee" ? (
               <button
                 type="button"
-                onClick={() => navigate("/hr/profile")}
+                onClick={() => navigate(role === "hr" ? "/hr/profile" : "/employee/profile")}
                 title="My Profile"
                 aria-label="Open my profile"
                 className={`w-8 h-8 rounded-lg bg-gradient-to-br ${accent.avatarFrom} ${accent.avatarTo} flex items-center justify-center text-white text-xs font-bold shadow cursor-pointer hover:shadow-md hover:scale-105 transition-all`}

@@ -209,6 +209,11 @@ export const employeeApi = {
 // These hit User_Backend's own /api/hr/employees endpoints, which read/write
 // the same `employees` table that registration writes to, instead of the
 // synced copy in hrm_db_hr.
+// Logged-in person's own profile (hrm_db_user.employees) — read-only, any role
+export const userSelfApi = {
+  getMyProfile: () => request("GET", `${AUTH_URL}/employee/my-profile`),
+};
+
 export const userHrApi = {
   // HR manager's own profile (hrm_db_user.employees) — read-only
   getMyProfile: () => request("GET", `${AUTH_URL}/hr/profile`),

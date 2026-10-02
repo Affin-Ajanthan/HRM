@@ -40,11 +40,14 @@ public class AllowanceRequestService {
 
     private final AllowanceRequestRepository requestRepository;
     private final AllowanceRequestDocumentRepository documentRepository;
+    private final NotificationService notificationService;
 
     public AllowanceRequestService(AllowanceRequestRepository requestRepository,
-                                   AllowanceRequestDocumentRepository documentRepository) {
+                                   AllowanceRequestDocumentRepository documentRepository,
+                                   NotificationService notificationService) {
         this.requestRepository = requestRepository;
         this.documentRepository = documentRepository;
+        this.notificationService = notificationService;
     }
 
     // ── Employee ─────────────────────────────────────────────────
@@ -95,6 +98,12 @@ public class AllowanceRequestService {
         documentRepository.save(doc);
 
         log.info("{} requested allowance '{}' ({})", employee.getEmail(), cleanName, saved.getAmount());
+
+        // Tell every HR manager; clicking it opens this request on the Payroll > Allowance Requests page
+        notificationService.notifyHrManagers(employee.getCompany().getId(), "New Allowance Request",
+                employee.getFullName() + " (" + employee.getEmployeeId() + ") requested " + cleanName
+                        + " allowance of Rs." + saved.getAmount().toPlainString(),
+                NotificationService.ALLOWANCE_REQUEST, "/hr/payroll/allowance-requests?view=" + saved.getId(), saved.getId());
         return toDTO(saved);
     }
 
@@ -168,7 +177,22 @@ public class AllowanceRequestService {
         request.setReviewedByName(review.getReviewedByName());
         request.setReviewedAt(LocalDateTime.now());
         log.info("Allowance request {} of {} {} by {}", requestId, request.getEmployeeEmail(), status, review.getReviewedByName());
-        return toDTO(requestRepository.save(request));
+        AllowanceRequest saved = requestRepository.save(request);
+
+        // Tell the employee the outcome
+        String by = review.getReviewedByName() == null || review.getReviewedByName().isBlank() ? "HR" : review.getReviewedByName();
+        boolean approved = status == AllowanceRequest.Status.APPROVED;
+        notificationService.notifyUser(saved.getUserId(), saved.getCompanyId(),
+                approved ? "Allowance Approved" : "Allowance Rejected",
+                approved
+                        ? "Your " + saved.getName() + " allowance request (Rs." + saved.getAmount().toPlainString() + ") was approved by " + by
+                                + (comment.isEmpty() ? "" : ". Comment: " + comment)
+                        : "Your " + saved.getName() + " allowance request (Rs." + saved.getAmount().toPlainString() + ") was rejected by " + by
+                                + ". Reason: " + comment,
+                com.affin.hrm.model.Notification.NotificationType.GENERAL,
+                approved ? NotificationService.ALLOWANCE_APPROVED : NotificationService.ALLOWANCE_REJECTED,
+                "/employee/payslip", saved.getId());
+        return toDTO(saved);
     }
 
     // ── helpers ──────────────────────────────────────────────────

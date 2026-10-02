@@ -33,7 +33,7 @@ class AllowanceRequestServiceTest {
     void setUp() {
         requestRepo = mock(AllowanceRequestRepository.class);
         documentRepo = mock(AllowanceRequestDocumentRepository.class);
-        service = new AllowanceRequestService(requestRepo, documentRepo);
+        service = new AllowanceRequestService(requestRepo, documentRepo, mock(NotificationService.class));
         employee = new Employee();
         employee.setId(3L);
         employee.setEmail(" Ann@Acme.Test ");

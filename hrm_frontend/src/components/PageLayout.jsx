@@ -189,6 +189,7 @@ export const PageLayout = ({ role = "employee", activePage, title, subtitle, act
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
         onUnreadCountChange={setUnreadCount}
+        role={role}
       />
     </div>
   );

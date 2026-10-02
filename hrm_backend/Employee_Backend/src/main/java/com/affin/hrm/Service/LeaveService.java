@@ -41,6 +41,7 @@ public class LeaveService {
     private final CompanyRepository companyRepository;
     private final ModelMapper modelMapper;
     private final AuditService auditService;
+    private final NotificationService notificationService;
 
     public LeaveService(LeaveApplicationRepository leaveApplicationRepository,
                         LeaveBalanceRepository leaveBalanceRepository,
@@ -49,7 +50,9 @@ public class LeaveService {
                         NotificationRepository notificationRepository,
                         CompanyRepository companyRepository,
                         ModelMapper modelMapper,
-                        AuditService auditService) {
+                        AuditService auditService,
+                        NotificationService notificationService) {
+        this.notificationService = notificationService;
         this.leaveApplicationRepository = leaveApplicationRepository;
         this.leaveBalanceRepository = leaveBalanceRepository;
         this.hrServiceClient = hrServiceClient;
@@ -105,9 +108,11 @@ public class LeaveService {
         leave.setStatus(LeaveApplication.LeaveStatus.PENDING);
 
         LeaveApplication saved = leaveApplicationRepository.save(leave);
-        createNotification(employee.getCompany().getId(), null, "New Leave Request",
-                employee.getFullName() + " has applied for " + leaveType.getLeaveTypeName(),
-                Notification.NotificationType.LEAVE_APPROVAL);
+        // Tell every HR manager of the company; clicking it opens this request on the Leave Management page
+        notificationService.notifyHrManagers(employee.getCompany().getId(), "New Leave Request",
+                employee.getFullName() + " (" + employee.getEmployeeId() + ") applied for " + leaveType.getLeaveTypeName()
+                        + " from " + dto.getStartDate() + " to " + dto.getEndDate() + " (" + numberOfDays + " day(s))",
+                NotificationService.LEAVE_REQUEST, "/hr/leave?view=" + saved.getId(), saved.getId());
         auditService.logAction("APPLY_LEAVE", "LeaveApplication", saved.getId(),
                 "Applied for leave", employee.getCompany().getId());
         log.info("Employee {} applied for {} leave ({} days)", employeeId, leaveType.getLeaveTypeName(), numberOfDays);
@@ -139,9 +144,10 @@ public class LeaveService {
         leaveBalanceRepository.save(balance);
 
         LeaveApplication saved = leaveApplicationRepository.save(leave);
-        createNotification(leave.getCompanyId(), leave.getUserId(),
-                "Leave Approved", "Your leave from " + leave.getStartDate() + " to " + leave.getEndDate() + " has been approved",
-                Notification.NotificationType.LEAVE_APPROVAL);
+        notificationService.notifyUser(leave.getUserId(), leave.getCompanyId(),
+                "Leave Approved", "Your " + leave.getLeaveTypeName() + " from " + leave.getStartDate() + " to " + leave.getEndDate()
+                        + " has been approved by " + approver.getFullName(),
+                Notification.NotificationType.LEAVE_APPROVAL, NotificationService.LEAVE_APPROVED, "/employee/leave", leave.getId());
         auditService.logAction("APPROVE_LEAVE", "LeaveApplication", saved.getId(),
                 "Approved leave application", leave.getCompanyId());
         return convertToDTO(saved);
@@ -168,9 +174,10 @@ public class LeaveService {
         leave.setApprovedAt(LocalDateTime.now());
 
         LeaveApplication saved = leaveApplicationRepository.save(leave);
-        createNotification(leave.getCompanyId(), leave.getUserId(),
-                "Leave Rejected", "Your leave request has been rejected. Reason: " + reason,
-                Notification.NotificationType.LEAVE_REJECTION);
+        notificationService.notifyUser(leave.getUserId(), leave.getCompanyId(),
+                "Leave Rejected", "Your " + leave.getLeaveTypeName() + " request has been rejected by " + approver.getFullName()
+                        + ". Reason: " + reason,
+                Notification.NotificationType.LEAVE_REJECTION, NotificationService.LEAVE_REJECTED, "/employee/leave", leave.getId());
         auditService.logAction("REJECT_LEAVE", "LeaveApplication", saved.getId(),
                 "Rejected leave application", leave.getCompanyId());
         return convertToDTO(saved);

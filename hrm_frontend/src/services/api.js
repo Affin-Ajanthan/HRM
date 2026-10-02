@@ -201,6 +201,8 @@ export const employeeApi = {
   // Notifications
   getNotifications: () => request("GET", `${EMPLOYEE_URL}/employee/notifications`),
   markNotificationAsRead: (id) => request("PUT", `${EMPLOYEE_URL}/employee/notifications/${id}/read`),
+  markAllNotificationsAsRead: () => request("PUT", `${EMPLOYEE_URL}/employee/notifications/read-all`),
+  deleteNotification: (id) => request("DELETE", `${EMPLOYEE_URL}/employee/notifications/${id}`),
 };
 
 // ─── HR DATA (via User_Backend — hrm_db_user is the source of truth) ──

@@ -1,6 +1,7 @@
 package com.affin.hrm.Controller;
 
 import com.affin.hrm.DTO.*;
+import com.affin.hrm.Model.Employee;
 import com.affin.hrm.service.AuthService;
 import com.affin.hrm.service.EmployeeService;
 import com.affin.hrm.service.LeaveService;
@@ -28,6 +29,43 @@ public class HRManagerController {
 
     @Autowired
     private AuthService authService;
+
+
+    // ===== HR MANAGER'S OWN PROFILE =====
+    // Personal + employment details come straight from hrm_db_user.employees.
+    // Read-only: HR managers cannot edit their own profile.
+
+    @GetMapping("/profile")
+    public ResponseEntity<ApiResponse<UserProfileDTO>> getMyProfile() {
+        try {
+            return ResponseEntity.ok(ApiResponse.success(
+                    toProfile(authService.getCurrentEmployee()), "Profile retrieved"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Failed to retrieve profile: " + e.getMessage()));
+        }
+    }
+
+    private UserProfileDTO toProfile(Employee e) {
+        UserProfileDTO dto = new UserProfileDTO();
+        dto.setId(e.getId());
+        dto.setEmployeeId(e.getEmployeeId());
+        dto.setFullName(e.getFullName());
+        dto.setEmail(e.getEmail());
+        dto.setStatus(e.getStatus() != null ? e.getStatus().name() : null);
+        dto.setDesignation(e.getDesignation());
+        dto.setEmploymentType(e.getEmploymentType());
+        dto.setJoiningDate(e.getJoiningDate());
+        if (e.getDepartment() != null) dto.setDepartmentName(e.getDepartment().getName());
+        if (e.getCompany() != null) {
+            dto.setCompanyName(e.getCompany().getCompanyName());
+            dto.setCompanyRegistrationNumber(e.getCompany().getRegistrationNumber());
+        }
+        dto.setDob(e.getDob());
+        dto.setGender(e.getGender() != null ? e.getGender().name() : null);
+        dto.setPhone(e.getPhone());
+        return dto;
+    }
 
     // ===== EMPLOYEE MANAGEMENT =====
 

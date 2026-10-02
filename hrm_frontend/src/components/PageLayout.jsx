@@ -172,9 +172,21 @@ export const PageLayout = ({ role = "employee", activePage, title, subtitle, act
                 </span>
               )}
             </button>
-            <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${accent.avatarFrom} ${accent.avatarTo} flex items-center justify-center text-white text-xs font-bold shadow`}>
-              {initials}
-            </div>
+            {role === "hr" ? (
+              <button
+                type="button"
+                onClick={() => navigate("/hr/profile")}
+                title="My Profile"
+                aria-label="Open my profile"
+                className={`w-8 h-8 rounded-lg bg-gradient-to-br ${accent.avatarFrom} ${accent.avatarTo} flex items-center justify-center text-white text-xs font-bold shadow cursor-pointer hover:shadow-md hover:scale-105 transition-all`}
+              >
+                {initials}
+              </button>
+            ) : (
+              <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${accent.avatarFrom} ${accent.avatarTo} flex items-center justify-center text-white text-xs font-bold shadow`}>
+                {initials}
+              </div>
+            )}
           </div>
         </header>
 

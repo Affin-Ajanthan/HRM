@@ -210,6 +210,8 @@ export const employeeApi = {
 // the same `employees` table that registration writes to, instead of the
 // synced copy in hrm_db_hr.
 export const userHrApi = {
+  // HR manager's own profile (hrm_db_user.employees) — read-only
+  getMyProfile: () => request("GET", `${AUTH_URL}/hr/profile`),
   getEmployees: () => request("GET", `${AUTH_URL}/hr/employees`),
   getEmployee: (id) => request("GET", `${AUTH_URL}/hr/employees/${id}`),
   updateEmployee: (id, data) => request("PUT", `${AUTH_URL}/hr/employees/${id}`, data),

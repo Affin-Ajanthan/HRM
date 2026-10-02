@@ -85,6 +85,7 @@ const EMPTY_FORM = {
   email: "",
   phone: "",
   dateOfBirth: "",
+  gender: "",
 
   userRole: "employee",
   employeeId: "",
@@ -98,6 +99,13 @@ const EMPTY_FORM = {
   password: "",
   confirmPassword: "",
 };
+
+// Gender options — stored in hrm_db_user.employees.gender as MALE / FEMALE / OTHER
+const GENDER_OPTIONS = [
+  { value: "FEMALE", label: "Female" },
+  { value: "MALE", label: "Male" },
+  { value: "OTHER", label: "Other" },
+];
 
 const BACKEND_TO_ROLE = { EMPLOYEE: "employee", HR_MANAGER: "hr", ADMIN: "admin" };
 const toDateInput = (v) => (v ? String(v).slice(0, 10) : "");
@@ -174,6 +182,7 @@ const buildFormFromEmployee = (emp, departments) => {
     email: emp.email || "",
     phone: emp.phone || emp.phoneNumber || "",
     dateOfBirth: toDateInput(emp.dob || emp.birthday),
+    gender: String(emp.gender || "").toUpperCase(),
     userRole,
     employeeId: id,
     departmentId: matchedDept ? matchedDept.id : "",
@@ -452,6 +461,7 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
       }
       if (!formData.phone) newErrors.phone = "Phone number is required";
       if (!formData.dateOfBirth) newErrors.dateOfBirth = "Date of birth is required";
+      if (!formData.gender) newErrors.gender = "Gender is required";
     }
 
     if (step === 2) {
@@ -525,7 +535,7 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
         dob: formData.dateOfBirth,
         address: formData.workLocation,
         phone: formData.phone,
-        gender: "OTHER",
+        gender: formData.gender,
         department: formData.departmentName,
         role: normalizedRole,
         designation: formData.jobTitle,
@@ -550,7 +560,7 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
           workLocation: formData.workLocation,
           address: formData.workLocation,
           status: employee.status || "ACTIVE",
-          gender: employee.gender || null,
+          gender: formData.gender || null,
           // only send a password if HR typed a new one
           ...(formData.password ? { password: formData.password } : {}),
         };
@@ -691,10 +701,10 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                   <div className="flex flex-col items-center">
                     <div
                       className={`h-9 w-9 rounded-full flex items-center justify-center transition-all duration-300 ${isCompleted
-                          ? "bg-emerald-500 text-white"
-                          : isCurrent
-                            ? "bg-teal-500 text-white shadow-md scale-110"
-                            : "bg-slate-200 text-slate-500"
+                        ? "bg-emerald-500 text-white"
+                        : isCurrent
+                          ? "bg-teal-500 text-white shadow-md scale-110"
+                          : "bg-slate-200 text-slate-500"
                         }`}
                     >
                       {isCompleted ? <Check className="w-4 h-4" /> : <StepIcon className="w-4 h-4" />}
@@ -817,6 +827,28 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                     {errors.dateOfBirth && <FieldError msg={errors.dateOfBirth} />}
                   </div>
                 </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700">Gender *</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 pointer-events-none" />
+                    <select
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleChange}
+                      className={`w-full pl-10 pr-4 py-2.5 rounded-xl border transition-all duration-200 focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50 appearance-none ${errors.gender ? "border-red-500" : "border-slate-300"
+                        }`}
+                    >
+                      <option value="">Select gender</option>
+                      {GENDER_OPTIONS.map((g) => (
+                        <option key={g.value} value={g.value}>
+                          {g.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {errors.gender && <FieldError msg={errors.gender} />}
+                </div>
               </div>
             )}
 
@@ -838,19 +870,19 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                           onClick={() => !isDisabled && handleRoleChange(role.value)}
                           title={isDisabled ? role.disabledReason : undefined}
                           className={`p-3.5 border-2 rounded-xl transition-all duration-200 ${isDisabled
-                              ? "border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed"
-                              : isSelected
-                                ? "border-teal-500 bg-teal-50 shadow-sm cursor-pointer"
-                                : "border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer"
+                            ? "border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed"
+                            : isSelected
+                              ? "border-teal-500 bg-teal-50 shadow-sm cursor-pointer"
+                              : "border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer"
                             }`}
                         >
                           <div className="flex items-start gap-3">
                             <div
                               className={`p-2 rounded-lg ${isDisabled
-                                  ? "bg-slate-200 text-slate-400"
-                                  : isSelected
-                                    ? "bg-teal-100 text-teal-600"
-                                    : "bg-slate-100 text-slate-600"
+                                ? "bg-slate-200 text-slate-400"
+                                : isSelected
+                                  ? "bg-teal-100 text-teal-600"
+                                  : "bg-slate-100 text-slate-600"
                                 }`}
                             >
                               {isDisabled ? <LockIcon className="w-4.5 h-4.5" /> : <RoleIcon className="w-4.5 h-4.5" />}
@@ -1075,10 +1107,10 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                         <span className="text-slate-500">Password strength</span>
                         <span
                           className={`font-medium ${passwordStrength <= 2
-                              ? "text-red-500"
-                              : passwordStrength <= 3
-                                ? "text-yellow-600"
-                                : "text-emerald-600"
+                            ? "text-red-500"
+                            : passwordStrength <= 3
+                              ? "text-yellow-600"
+                              : "text-emerald-600"
                             }`}
                         >
                           {strengthLabels[passwordStrength]}
@@ -1161,6 +1193,7 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                   <ReviewItem label="Employment Type" value={formData.employmentType} />
                   <ReviewItem label="Work Location" value={formData.workLocation} />
                   <ReviewItem label="Date of Birth" value={formatDate(formData.dateOfBirth)} />
+                  <ReviewItem label="Gender" value={GENDER_OPTIONS.find((g) => g.value === formData.gender)?.label} />
                   <ReviewItem label="Hire Date" value={formatDate(formData.hireDate)} />
                 </div>
               </div>
@@ -1174,8 +1207,8 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
               onClick={handlePrev}
               disabled={currentStep === 1}
               className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${currentStep === 1
-                  ? "text-slate-300 cursor-not-allowed"
-                  : "text-slate-600 hover:text-slate-800 hover:bg-slate-100"
+                ? "text-slate-300 cursor-not-allowed"
+                : "text-slate-600 hover:text-slate-800 hover:bg-slate-100"
                 }`}
             >
               <ChevronLeft className="w-4 h-4" />
@@ -1199,8 +1232,8 @@ const AddEmployeeModal = ({ open, onClose, departments = [], onSuccess, employee
                 onClick={handleSubmit}
                 disabled={isSubmitting}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-white text-sm transition-all shadow-sm ${isSubmitting
-                    ? "bg-slate-400 cursor-not-allowed"
-                    : "bg-gradient-to-br from-teal-400 to-emerald-500 hover:from-teal-500 hover:to-emerald-600"
+                  ? "bg-slate-400 cursor-not-allowed"
+                  : "bg-gradient-to-br from-teal-400 to-emerald-500 hover:from-teal-500 hover:to-emerald-600"
                   }`}
               >
                 {isSubmitting ? (

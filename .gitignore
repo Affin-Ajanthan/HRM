@@ -95,3 +95,20 @@ desktop.ini
 *.tmp
 *.temp
 *.orig
+
+# Terraform downloaded files
+**/.terraform/*
+
+# Terraform state and saved plans
+*.tfstate
+*.tfstate.*
+*.tfplan
+infra/terraform/plan
+
+# Local Terraform inputs
+*.tfvars
+*.tfvars.json
+
+# Terraform crash logs
+crash.log
+crash.*.log

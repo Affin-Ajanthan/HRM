@@ -1,230 +1,89 @@
-import React, { useState, useEffect } from 'react';
-import { X, CheckCircle, AlertCircle, InfoIcon, Trash2, Building2, Bell, ExternalLink } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { EMPLOYEE_URL, ADMIN_URL } from '../services/api';
+import React, { useEffect } from "react";
+import { X, Bell, CheckCheck } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import NotificationItem from "./NotificationItem";
+import useNotifications from "../utils/useNotifications";
+import { NOTIF_THEME } from "../utils/notifications";
 
-const NotificationPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
+/**
+ * The dropdown opened from the header bell. Coloured for the signed-in role (HR = teal/emerald).
+ * It stays mounted while closed so the unread badge on the bell keeps updating.
+ *
+ * Click a notification -> it is marked read and you go to the page it is about
+ * (HR: the leave request / allowance request form; employee: their leave / allowance page).
+ * Birthday notifications show the person's details and do not navigate.
+ */
+const NotificationPopup = ({ isOpen, onClose, onUnreadCountChange, role = "hr" }) => {
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const theme = NOTIF_THEME[role] || NOTIF_THEME.hr;
+  const { notifications, loading, markRead, markAllRead } = useNotifications(role);
 
-  const fetchLiveNotifications = async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const userStr = localStorage.getItem('user');
-      const user = userStr ? JSON.parse(userStr) : null;
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      };
-
-      const roleUpper = (user?.role || '').toUpperCase();
-      let list = [];
-
-      // 1. Fetch user notifications from Employee_Backend
-      try {
-        const res = await fetch(`${EMPLOYEE_URL}/employee/notifications`, { headers });
-        if (res.ok) {
-          const data = await res.json();
-          const rawList = data.data || data || [];
-          list = rawList.map(n => ({
-            id: `notif-${n.id}`,
-            realId: n.id,
-            type: (n.type || '').toLowerCase().includes('reject') ? 'warning' : 'info',
-            title: n.title || 'System Notification',
-            message: n.message || '',
-            timestamp: n.createdAt ? new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently',
-            read: n.isRead || false,
-            link: roleUpper === 'ADMIN' ? '/admin/companies' : undefined,
-          }));
-        }
-      } catch (err) {
-        console.warn('Could not fetch employee notifications', err);
-      }
-
-      // 2. If Admin, also check pending company requests
-      if (roleUpper === 'ADMIN') {
-        try {
-          const res = await fetch(`${ADMIN_URL}/admin/companies`, { headers });
-          if (res.ok) {
-            const data = await res.json();
-            const companies = data.data || data || [];
-            const pending = companies.filter(c => (c.status || '').toUpperCase() === 'PENDING');
-            
-            pending.forEach(c => {
-              list.unshift({
-                id: `company-${c.id}`,
-                companyId: c.id,
-                type: 'warning',
-                title: 'New Company Registration Request',
-                message: `Application submitted by '${c.companyName || c.name}' (Contact: ${c.contactPersonName || c.email}). Status: PENDING.`,
-                timestamp: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : 'Pending Review',
-                read: false,
-                isCompanyRequest: true,
-                link: '/admin/companies',
-              });
-            });
-          }
-        } catch (err) {
-          console.warn('Could not fetch admin pending companies for notification popup', err);
-        }
-      }
-
-      setNotifications(list);
-      if (onUnreadCountChange) {
-        onUnreadCountChange(list.filter(n => !n.read).length);
-      }
-    } catch (e) {
-      console.warn('Error fetching live notifications:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchLiveNotifications();
-    const interval = setInterval(fetchLiveNotifications, 5000); // refresh every 5s for live notifications
-    return () => clearInterval(interval);
-  }, []);
+  const unreadCount = notifications.filter((n) => !n.read).length;
+  useEffect(() => { onUnreadCountChange?.(unreadCount); }, [unreadCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isOpen) return null;
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const markAsRead = async (notif) => {
-    setNotifications((prev) => {
-      const updated = prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n));
-      if (onUnreadCountChange) {
-        onUnreadCountChange(updated.filter(n => !n.read).length);
-      }
-      return updated;
-    });
-
-    if (notif.realId) {
-      try {
-        const token = localStorage.getItem('token');
-        await fetch(`${EMPLOYEE_URL}/employee/notifications/${notif.realId}/read`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
-      } catch (err) {
-        console.warn('Could not mark notification read on backend', err);
-      }
-    }
-  };
-
-  const handleNotificationClick = (notif) => {
-    markAsRead(notif);
-    if (notif.link) {
+  const handleClick = (n) => {
+    markRead(n);
+    if (n.link) {
       onClose();
-      navigate(notif.link);
+      navigate(n.link);
     }
   };
 
-  const deleteNotification = (id) => {
-    const remaining = notifications.filter((n) => n.id !== id);
-    setNotifications(remaining);
-    if (onUnreadCountChange) {
-      onUnreadCountChange(remaining.filter(n => !n.read).length);
-    }
-  };
+  const allPage = role === "hr" ? "/hr/notifications" : role === "admin" ? "/admin/companies" : null;
+  const allLabel = role === "hr" ? "View all notifications →" : role === "admin" ? "Manage Applications & Companies →" : null;
 
   return (
     <>
-      {/* Overlay */}
-      <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40"
-        onClick={onClose}
-      ></div>
+      <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose} />
 
-      {/* Popup Modal */}
-      <div className="fixed top-16 right-4 sm:right-8 w-96 max-w-[92vw] bg-white rounded-2xl shadow-2xl z-50 max-h-[520px] flex flex-col border border-gray-100 animate-fade-in">
-        
+      <div className="fixed top-16 right-4 sm:right-8 w-[26rem] max-w-[92vw] bg-white rounded-2xl shadow-2xl z-50 max-h-[560px] flex flex-col border border-gray-100">
         {/* Header */}
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-t-2xl">
+        <div className={`p-4 flex items-center justify-between bg-gradient-to-r ${theme.header} text-white rounded-t-2xl`}>
           <div className="flex items-center gap-2.5">
-            <div className="p-1.5 bg-white/10 rounded-lg">
-              <Bell size={18} className="text-indigo-300" />
-            </div>
+            <div className="p-1.5 bg-white/15 rounded-lg"><Bell size={18} className={theme.headerIcon} /></div>
             <div>
-              <h3 className="font-bold text-sm">System Notifications</h3>
-              <p className="text-[10px] text-indigo-200">
-                {unreadCount > 0 ? `${unreadCount} unread alert(s)` : 'All caught up!'}
-              </p>
+              <h3 className="font-bold text-sm">Notifications</h3>
+              <p className={`text-[11px] ${theme.headerSub}`}>{unreadCount > 0 ? `${unreadCount} unread` : "All caught up!"}</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-white/10 rounded-lg transition-colors text-gray-300 hover:text-white"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-1">
+            {unreadCount > 0 && (
+              <button onClick={markAllRead} title="Mark all as read"
+                className="p-1.5 hover:bg-white/15 rounded-lg transition-colors text-white/90 hover:text-white">
+                <CheckCheck size={18} />
+              </button>
+            )}
+            <button onClick={onClose} className="p-1.5 hover:bg-white/15 rounded-lg transition-colors text-white/90 hover:text-white">
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
-        {/* Notifications List */}
+        {/* List */}
         <div className="overflow-y-auto flex-1 p-2 space-y-1.5">
           {loading && notifications.length === 0 ? (
             <div className="p-8 text-center text-xs text-gray-400">Loading notifications...</div>
           ) : notifications.length > 0 ? (
-            notifications.map((notif) => (
-              <div
-                key={notif.id}
-                onClick={() => handleNotificationClick(notif)}
-                className={`p-3.5 rounded-xl cursor-pointer transition-all border ${
-                  notif.read ? 'bg-white border-gray-100 opacity-80' : 'bg-indigo-50/60 border-indigo-100 shadow-xs'
-                } hover:bg-indigo-50/90`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 mt-0.5">
-                    {notif.isCompanyRequest ? (
-                      <div className="p-1.5 bg-amber-100 text-amber-700 rounded-lg">
-                        <Building2 size={16} />
-                      </div>
-                    ) : (
-                      <div className="p-1.5 bg-indigo-100 text-indigo-600 rounded-lg">
-                        <InfoIcon size={16} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1">
-                      <p className="font-bold text-gray-800 text-xs truncate">{notif.title}</p>
-                      <span className="text-[10px] text-gray-400 shrink-0">{notif.timestamp}</span>
-                    </div>
-                    <p className="text-[11px] text-gray-600 mt-1 leading-snug">{notif.message}</p>
-                    
-                    {notif.link && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-600 mt-2 hover:underline">
-                        Review in Companies <ExternalLink size={10} />
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
+            notifications.map((n) => (
+              <NotificationItem key={n.id} n={n} theme={theme} onClick={handleClick} compact />
             ))
           ) : (
             <div className="p-10 text-center text-gray-400 text-xs">
-              <p className="font-semibold text-gray-600">No active notifications</p>
+              <Bell size={28} className="mx-auto mb-2 opacity-30" />
+              <p className="font-semibold text-gray-600">No notifications yet</p>
               <p className="text-[11px] text-gray-400 mt-1">You are all up to date!</p>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        {notifications.length > 0 && (
+        {allPage && notifications.length > 0 && (
           <div className="p-3 border-t border-gray-100 text-center bg-gray-50 rounded-b-2xl">
-            <button
-              onClick={() => {
-                onClose();
-                navigate('/admin/companies');
-              }}
-              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
-            >
-              Manage Applications & Companies →
+            <button onClick={() => { onClose(); navigate(allPage); }}
+              className={`text-xs font-semibold transition-colors ${theme.action}`}>
+              {allLabel}
             </button>
           </div>
         )}

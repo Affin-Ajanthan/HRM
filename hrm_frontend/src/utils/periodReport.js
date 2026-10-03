@@ -151,9 +151,31 @@ export function buildPeriodReport({ kind, value, attRows, emps, leaves, pay, dep
     rows: emps.map((e) => [e.code, e.name, e.email, e.dept, e.designation, e.type, titleCase(e.role), titleCase(e.status), e.join ? ymd(e.join) : "", e.term ? ymd(e.term) : ""]),
   });
 
+  // Cover page for the PDF: headline numbers + a few plain-English key points
+  const money = (n) => `Rs. ${Math.round(n).toLocaleString("en-US")}`;
+  const kpis = [
+    { label: "Active employees", value: wf.activeCount, note: `${wf.inactiveCount} inactive, ${wf.terminatedCount} terminated` },
+    { label: "Attendance rate", value: att.rate == null ? "-" : `${pct(att.rate)}%`, note: `${att.attendedDays} days attended` },
+    { label: "Leave days taken", value: lv.takenDays, note: `${count(lv.submitted)} requests submitted` },
+    { label: `Net payroll (${monthsInPeriod} mo)`, value: money(pay.net * monthsInPeriod), note: `${money(pay.net)} per month` },
+  ];
+  const highlights = [
+    `${b.label} covers ${ymd(range.start)} to ${ymd(range.end)} for ${deptLabel.toLowerCase() === "all departments" ? "all departments" : `the ${deptLabel} department`}.`,
+    `${wf.activeCount} employees are active. ${att.rate == null ? "There is not enough attendance data to calculate a rate." : `Attendance was ${pct(att.rate)}% (${att.attendedDays} of ${att.expectedDays} expected working days).`}`,
+    `There were ${att.lateDays} late arrivals, ${att.halfDays} half days, ${att.absentDays} absences and ${att.openDays} missed clock-outs.`,
+    `${lv.takenDays} leave days were taken across ${count(lv.submitted)} leave requests.`,
+    pay.unconfigured.length
+      ? `Payroll: ${pay.configuredCount} employees have a salary set up and ${pay.unconfigured.length} do not - their pay is not included in the totals.`
+      : `Payroll: all ${pay.configuredCount} employees have a salary set up. Estimated net payroll for the period is ${money(pay.net * monthsInPeriod)}.`,
+  ];
+
   return {
     sheets,
-    filename: `hr-${kind}-report-${b.file}.xls`,
+    kpis,
+    highlights,
+    title: `HR ${kind === "monthly" ? "Monthly" : "Yearly"} Report - ${b.label}`,
+    subtitle: `${b.label} | ${deptLabel}${range.end < new Date(`${b.to}T00:00:00`) ? ` | data up to ${ymd(range.end)}` : ""}`,
+    filename: `hr-${kind}-report-${b.file}.pdf`,
     range,
   };
 }

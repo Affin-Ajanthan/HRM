@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, FileText, Check, Ban, Search, Clock, CheckCircle, XCircle, SlidersHorizontal } from "lucide-react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { ArrowLeft, FileText, Check, Ban, Search, Clock, CheckCircle, XCircle, SlidersHorizontal, Eye, X } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { hrApi } from "../../services/api";
 
@@ -37,6 +37,10 @@ const openPdf = (blob, fileName) => {
  */
 const HRAllowanceRequests = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [viewing, setViewing] = useState(null); // request whose form is open
+  const handledNavKey = useRef(null);
+  const reloadedForNav = useRef(null);
   const [user, setUser] = useState(null);
   const [message, setMessage] = useState(null); // { text, email } after an approval
   const [requests, setRequests] = useState([]);
@@ -71,6 +75,24 @@ const HRAllowanceRequests = () => {
     load();
   }, [navigate]);
 
+  // Arriving from a notification (…/allowance-requests?view=<id>): open that request's form for review.
+  useEffect(() => {
+    const viewId = new URLSearchParams(location.search).get("view");
+    if (!user || !viewId || loading || handledNavKey.current === location.key) return;
+    const found = requests.find(r => String(r.id) === viewId);
+    if (found) {
+      handledNavKey.current = location.key;
+      setViewing(found);
+      if (found.status !== "PENDING") setStatusFilter("ALL");
+    } else if (reloadedForNav.current !== location.key) {
+      reloadedForNav.current = location.key; // brand-new request: refresh once and look again
+      load();
+    } else {
+      handledNavKey.current = location.key;
+      setError("That allowance request could not be found");
+    }
+  }, [user, loading, requests, location.key, location.search]);
+
   const counts = useMemo(() => ({
     ALL: requests.length,
     PENDING: requests.filter(r => r.status === "PENDING").length,
@@ -83,6 +105,8 @@ const HRAllowanceRequests = () => {
     const q = searchTerm.trim().toLowerCase();
     return !q || [r.employeeName, r.employeeCode, r.name, r.description].some(v => (v || "").toLowerCase().includes(q));
   });
+
+  const viewingNow = viewing ? requests.find(r => r.id === viewing.id) || viewing : null;
 
   const viewDocument = async (r) => {
     try {
@@ -260,6 +284,10 @@ const HRAllowanceRequests = () => {
                     <td className="px-4 py-3">
                       {r.status === "PENDING" ? (
                         <div className="flex gap-1.5">
+                          <button onClick={() => setViewing(r)} title="View request form"
+                            className="inline-flex items-center gap-1 bg-teal-50 hover:bg-teal-100 text-teal-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
+                            <Eye size={13} /> View
+                          </button>
                           <button onClick={() => approve(r)} disabled={busyId === r.id}
                             className="inline-flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
                             <Check size={13} /> Approve
@@ -299,6 +327,66 @@ const HRAllowanceRequests = () => {
           </div>
         </div>
       </div>
+      {/* Request form — opened from the table or from a notification; HR approves or rejects here */}
+      {viewingNow && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl">
+            <div className="flex items-center justify-between p-6 bg-gradient-to-r from-teal-500 to-emerald-600 text-white rounded-t-2xl">
+              <h3 className="text-xl font-bold">Allowance Request</h3>
+              <button onClick={() => setViewing(null)} className="p-1.5 hover:bg-white/20 rounded-xl"><X size={18} /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                {[
+                  ["Employee", viewingNow.employeeName || viewingNow.employeeEmail],
+                  ["Employee ID", viewingNow.employeeCode || "—"],
+                  ["Allowance", viewingNow.name],
+                  ["Amount", money(viewingNow.amount)],
+                  ["Requested On", formatDate(viewingNow.createdAt)],
+                  ["Email", viewingNow.employeeEmail],
+                ].map(([l, v]) => (
+                  <div key={l}><p className="text-xs text-gray-400 mb-0.5">{l}</p><p className="font-semibold text-gray-800 break-words">{v}</p></div>
+                ))}
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Description</p>
+                <p className="bg-gray-50 p-3 rounded-xl text-sm text-gray-700 whitespace-pre-wrap">{viewingNow.description}</p>
+              </div>
+              <button onClick={() => viewDocument(viewingNow)}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 px-3 py-2 rounded-lg transition-colors">
+                <FileText size={14} /> View PDF · {viewingNow.documentName}
+              </button>
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Status</p>
+                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_STYLE[viewingNow.status] || ""}`}>
+                  {STATUS_ICON[viewingNow.status]} {statusLabel(viewingNow.status)}
+                </span>
+                {viewingNow.reviewedByName && viewingNow.status !== "PENDING" && (
+                  <span className="ml-2 text-xs text-gray-400">by {viewingNow.reviewedByName}</span>
+                )}
+              </div>
+              {viewingNow.status !== "PENDING" && viewingNow.reviewComment && (
+                <p className={`p-3 rounded-xl text-sm ${viewingNow.status === "REJECTED" ? "bg-red-50 text-red-700" : "bg-gray-50 text-gray-700"}`}>HR: {viewingNow.reviewComment}</p>
+              )}
+              {viewingNow.status === "PENDING" && (
+                <div className="flex gap-3">
+                  <button disabled={busyId === viewingNow.id}
+                    onClick={async () => { const r = viewingNow; setViewing(null); await approve(r); }}
+                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2">
+                    <Check size={15} /> Approve
+                  </button>
+                  <button disabled={busyId === viewingNow.id}
+                    onClick={() => { const r = viewingNow; setViewing(null); openReject(r); }}
+                    className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2">
+                    <Ban size={15} /> Reject
+                  </button>
+                </div>
+              )}
+              <button onClick={() => setViewing(null)} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold text-sm transition-colors">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageLayout>
   );
 };

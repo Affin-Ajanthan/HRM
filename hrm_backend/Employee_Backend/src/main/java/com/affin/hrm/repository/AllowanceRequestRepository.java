@@ -12,5 +12,7 @@ public interface AllowanceRequestRepository extends JpaRepository<AllowanceReque
 
     List<AllowanceRequest> findByUserIdOrderByCreatedAtDesc(Long userId);
 
+    List<AllowanceRequest> findByCompanyIdAndStatus(Long companyId, AllowanceRequest.Status status);
+
     List<AllowanceRequest> findByEmployeeEmailInOrderByCreatedAtDesc(Collection<String> employeeEmails);
 }

@@ -165,6 +165,8 @@ public class PayrollService {
             n.setMessage("Your payslip for " + monthName + " " + payslip.getYear()
                     + " is ready. Net salary: Rs. " + payslip.getNetSalary().setScale(2, RoundingMode.HALF_UP).toPlainString());
             n.setType(Notification.NotificationType.PAYROLL);
+            n.setCategory(NotificationService.PAYSLIP);
+            n.setLink("/employee/payslip");
             n.setIsRead(false);
             notificationRepository.save(n);
         } catch (Exception e) {

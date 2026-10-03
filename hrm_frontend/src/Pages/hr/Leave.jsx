@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Search, Filter, Eye, CheckCircle, XCircle, Clock, FileText, X, Plus, Briefcase, Tag } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { NameListModal } from "../../components/NameListModal";
@@ -7,6 +7,9 @@ import { hrApi } from "../../services/api";
 
 const LeaveManagement = ({ role = "hr" }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const handledNavKey = useRef(null);
+  const reloadedForNav = useRef(null);
   const [user, setUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -66,6 +69,23 @@ const LeaveManagement = ({ role = "hr" }) => {
   };
 
   useEffect(() => { if (user) loadLeaves(); }, [user]);
+
+  // Arriving from a notification (/hr/leave?view=<id>): open that request's form, so HR can approve or reject it.
+  useEffect(() => {
+    const viewId = new URLSearchParams(location.search).get("view");
+    if (!user || !viewId || loading || handledNavKey.current === location.key) return;
+    const found = leaveRequests.find(r => String(r.id) === viewId);
+    if (found) {
+      handledNavKey.current = location.key;
+      setViewingRequest(found);
+    } else if (reloadedForNav.current !== location.key) {
+      reloadedForNav.current = location.key; // brand-new request: refresh the list once and look again
+      loadLeaves();
+    } else {
+      handledNavKey.current = location.key;
+      flash("✗ That leave request could not be found");
+    }
+  }, [user, loading, leaveRequests, location.key, location.search]);
 
   const stats = {
     total:    leaveRequests.length,

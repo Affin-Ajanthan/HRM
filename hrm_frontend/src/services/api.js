@@ -201,13 +201,22 @@ export const employeeApi = {
   // Notifications
   getNotifications: () => request("GET", `${EMPLOYEE_URL}/employee/notifications`),
   markNotificationAsRead: (id) => request("PUT", `${EMPLOYEE_URL}/employee/notifications/${id}/read`),
+  markAllNotificationsAsRead: () => request("PUT", `${EMPLOYEE_URL}/employee/notifications/read-all`),
+  deleteNotification: (id) => request("DELETE", `${EMPLOYEE_URL}/employee/notifications/${id}`),
 };
 
 // ─── HR DATA (via User_Backend — hrm_db_user is the source of truth) ──
 // These hit User_Backend's own /api/hr/employees endpoints, which read/write
 // the same `employees` table that registration writes to, instead of the
 // synced copy in hrm_db_hr.
+// Logged-in person's own profile (hrm_db_user.employees) — read-only, any role
+export const userSelfApi = {
+  getMyProfile: () => request("GET", `${AUTH_URL}/employee/my-profile`),
+};
+
 export const userHrApi = {
+  // HR manager's own profile (hrm_db_user.employees) — read-only
+  getMyProfile: () => request("GET", `${AUTH_URL}/hr/profile`),
   getEmployees: () => request("GET", `${AUTH_URL}/hr/employees`),
   getEmployee: (id) => request("GET", `${AUTH_URL}/hr/employees/${id}`),
   updateEmployee: (id, data) => request("PUT", `${AUTH_URL}/hr/employees/${id}`, data),

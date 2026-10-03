@@ -44,6 +44,40 @@ public class Notification {
     @Column(nullable = false)
     private Boolean isRead = false;
 
+    /**
+     * What the notification is about (LEAVE_REQUEST, ALLOWANCE_REQUEST, LEAVE_APPROVED, LEAVE_REJECTED,
+     * ALLOWANCE_APPROVED, ALLOWANCE_REJECTED, BIRTHDAY, BIRTHDAY_WISH, PAYSLIP ...). Kept as plain text
+     * (not an enum) so new kinds never need a database constraint change.
+     */
+    @Column(length = 40)
+    private String category;
+
+    /** Front-end route opened when the notification is clicked; null = not clickable (e.g. birthdays). */
+    @Column(length = 255)
+    private String link;
+
+    /** Id of the leave / allowance request this notification is about. */
+    @Column(name = "ref_id")
+    private Long refId;
+
+    /** Stops the same notification being created twice for one recipient (e.g. one birthday per day). */
+    @Column(name = "dedupe_key", length = 120)
+    private String dedupeKey;
+
+    // ── Who the notification is about (used by birthday notifications) ──
+    @Column(name = "subject_name")
+    private String subjectName;
+    @Column(name = "subject_employee_code", length = 60)
+    private String subjectEmployeeCode;
+    @Column(name = "subject_department")
+    private String subjectDepartment;
+    @Column(name = "subject_job_role")
+    private String subjectJobRole;
+
+    /** Set when the person deletes it from their list (kept so it is never re-created). null = not deleted. */
+    @Column(name = "deleted")
+    private Boolean deleted = false;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

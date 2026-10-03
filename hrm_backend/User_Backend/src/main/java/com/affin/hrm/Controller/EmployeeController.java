@@ -1,6 +1,7 @@
 package com.affin.hrm.Controller;
 
 import com.affin.hrm.DTO.*;
+import com.affin.hrm.Model.Employee;
 import com.affin.hrm.service.AuthService;
 import com.affin.hrm.service.LeaveService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -84,6 +85,35 @@ public class EmployeeController {
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Failed to retrieve profile: " + e.getMessage()));
+        }
+    }
+
+    // Own profile (read-only) straight from hrm_db_user.employees — same data HR sees on their profile page
+    @GetMapping("/my-profile")
+    public ResponseEntity<ApiResponse<UserProfileDTO>> getMyProfile() {
+        try {
+            Employee e = authService.getCurrentEmployee();
+            UserProfileDTO dto = new UserProfileDTO();
+            dto.setId(e.getId());
+            dto.setEmployeeId(e.getEmployeeId());
+            dto.setFullName(e.getFullName());
+            dto.setEmail(e.getEmail());
+            dto.setStatus(e.getStatus() != null ? e.getStatus().name() : null);
+            dto.setDesignation(e.getDesignation());
+            dto.setEmploymentType(e.getEmploymentType());
+            dto.setJoiningDate(e.getJoiningDate());
+            if (e.getDepartment() != null) dto.setDepartmentName(e.getDepartment().getName());
+            if (e.getCompany() != null) {
+                dto.setCompanyName(e.getCompany().getCompanyName());
+                dto.setCompanyRegistrationNumber(e.getCompany().getRegistrationNumber());
+            }
+            dto.setDob(e.getDob());
+            dto.setGender(e.getGender() != null ? e.getGender().name() : null);
+            dto.setPhone(e.getPhone());
+            return ResponseEntity.ok(ApiResponse.success(dto, "Profile retrieved"));
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Failed to retrieve profile: " + ex.getMessage()));
         }
     }
 

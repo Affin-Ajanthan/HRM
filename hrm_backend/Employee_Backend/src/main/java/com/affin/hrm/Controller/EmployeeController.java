@@ -20,19 +20,36 @@ import java.util.List;
 @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER', 'EMPLOYEE')")
 public class EmployeeController {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(EmployeeController.class);
+
     private final EmployeeService employeeService;
     private final LeaveService leaveService;
     private final AuthService authService;
     private final PayrollService payrollService;
     private final NotificationRepository notificationRepository;
     private final HrServiceClient hrServiceClient;
+    private final NotificationService notificationService;
+    private final HrNotificationSync hrNotificationSync;
+    private final EmployeeDirectory employeeDirectory;
+    private final com.affin.hrm.repository.LeaveApplicationRepository leaveRepository;
+    private final com.affin.hrm.repository.AllowanceRequestRepository allowanceRequestRepository;
 
     public EmployeeController(EmployeeService employeeService,
                               LeaveService leaveService,
                               AuthService authService,
                               PayrollService payrollService,
                               NotificationRepository notificationRepository,
-                              HrServiceClient hrServiceClient) {
+                              HrServiceClient hrServiceClient,
+                              NotificationService notificationService,
+                              HrNotificationSync hrNotificationSync,
+                              EmployeeDirectory employeeDirectory,
+                              com.affin.hrm.repository.LeaveApplicationRepository leaveRepository,
+                              com.affin.hrm.repository.AllowanceRequestRepository allowanceRequestRepository) {
+        this.employeeDirectory = employeeDirectory;
+        this.leaveRepository = leaveRepository;
+        this.allowanceRequestRepository = allowanceRequestRepository;
+        this.notificationService = notificationService;
+        this.hrNotificationSync = hrNotificationSync;
         this.employeeService = employeeService;
         this.leaveService = leaveService;
         this.authService = authService;
@@ -128,24 +145,94 @@ public class EmployeeController {
     }
 
     // ── Notifications Endpoints ──────────────────────────────────
+    // Used by every role: the header bell, the HR notifications page and the employee dashboard.
 
     @GetMapping("/notifications")
-    public ResponseEntity<ApiResponse<List<Notification>>> getMyNotifications() {
-        try {
-            Employee employee = authService.getCurrentEmployee();
-            List<Notification> notifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(employee.getId());
-            return ResponseEntity.ok(ApiResponse.success(notifications));
-        } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.success(java.util.Collections.emptyList()));
+    public ResponseEntity<ApiResponse<List<NotificationDTO>>> getMyNotifications() {
+        Employee employee = authService.getCurrentEmployee();
+        // Make sure today's birthday notifications exist (runs in the background, once a day per company)
+        if (employee.getCompany() != null) {
+            notificationService.ensureBirthdaysAsync(employee.getCompany().getId());
         }
+        List<Notification> all = notificationRepository.findByUserIdOrderByCreatedAtDesc(employee.getId());
+        // HR: add any pending leave / allowance request that has no notification yet
+        try {
+            if (hrNotificationSync.sync(employee, all)) {
+                all = notificationRepository.findByUserIdOrderByCreatedAtDesc(employee.getId());
+            }
+        } catch (Exception e) {
+            log.error("HR notification sync failed for user {}: {}", employee.getId(), e.toString(), e);
+        }
+        List<NotificationDTO> notifications = all.stream()
+                .filter(n -> !Boolean.TRUE.equals(n.getDeleted()))
+                .map(NotificationService::toDTO).toList();
+        return ResponseEntity.ok(ApiResponse.success(notifications));
+    }
+
+    /**
+     * Self-check for "HR does not see notifications": reports who you are, which HR managers the
+     * system finds for your company, how many requests are pending, and whether creating the missing
+     * notifications works (including the exact database / service error if it does not).
+     */
+    @GetMapping("/notifications/diagnostics")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> notificationDiagnostics() {
+        java.util.Map<String, Object> r = new java.util.LinkedHashMap<>();
+        Employee me = authService.getCurrentEmployee();
+        r.put("me", java.util.Map.of(
+                "userId", me.getId(), "email", String.valueOf(me.getEmail()),
+                "role", String.valueOf(me.getRole()), "status", String.valueOf(me.getStatus())));
+        Long companyId = me.getCompany() != null ? me.getCompany().getId() : null;
+        r.put("companyIdInEmployeeDb", companyId);
+        r.put("companyName", me.getCompany() != null ? me.getCompany().getCompanyName() : null);
+        try {
+            r.put("hrManagersFoundForCompany", employeeDirectory.findByCompanyIdAndRole(companyId, Employee.Role.HR_MANAGER).stream()
+                    .map(e -> e.getId() + " | " + e.getEmail() + " | " + e.getStatus()).toList());
+        } catch (Exception e) { r.put("hrManagersFoundForCompany_ERROR", e.toString()); }
+        try {
+            r.put("pendingLeavesInCompany", leaveRepository.findByCompanyIdAndStatus(companyId, LeaveApplication.LeaveStatus.PENDING).size());
+            r.put("pendingAllowancesInCompany", allowanceRequestRepository.findByCompanyIdAndStatus(companyId, AllowanceRequest.Status.PENDING).size());
+        } catch (Exception e) { r.put("pendingCounts_ERROR", e.toString()); }
+        try {
+            List<Notification> mine = notificationRepository.findByUserIdOrderByCreatedAtDesc(me.getId());
+            r.put("myNotificationRows", mine.size());
+            r.put("myUnread", mine.stream().filter(n -> !Boolean.TRUE.equals(n.getIsRead())).count());
+            r.put("myHiddenByDelete", mine.stream().filter(n -> Boolean.TRUE.equals(n.getDeleted())).count());
+            r.put("syncCreatedNewNotifications", hrNotificationSync.sync(me, mine));
+        } catch (Exception e) { r.put("notifications_ERROR", e.toString()); }
+        return ResponseEntity.ok(ApiResponse.success(r));
     }
 
     @PutMapping("/notifications/{id}/read")
     public ResponseEntity<ApiResponse<Void>> markNotificationAsRead(@PathVariable Long id) {
-        notificationRepository.findById(id).ifPresent(n -> {
-            n.setIsRead(true);
-            notificationRepository.save(n);
-        });
+        Employee employee = authService.getCurrentEmployee();
+        notificationRepository.findById(id)
+                .filter(n -> employee.getId().equals(n.getUserId()))   // only your own notifications
+                .ifPresent(n -> {
+                    n.setIsRead(true);
+                    notificationRepository.save(n);
+                });
         return ResponseEntity.ok(ApiResponse.success(null, "Notification marked as read"));
+    }
+
+    @PutMapping("/notifications/read-all")
+    public ResponseEntity<ApiResponse<Void>> markAllNotificationsAsRead() {
+        Employee employee = authService.getCurrentEmployee();
+        List<Notification> unread = notificationRepository.findByUserIdAndIsReadFalse(employee.getId());
+        unread.forEach(n -> n.setIsRead(true));
+        notificationRepository.saveAll(unread);
+        return ResponseEntity.ok(ApiResponse.success(null, "All notifications marked as read"));
+    }
+
+    @DeleteMapping("/notifications/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteNotification(@PathVariable Long id) {
+        Employee employee = authService.getCurrentEmployee();
+        notificationRepository.findById(id)
+                .filter(n -> employee.getId().equals(n.getUserId()))
+                .ifPresent(n -> {            // soft delete, so it is never re-created
+                    n.setDeleted(true);
+                    notificationRepository.save(n);
+                });
+        return ResponseEntity.ok(ApiResponse.success(null, "Notification deleted"));
     }
 }

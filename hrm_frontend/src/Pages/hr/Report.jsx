@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Users, Clock, CalendarDays, Wallet, UserPlus, AlertTriangle, RefreshCw, Download, Printer,
   ChevronRight, CheckCircle2, Cake, Award, SlidersHorizontal, Info, TrendingUp, TrendingDown,
-  FileSpreadsheet, ChevronDown, Loader2,
+  FileText, ChevronDown, Loader2,
 } from "lucide-react";
 import { PageLayout } from "../../components/PageLayout";
 import { hrApi, userHrApi } from "../../services/api";
@@ -15,7 +15,7 @@ import {
   computeWorkforce, downloadCsv, fmtDate, fmtDayMonth, fmtHours, fmtMoney, fmtMoneyShort, fmtNum, fmtPct, normEmployees,
   normLeaves, rangeText, resolveRange, startOfDay, titleCase, ymd,
 } from "../../utils/reportData";
-import { downloadWorkbook } from "../../utils/exportFile";
+import { downloadReportPdf } from "../../utils/exportPdf";
 import { buildPeriodReport, periodBounds } from "../../utils/periodReport";
 
 const RULES_KEY = "hrReportAttendanceRules";
@@ -256,7 +256,7 @@ const Report = () => {
     }
   };
 
-  // Full report for one month or one year (all sections in one Excel workbook, one sheet per section)
+  // Full report for one month or one year (one PDF: overview page + a section per topic)
   const handlePeriodExport = async () => {
     const value = exportKind === "monthly" ? exportMonth : exportYear;
     setExportNote(null);
@@ -266,12 +266,12 @@ const Report = () => {
     try {
       // The attendance on screen only covers the selected period, so fetch this report's own range
       const res = await hrApi.getAttendanceRange(bounds.from, bounds.to);
-      const { sheets, filename } = buildPeriodReport({
+      const { filename, ...pdfSpec } = buildPeriodReport({
         kind: exportKind, value, attRows: toArr(res), emps, leaves, pay,
         departments: core.departments, rules, today,
         deptLabel: dept === "all" ? "All departments" : dept,
       });
-      downloadWorkbook(filename, sheets);
+      downloadReportPdf(filename, pdfSpec);
       setExportNote({ ok: true, text: `Downloaded ${filename}` });
     } catch (e) {
       setExportNote({ ok: false, text: (e.message || "Could not build the report").replace(/^\d{3}:\s*/, "") });
@@ -720,7 +720,7 @@ const Report = () => {
       <div className="relative">
         <button onClick={() => setExportOpen((o) => !o)} disabled={initialLoading} aria-haspopup="dialog" aria-expanded={exportOpen}
           className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-sm font-semibold transition-colors">
-          <FileSpreadsheet size={15} /> Export report <ChevronDown size={14} className={`transition-transform ${exportOpen ? "rotate-180" : ""}`} />
+          <FileText size={15} /> Export report <ChevronDown size={14} className={`transition-transform ${exportOpen ? "rotate-180" : ""}`} />
         </button>
         {exportOpen && (
           <>
@@ -728,7 +728,7 @@ const Report = () => {
             <div role="dialog" aria-label="Export monthly or yearly report" className="absolute right-0 mt-2 w-80 z-20 bg-white border border-gray-100 rounded-2xl shadow-xl p-4 space-y-4 text-left">
               <div>
                 <p className="text-sm font-semibold text-gray-800">Export a full report</p>
-                <p className="text-xs text-gray-500 mt-0.5">One Excel file with Summary, Departments, Attendance, Leave, Payroll and Workforce sheets.</p>
+                <p className="text-xs text-gray-500 mt-0.5">One easy-to-read PDF with an overview page, then Summary, Departments, Attendance, Leave, Payroll and Workforce sections.</p>
               </div>
               <div className="inline-flex w-full bg-gray-100 rounded-xl p-1 gap-1">
                 {[["monthly", "Monthly"], ["yearly", "Yearly"]].map(([k, label]) => (
@@ -753,7 +753,7 @@ const Report = () => {
               )}
               <button onClick={handlePeriodExport} disabled={exporting}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors">
-                {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} {exporting ? "Building report…" : `Download ${exportKind} report`}
+                {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} {exporting ? "Building report…" : `Download ${exportKind} report (PDF)`}
               </button>
             </div>
           </>

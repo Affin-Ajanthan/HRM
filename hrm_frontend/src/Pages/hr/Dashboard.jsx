@@ -89,7 +89,7 @@ const useToast = () => {
   return { toasts, addToast, removeToast };
 };
 
-const newRole = () => ({ _k: `${Date.now()}-${Math.random()}`, title: "", description: "", minSalary: "", maxSalary: "" });
+const newRole = () => ({ _k: `${Date.now()}-${Math.random()}`, title: "", description: "" });
 
 // ─── DEPARTMENT FORM MODAL ────────────────────────────────────────────────────
 const DeptFormModal = ({ open, onClose, onSave, initDept, initRoles, employees }) => {
@@ -103,7 +103,7 @@ const DeptFormModal = ({ open, onClose, onSave, initDept, initRoles, employees }
     if (initDept) {
       setDept({ name: initDept.name || "", description: initDept.description || "", managerId: initDept.managerId?.toString() || "", managerName: initDept.managerName || "", active: initDept.active !== false });
       setRoles(initRoles?.length
-        ? initRoles.map(r => ({ _k: String(r.id || Math.random()), id: r.id, title: r.title || "", description: r.description || "", minSalary: r.minSalary ?? "", maxSalary: r.maxSalary ?? "" }))
+        ? initRoles.map(r => ({ _k: String(r.id || Math.random()), id: r.id, title: r.title || "", description: r.description || "" }))
         : [newRole()]);
     } else {
       setDept({ name: "", description: "", managerId: "", managerName: "", active: true });
@@ -124,7 +124,6 @@ const DeptFormModal = ({ open, onClose, onSave, initDept, initRoles, employees }
     if (!dept.name.trim()) e.name = "Department name is required";
     roles.forEach((r, i) => {
       if (!r.title.trim()) e[`t${i}`] = "Job title is required";
-      if (r.minSalary && r.maxSalary && +r.minSalary > +r.maxSalary) e[`s${i}`] = "Min cannot exceed max";
     });
     setErrs(e);
     return !Object.keys(e).length;
@@ -140,8 +139,6 @@ const DeptFormModal = ({ open, onClose, onSave, initDept, initRoles, employees }
           ...(r.id ? { id: r.id } : {}),
           title: r.title.trim(),
           description: r.description.trim() || null,
-          minSalary: r.minSalary !== "" ? +r.minSalary : null,
-          maxSalary: r.maxSalary !== "" ? +r.maxSalary : null,
           active: true,
         }))
       );
@@ -150,7 +147,6 @@ const DeptFormModal = ({ open, onClose, onSave, initDept, initRoles, employees }
 
   const isEdit = !!initDept;
   const filled = roles.filter(r => r.title.trim()).length;
-  const fmtLKR = n => n !== "" && n != null ? `LKR ${Number(n).toLocaleString()}` : "";
 
   // Same input/label classes as AddEmployeePanel
   const ic = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white transition";
@@ -275,36 +271,7 @@ const DeptFormModal = ({ open, onClose, onSave, initDept, initRoles, employees }
                     />
                   </div>
 
-                  <div>
-                    <label className={lc}>Min Salary (LKR)</label>
-                    <input
-                      type="number" min="0"
-                      value={role.minSalary}
-                      onChange={e => { setRole(i, "minSalary", e.target.value); clrErr(`s${i}`); }}
-                      placeholder="50,000"
-                      className={errs[`s${i}`] ? icErr : ic}
-                    />
-                  </div>
-
-                  <div>
-                    <label className={lc}>Max Salary (LKR)</label>
-                    <input
-                      type="number" min="0"
-                      value={role.maxSalary}
-                      onChange={e => { setRole(i, "maxSalary", e.target.value); clrErr(`s${i}`); }}
-                      placeholder="200,000"
-                      className={errs[`s${i}`] ? icErr : ic}
-                    />
-                  </div>
                 </div>
-
-                {errs[`s${i}`] && <p className="text-xs text-red-500 mt-2 flex items-center gap-1"><AlertCircle size={10} />{errs[`s${i}`]}</p>}
-                {(role.minSalary !== "" || role.maxSalary !== "") && !errs[`s${i}`] && (
-                  <p className="text-xs text-emerald-600 mt-2 flex items-center gap-1 font-medium">
-                    <CheckCircle size={11} />
-                    {fmtLKR(role.minSalary) || "—"} → {fmtLKR(role.maxSalary) || "—"}
-                  </p>
-                )}
               </div>
             ))}
 
@@ -443,11 +410,6 @@ const DeptDetail = ({ dept, employees, onBack, onEdit, addToast }) => {
                     <div>
                       <p className="text-sm font-semibold text-gray-800">{r.title}</p>
                       {r.description && <p className="text-xs text-gray-400 mt-0.5">{r.description}</p>}
-                      {(r.minSalary || r.maxSalary) && (
-                        <p className="text-xs text-emerald-600 font-medium mt-0.5">
-                          LKR {r.minSalary?.toLocaleString()} – {r.maxSalary?.toLocaleString()}
-                        </p>
-                      )}
                     </div>
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${r.active ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-400"}`}>
@@ -1443,6 +1405,9 @@ const HRDashboard = () => {
             );
           })}
         </ul>
+        <div className="px-3 pb-3 flex-shrink-0">
+          <RoleSwitch mode="hr" sidebar collapsed={!isSidebarOpen} />
+        </div>
         <div className="border-t border-white/10 p-3 space-y-2 flex-shrink-0">
           {isSidebarOpen && (
             <div className="flex items-center gap-3 px-2 py-2">
@@ -1473,7 +1438,6 @@ const HRDashboard = () => {
             <p className="text-xs text-gray-400">HR Management Dashboard</p>
           </div>
           <div className="flex items-center gap-3">
-            <RoleSwitch mode="hr" />
             <button onClick={() => setIsNotificationsOpen(v => !v)} title="Notifications" className="relative p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors">
               <Bell size={20} />
               {unreadCount > 0 && (

@@ -63,23 +63,32 @@ const Hero = () => {
         <p className="text-gray-200 mb-8">
           Streamline workforce operations, employee onboarding, attendance tracking, and payroll with our multi-tenant cloud HRM platform.
         </p>
-        <div className="flex flex-wrap gap-4">
-          <button 
-            onClick={() => setIsRequestModalOpen(true)}
-            className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-emerald-500/30 transition-all duration-300 flex items-center gap-2 transform hover:-translate-y-0.5"
-          >
-            <Building2 size={18} />
-            Request for Your Company
-          </button>
-          <button onClick={() => navigate('/login')}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-xl shadow transition-all duration-300"
-          >
-            Get Started
-          </button>
-          <button className="bg-white/90 hover:bg-white text-gray-800 font-medium px-6 py-3 rounded-xl shadow transition-all duration-300">
-            Learn More
-          </button>
-        </div>
+    
+    <div className="flex flex-wrap gap-4">
+        {/* Request Application */}
+        <button
+          onClick={() => setIsRequestModalOpen(true)}
+          className="w-[200px] bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-blue-500/30 transition-all duration-300 flex items-center justify-center gap-2 transform hover:-translate-y-0.5"
+        >
+        <Building2 size={18} />
+          Request 
+        </button>
+
+        {/* Get Started */}
+        <button
+          onClick={() => navigate('/login')}
+          className="w-[200px] bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-blue-500/30 transition-all duration-300 flex items-center justify-center transform hover:-translate-y-0.5"
+        >
+          Get Started
+        </button>
+
+        {/* Learn More */}
+        <button
+          className="w-[200px] bg-white/90 hover:bg-white text-blue-700 font-semibold px-6 py-3 rounded-xl shadow-lg transition-all duration-300 flex items-center justify-center transform hover:-translate-y-0.5"
+        >
+          Learn More
+        </button>
+    </div>
       </div>
 
       {/* Features Section */}

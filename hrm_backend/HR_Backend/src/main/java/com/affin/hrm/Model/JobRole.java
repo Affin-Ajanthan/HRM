@@ -64,5 +64,8 @@ public class JobRole {
         if (this.active == null) {
             this.active = true;
         }
+        if (this.basicSalary == null) {
+            this.basicSalary = 0.0;
+        }
     }
 }

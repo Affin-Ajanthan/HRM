@@ -64,7 +64,6 @@ const Department = () => {
     jobRoles: [
       {
         jobTitle: "",
-        basicSalary: "",
       },
     ],
   });
@@ -179,7 +178,6 @@ const Department = () => {
       jobRoles: [
         {
           jobTitle: "",
-          basicSalary: "",
         },
       ],
     });
@@ -219,7 +217,6 @@ const Department = () => {
         ...prev.jobRoles,
         {
           jobTitle: "",
-          basicSalary: "",
         },
       ],
     }));
@@ -267,34 +264,16 @@ const Department = () => {
       return;
     }
 
-    // Job roles: a completely empty row is ignored, but a half-filled row is
-    // reported — it is never silently dropped (that is what used to make job
-    // roles "not save" when the salary was left blank).
+    // Job roles: a completely empty row is ignored, while a row with a title
+    // is saved for salary configuration in the dedicated payroll flow.
     const jobRolesToSave = [];
     const seenTitles = new Set();
 
     for (let i = 0; i < formData.jobRoles.length; i++) {
       const role = formData.jobRoles[i];
       const title = (role.jobTitle || "").trim();
-      const salaryText = String(role.basicSalary ?? "").trim();
 
-      if (!title && !salaryText) continue;
-
-      if (!title) {
-        setFormError(`Job Role ${i + 1}: please enter a job title.`);
-        return;
-      }
-
-      if (salaryText === "") {
-        setFormError(`Job Role ${i + 1} (${title}): please enter the basic salary.`);
-        return;
-      }
-
-      const salary = Number(salaryText);
-      if (Number.isNaN(salary) || salary < 0) {
-        setFormError(`Job Role ${i + 1} (${title}): basic salary must be a valid number.`);
-        return;
-      }
+      if (!title) continue;
 
       const key = title.toLowerCase();
       if (seenTitles.has(key)) {
@@ -303,7 +282,7 @@ const Department = () => {
       }
       seenTitles.add(key);
 
-      jobRolesToSave.push({ jobTitle: title, basicSalary: salary });
+      jobRolesToSave.push({ jobTitle: title });
     }
 
     setSaving(true);
@@ -377,14 +356,10 @@ const Department = () => {
               role.jobTitle ||
               role.title ||
               "",
-            basicSalary:
-              role.basicSalary ??
-              "",
           }))
           : [
             {
               jobTitle: "",
-              basicSalary: "",
             },
           ],
     });
@@ -1526,53 +1501,6 @@ const Department = () => {
 
                             </div>
 
-                            {/* Basic Salary */}
-                            <div>
-
-                              <label className="form-label">
-                                Basic Salary
-                                <span className="text-red-500 ml-1">
-                                  *
-                                </span>
-                              </label>
-
-                              <div className="relative">
-
-                                <span className="
-                                  absolute
-                                  left-3.5
-                                  top-1/2
-                                  -translate-y-1/2
-                                  text-xs
-                                  font-semibold
-                                  text-slate-400
-                                ">
-                                  Rs.
-                                </span>
-
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={role.basicSalary}
-                                  onChange={(e) =>
-                                    updateJobRole(
-                                      index,
-                                      "basicSalary",
-                                      e.target.value
-                                    )
-                                  }
-                                  placeholder="150000"
-                                  className="
-                                    form-input
-                                    bg-white
-                                    pl-11
-                                  "
-                                />
-
-                              </div>
-
-                            </div>
-
                           </div>
 
                         </div>
@@ -2318,29 +2246,6 @@ const DepartmentDetailsModal = ({
                         </p>
 
                       </div>
-
-                    </div>
-
-                    <div className="text-right">
-
-                      <p className="
-                        text-xs
-                        text-slate-400
-                      ">
-                        Basic Salary
-                      </p>
-
-                      <p className="
-                        text-sm
-                        font-bold
-                        text-slate-800
-                        mt-0.5
-                      ">
-                        Rs.{" "}
-                        {Number(
-                          role.basicSalary || 0
-                        ).toLocaleString()}
-                      </p>
 
                     </div>
 

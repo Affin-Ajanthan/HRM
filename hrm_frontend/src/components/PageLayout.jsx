@@ -127,6 +127,11 @@ export const PageLayout = ({ role = "employee", activePage, title, subtitle, act
             );
           })}
         </ul>
+        {(role === "hr" || role === "employee") && (
+          <div className="px-3 pb-3 flex-shrink-0">
+            <RoleSwitch mode={role} sidebar collapsed={collapsed} />
+          </div>
+        )}
 
         {/* User + logout */}
         <div className="border-t border-white/10 p-3 space-y-2 flex-shrink-0">
@@ -160,7 +165,6 @@ export const PageLayout = ({ role = "employee", activePage, title, subtitle, act
             {subtitle && <p className="text-xs text-gray-400 hidden md:block">{subtitle}</p>}
           </div>
           <div className="flex items-center gap-3">
-            {(role === "hr" || role === "employee") && <RoleSwitch mode={role} />}
             {actions}
             <button
               onClick={() => setIsNotificationsOpen(v => !v)}

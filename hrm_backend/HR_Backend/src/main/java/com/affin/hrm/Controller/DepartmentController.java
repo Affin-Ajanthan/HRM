@@ -252,7 +252,7 @@ public class DepartmentController {
     /**
      * Makes the department's job roles match the submitted list.
      * Blank titles are ignored and duplicate titles (case-insensitive) are collapsed.
-     * A missing salary is stored as 0.
+     * Salary is managed separately and is only changed when explicitly supplied.
      */
     private void applyJobRoles(Department department, List<JobRoleDTO> submitted) {
         Map<String, JobRoleDTO> wanted = new LinkedHashMap<>();
@@ -276,8 +276,6 @@ public class DepartmentController {
             String key = entry.getKey();
             JobRoleDTO roleDto = entry.getValue();
             String title = roleDto.getJobTitle().trim();
-            double salary = roleDto.getBasicSalary() != null ? roleDto.getBasicSalary() : 0.0;
-
             JobRole role = null;
             for (JobRole existing : department.getJobRoles()) {
                 if (roleTitle(existing).toLowerCase().equals(key)) {
@@ -292,7 +290,9 @@ public class DepartmentController {
             }
             role.setJobTitle(title);
             role.setTitle(title);
-            role.setBasicSalary(salary);
+            if (roleDto.getBasicSalary() != null) {
+                role.setBasicSalary(roleDto.getBasicSalary());
+            }
             role.setActive(true);
         }
     }

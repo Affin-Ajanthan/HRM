@@ -1,11 +1,17 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:flutter/foundation.dart';
 class ApiService {
   // Base URLs for the backend microservices on localhost
-  static const String authBaseUrl = 'http://10.0.2.2:5002/api';     // User_Backend
-  static const String employeeBaseUrl = 'http://10.0.2.2:5006/api'; // Employee_Backend
+  static String get _host {
+    if (kIsWeb) return '127.0.0.1';
+    if (defaultTargetPlatform == TargetPlatform.android) return '10.0.2.2';
+    return '127.0.0.1';
+  }
+
+  static String get authBaseUrl => 'http://$_host:5004/api';     // User_Backend
+  static String get employeeBaseUrl => 'http://$_host:5006/api'; // Employee_Backend
 
   static String? _token;
 
@@ -146,7 +152,7 @@ class ApiService {
   // Cancel Pending Leave (Employee_Backend)
   static Future<Map<String, dynamic>> cancelLeave(int leaveId) async {
     final url = Uri.parse('$employeeBaseUrl/employee/leave/$leaveId/cancel');
-    final response = await http.delete(url, headers: _headers());
+    final response = await http.post(url, headers: _headers());
     return _handleResponse(response);
   }
 }

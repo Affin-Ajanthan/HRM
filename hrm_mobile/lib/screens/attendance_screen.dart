@@ -31,11 +31,20 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final todayResult = await ApiService.getTodayAttendance();
       if (todayResult['success'] == true && todayResult['data'] != null) {
         final data = todayResult['data'];
-        setState(() {
-          _isClockedIn = data['clockInTime'] != null && data['clockOutTime'] == null;
-          _clockInTime = data['clockInTime'];
-          _clockOutTime = data['clockOutTime'];
-        });
+        if (data is List && data.isNotEmpty) {
+          final lastSession = data.last;
+          setState(() {
+            _isClockedIn = lastSession['clockInTime'] != null && lastSession['clockOutTime'] == null;
+            _clockInTime = lastSession['clockInTime'];
+            _clockOutTime = lastSession['clockOutTime'];
+          });
+        } else {
+          setState(() {
+            _isClockedIn = false;
+            _clockInTime = null;
+            _clockOutTime = null;
+          });
+        }
       } else {
         setState(() {
           _isClockedIn = false;

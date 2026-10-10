@@ -60,10 +60,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final todayAtt = await ApiService.getTodayAttendance();
       if (todayAtt['success'] == true && todayAtt['data'] != null) {
         final data = todayAtt['data'];
-        setState(() {
-          _isClockedIn = data['clockInTime'] != null && data['clockOutTime'] == null;
-          _clockInTime = data['clockInTime'];
-        });
+        if (data is List && data.isNotEmpty) {
+          final lastSession = data.last;
+          setState(() {
+            _isClockedIn = lastSession['clockInTime'] != null && lastSession['clockOutTime'] == null;
+            _clockInTime = lastSession['clockInTime'];
+          });
+        }
       }
 
       // 4. Fetch leave balances to calculate stats

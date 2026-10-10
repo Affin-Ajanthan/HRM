@@ -402,6 +402,26 @@ public class AuthService {
                 return userRepo.findByEmailIgnoreCase(normalizedEmail).isPresent();
         }
 
+        public void fixDefaultEmployeeDesignation(String email, String role) {
+                String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
+                employeeRepo.findByEmailIgnoreCase(normalizedEmail).ifPresent(employee -> {
+                        boolean modified = false;
+                        if (employee.getDesignation() == null || employee.getDesignation().isBlank()) {
+                                employee.setDesignation(role.equals("EMPLOYEE") ? "Software Engineer" : "Manager");
+                                modified = true;
+                        }
+                        if (employee.getEmploymentType() == null) {
+                                employee.setEmploymentType(employmentTypeService.resolve("Permanent", employee.getCompany()));
+                                modified = true;
+                        }
+                        if (modified) {
+                                employeeRepo.save(employee);
+                                syncUserTable(employee);
+                                System.out.println("[SEED] Fixed designation/employmentType for: " + email);
+                        }
+                });
+        }
+
         @org.springframework.transaction.annotation.Transactional
         public void syncAllEmployees() {
                  System.out.println("[SYNC] Starting sync of all employees to the legacy users table...");

@@ -40,7 +40,6 @@ public class InternalController {
      * Employee_Backend for the employee's own payslip page. Looked up by email like leave entitlements.
      */
     @GetMapping("/pay-sheet")
-    @Transactional(readOnly = true)
     public ResponseEntity<PaySheetDTO> getPaySheet(@RequestParam String email) {
         return employeeDirectory.findByEmailIgnoreCase(email.trim())
                 .map(e -> ResponseEntity.ok(salaryConfigService.getPaySheet(e)))
@@ -55,7 +54,6 @@ public class InternalController {
      * balances and applications. Employee ids differ between databases, so it is looked up by email.
      */
     @GetMapping("/leave-entitlements")
-    @Transactional(readOnly = true)
     public ResponseEntity<List<LeaveEntitlementDTO>> getLeaveEntitlements(@RequestParam String email) {
         return employeeDirectory.findByEmailIgnoreCase(email.trim())
                 .map(e -> ResponseEntity.ok(leaveConfigService.getEntitlements(e)))

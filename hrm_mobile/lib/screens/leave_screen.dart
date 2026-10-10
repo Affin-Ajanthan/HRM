@@ -12,6 +12,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
   bool _isLoading = true;
   List<dynamic> _balances = [];
   List<dynamic> _leaves = [];
+  List<dynamic> _leaveTypes = [];
 
   // Form states
   final _formKey = GlobalKey<FormState>();
@@ -64,6 +65,20 @@ class _LeaveScreenState extends State<LeaveScreen> {
             final bStart = b['startDate'] ?? '';
             return bStart.compareTo(aStart);
           });
+        });
+      }
+
+      // 3. Fetch leave types
+      final typesResult = await ApiService.getLeaveTypes();
+      if (typesResult['success'] == true && typesResult['data'] != null) {
+        setState(() {
+          _leaveTypes = typesResult['data'] as List;
+          if (_leaveTypes.isNotEmpty) {
+             bool hasCurrent = _leaveTypes.any((t) => t['id'] == _selectedLeaveTypeId);
+             if (!hasCurrent) {
+               _selectedLeaveTypeId = _leaveTypes.first['id'];
+             }
+          }
         });
       }
     } catch (e) {
@@ -248,8 +263,8 @@ class _LeaveScreenState extends State<LeaveScreen> {
   }
 
   String _getLeaveTypeName(dynamic leave) {
-    if (leave['leaveType'] != null && leave['leaveType']['name'] != null) {
-      return leave['leaveType']['name'];
+    if (leave['leaveTypeName'] != null) {
+      return leave['leaveTypeName'];
     }
     final typeId = leave['leaveTypeId'] ?? 1;
     return _leaveTypeNames[typeId] ?? 'Leave';
@@ -276,13 +291,10 @@ class _LeaveScreenState extends State<LeaveScreen> {
             separatorBuilder: (context, index) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
               final bal = _balances[index];
-              final name =
-                  bal['leaveType']?['name'] ??
-                  _leaveTypeNames[bal['leaveTypeId']] ??
-                  'Leave';
-              final limit = bal['entitledDays'] ?? 20.0;
-              final balance = bal['balance'] ?? 0.0;
-              final used = limit - balance;
+              final name = bal['leaveTypeName'] ?? 'Leave';
+              final limit = (bal['totalDays'] ?? 0).toDouble();
+              final used = (bal['usedDays'] ?? 0).toDouble();
+              final balance = (bal['remainingDays'] ?? 0).toDouble();
 
               return Container(
                 width: 160,
@@ -397,37 +409,29 @@ class _LeaveScreenState extends State<LeaveScreen> {
                       const SizedBox(height: 24),
 
                       // Leave Type Dropdown
-                      DropdownButtonFormField<int>(
-                        initialValue: _selectedLeaveTypeId,
-                        decoration: InputDecoration(
-                          labelText: 'Leave Type',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      if (_leaveTypes.isNotEmpty)
+                        DropdownButtonFormField<int>(
+                          initialValue: _selectedLeaveTypeId,
+                          decoration: InputDecoration(
+                            labelText: 'Leave Type',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
+                          items: _leaveTypes.map((type) {
+                            return DropdownMenuItem<int>(
+                              value: type['id'] as int,
+                              child: Text(type['name'] as String),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setModalState(() {
+                                _selectedLeaveTypeId = val;
+                              });
+                            }
+                          },
                         ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 1,
-                            child: Text('Annual Leave'),
-                          ),
-                          DropdownMenuItem(value: 2, child: Text('Sick Leave')),
-                          DropdownMenuItem(
-                            value: 3,
-                            child: Text('Casual Leave'),
-                          ),
-                          DropdownMenuItem(
-                            value: 4,
-                            child: Text('Maternity Leave'),
-                          ),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) {
-                            setModalState(() {
-                              _selectedLeaveTypeId = val;
-                            });
-                          }
-                        },
-                      ),
                       const SizedBox(height: 16),
 
                       // Date Selectors

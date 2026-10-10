@@ -112,8 +112,9 @@ public class AttendanceService {
     }
 
     private void ensureNoOpenSession(Long employeeId, LocalDate date) {
-        attendanceRepository.findFirstByUserIdAndDateAndClockOutTimeIsNullOrderByClockInTimeDesc(employeeId, date)
-                .ifPresent(a -> { throw new BusinessException("Already clocked in. Please clock out first."); });
+        if (!attendanceRepository.findByUserIdAndDateOrderByClockInTimeAsc(employeeId, date).isEmpty()) {
+            throw new BusinessException("You have already clocked in today. Only one clock-in per day is allowed.");
+        }
     }
 
     private Attendance findOpenSession(Long employeeId, LocalDate date) {

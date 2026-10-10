@@ -126,6 +126,13 @@ class ApiService {
     return _handleResponse(response);
   }
 
+  // Fetch Leave Types (Employee_Backend)
+  static Future<Map<String, dynamic>> getLeaveTypes() async {
+    final url = Uri.parse('$employeeBaseUrl/employee/leave/types');
+    final response = await http.get(url, headers: _headers());
+    return _handleResponse(response);
+  }
+
   // Apply Leave (Employee_Backend)
   static Future<Map<String, dynamic>> applyLeave(int leaveTypeId, String startDate, String endDate, String reason) async {
     final url = Uri.parse('$employeeBaseUrl/employee/leave/apply');
